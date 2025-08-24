@@ -1,0 +1,7 @@
+[project]
+name = "videre"
+version = "0.1.0"
+description = "Simple GUI framework based on Pygame"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
