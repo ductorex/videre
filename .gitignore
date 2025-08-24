@@ -12,5 +12,6 @@ wheels/
 .idea
 htmlcov
 .coverage
+coverage.json
 /*.md
 !/README.md
