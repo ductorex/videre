@@ -16,6 +16,9 @@ dependencies = [
     "unicodedataplus>=16.0.0.post1",
 ]
 
+[project.urls]
+Repository = "https://github.com/ductorex/videre"
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
