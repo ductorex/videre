@@ -1,3 +1,7 @@
+"""
+Main script to generate char-support.json
+"""
+
 import json
 import os
 from typing import Self, Sequence
@@ -99,6 +103,7 @@ def generate_char_cov(priority_fonts: Sequence[str] = ()):
 
     selected_fonts = sorted(selected_fonts)
     selected_indices = {name: i for i, name in enumerate(selected_fonts)}
+    assert len(selected_fonts) == len(selected_indices)
     char_to_indice = {c: selected_indices[name] for c, name in char_to_font.items()}
     output = {"fonts": selected_fonts, "characters": char_to_indice}
     with open(os.path.join(FOLDER_FONT, "char-support.json"), "w") as file:

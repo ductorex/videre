@@ -25,12 +25,6 @@ def _font_paths(folder: str) -> list[str]:
 
 FOLDER_FONT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
-PATH_SOURCE_HAN_SANS_JP = _file_path(FOLDER_FONT, "other-ttf/SourceHanSans-VF.ttf")
-PATH_SOURCE_HAN_SANS_TTC = _file_path(FOLDER_FONT, "other-ttc/SourceHanSans-VF.ttf.ttc")
-
-_FOLDER_SOURCE_SANS = os.path.join(FOLDER_FONT, "source-sans", "TTF")
-PATH_SOURCE_SANS_REGULAR = _file_path(_FOLDER_SOURCE_SANS, "SourceSans3-Regular.ttf")
-PATH_SOURCE_SANS_LIGHT = _file_path(_FOLDER_SOURCE_SANS, "SourceSans3-Light.ttf")
 
 _FOLDER_NOTO = os.path.join(FOLDER_FONT, "noto", "unhinted", "TTF")
 _FOLDER_NOTO_SERIF = os.path.join(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
@@ -39,7 +33,9 @@ _FOLDER_NOTO_MONO = os.path.join(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
 _NOTO_FONTS = _font_paths(_FOLDER_NOTO)
 _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
 
+# TODO: NB: Mono font is not yet used. User should be able to use it if he wants.
 PATH_NOTO_MONO = _file_path(_FOLDER_NOTO_MONO, "NotoSansMono-Regular.ttf")
+
 PATH_NOTO_REGULAR = _file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf")
 
 
