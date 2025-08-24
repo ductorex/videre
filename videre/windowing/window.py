@@ -34,7 +34,6 @@ WidgetBase = TypeVar("WidgetBase", bound=Widget)
 
 
 def _handle_exception(on_except, function):
-
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
         try:

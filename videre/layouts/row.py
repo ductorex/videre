@@ -17,7 +17,7 @@ class Row(AbstractControlsLayout):
         vertical_alignment=Alignment.START,
         expand_vertical=True,
         space: int = 0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(controls, **kwargs)
         self.vertical_alignment = vertical_alignment

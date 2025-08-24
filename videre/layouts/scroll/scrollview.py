@@ -275,7 +275,6 @@ class ScrollView(AbstractLayout):
     def _update_content_pos(
         cls, view_length, content_length, content_pos, step_count, scroll_allowed
     ) -> tuple[int, bool]:
-
         if content_length <= view_length:
             content_pos = 0
         elif content_pos > 0:

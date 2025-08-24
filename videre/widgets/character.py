@@ -15,7 +15,7 @@ class Character(Widget):
         strong: bool = False,
         italic: bool = False,
         underline: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.size = size

@@ -23,7 +23,6 @@ def fake_user():
 @pytest.fixture
 def fake_win(image_testing, request):
     class FakeWindow(StepWindow):
-
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
 

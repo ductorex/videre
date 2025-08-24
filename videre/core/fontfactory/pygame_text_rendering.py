@@ -56,7 +56,6 @@ class RenderedText:
 
 
 class PygameTextRendering(PygameUtils):
-
     def __init__(
         self,
         fonts: PygameFontFactory,
@@ -276,9 +275,7 @@ class PygameTextRendering(PygameUtils):
     ) -> tuple[int, int, list[Line[WordTask]]]:
         return self._get_tasks(self._get_words, self._parse_word, text, width, compact)
 
-    def _get_tasks[
-        T
-    ](
+    def _get_tasks[T](
         self,
         get_elements: Callable[[str], Iterable[Any]],
         parse_element: Callable[[Any], T],

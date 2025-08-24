@@ -328,7 +328,7 @@ class TestScrollViewConfiguration:
         scroll.vertical_scroll = False
         fake_win.check("vertical_scroll_false")
 
-        assert scroll.vertical_scroll == False
+        assert scroll.vertical_scroll is False
 
     def test_change_control_content(self, fake_win):
         """Test changing the scrolled control content"""

@@ -37,7 +37,7 @@ class Container(AbstractLayout):
         width: int = None,
         height: int = None,
         square: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__([control or EmptyWidget()], **kwargs)
         self.border = border

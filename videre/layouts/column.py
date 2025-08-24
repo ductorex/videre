@@ -17,7 +17,7 @@ class Column(AbstractControlsLayout):
         horizontal_alignment=Alignment.START,
         expand_horizontal=True,
         space: int = 0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(controls, **kwargs)
         self.expand_horizontal = expand_horizontal

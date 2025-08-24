@@ -38,7 +38,7 @@ class Text(Widget):
         italic: bool = False,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self._rendered: RenderedText | None = None

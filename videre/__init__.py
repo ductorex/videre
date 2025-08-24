@@ -1,5 +1,12 @@
 from .colors import Colors, parse_color
-from .core.constants import *
+from .core.constants import (
+    MouseButton,
+    Alignment,
+    TextAlign,
+    TextWrap,
+    Side,
+    WINDOW_FPS,
+)
 from .core.sides.border import Border
 from .core.sides.padding import Padding
 from .dialog import Dialog

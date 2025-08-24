@@ -179,7 +179,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     # We have only 1 line, without wrap,
     # so line contains only 1 word embedding full string.
     word = ti._text._rendered.lines[0].elements[0]
-    h, e, l1, l2, o1, comma, space, w, o2, r, l, d, exclamation = word.tasks
+    h, e, l1, l2, o1, comma, space, w, o2, r, l3, d, exclamation = word.tasks
     assert comma.el == ","
 
     # Click

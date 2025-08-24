@@ -51,7 +51,7 @@ class ContextButton(AbstractButton):
         self,
         text: str,
         actions: Sequence[str | tuple[str, ActionFunction]] = (),
-        **kwargs
+        **kwargs,
     ):
         kwargs.pop("on_click", None)
         super().__init__(text, **kwargs)

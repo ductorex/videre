@@ -22,7 +22,10 @@ def test_render_text(wrap_words):
     tr = PygameTextRendering(ff, height_delta=height_delta)
 
     _function = functools.partial(tr.render_text, wrap_words=wrap_words)
-    function = lambda *a, **k: _function(*a, **k).surface
+
+    def function(*a, **k):
+        return _function(*a, **k).surface
+
     ff_render_text = functools.partial(function, compact=True)
 
     s = ff_render_text("")

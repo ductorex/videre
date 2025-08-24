@@ -74,7 +74,7 @@ class Demo:
     @on_demo("context button")
     def on_context_button(self, *args):
         total = 10
-        actions = [f"Item {i+1}/{total}" for i in range(total)]
+        actions = [f"Item {i + 1}/{total}" for i in range(total)]
 
         return videre.Column(
             [videre.ContextButton("context button", actions=actions)],
