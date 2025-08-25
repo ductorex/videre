@@ -91,6 +91,7 @@ def generate_char_cov(priority_fonts: Sequence[str] = (FONT_NOTO_REGULAR.name,))
         char_to_font[c] = selected_name
         selected_fonts.add(selected_name)
 
+    print(f"Selected fonts: {len(selected_fonts)} / {len(fonts)}")
     selected_fonts = sorted(selected_fonts)
     selected_indices = {name: i for i, name in enumerate(selected_fonts)}
     assert len(selected_fonts) == len(selected_indices)
