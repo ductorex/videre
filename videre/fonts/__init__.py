@@ -94,12 +94,35 @@ class FontProvider:
 
     __slots__ = ("_font_name_to_path", "_fonts", "_characters")
 
-    def __init__(self):
-        self._font_name_to_path: dict[str, str] = get_fonts()
+    @classmethod
+    def _load_char_support(cls):
+        # Currently unused
         with open(os.path.join(FOLDER_FONT, "char-support.json")) as file:
             char_support = json.load(file)
-            self._fonts: list[str] = char_support["fonts"]
-            self._characters: dict[str, int] = char_support["characters"]
+        fonts: list[str] = char_support["fonts"]
+        characters: dict[str, int] = char_support["characters"]
+        return fonts, characters
+
+    @classmethod
+    def _load_font_to_characters(cls):
+        with open(os.path.join(FOLDER_FONT, "font-to-characters.json")) as file:
+            font_to_characters: dict[str, str] = json.load(file)
+        return cls._parse_font_to_characters(font_to_characters)
+
+    @classmethod
+    def _parse_font_to_characters(cls, font_to_characters: dict[str, str]):
+        fonts: list[str] = sorted(font_to_characters.keys())
+        char_to_indice: dict[str, int] = {}
+        font_to_indice = {font: indice for indice, font in enumerate(fonts)}
+        for font, characters in font_to_characters.items():
+            indice = font_to_indice[font]
+            for char in characters:
+                char_to_indice[char] = indice
+        return fonts, char_to_indice
+
+    def __init__(self):
+        self._font_name_to_path: dict[str, str] = get_fonts()
+        self._fonts, self._characters = self._load_font_to_characters()
 
     def get_font_info(self, character: str) -> tuple[str, str]:
         if character in self._characters:
