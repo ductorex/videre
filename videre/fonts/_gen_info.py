@@ -2,7 +2,7 @@ import json
 import os.path
 from collections import Counter
 
-from videre.fonts import FOLDER_FONT, FONT_BABEL_STONE, FONT_NOTO_REGULAR
+from videre.fonts import FOLDER_FONT, FONT_BABEL_STONE, FONT_NOTO_REGULAR, get_fonts
 from videre.fonts._gen_char_cov import _load_fonts
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.unicode_utils import Unicode
@@ -176,9 +176,12 @@ def _clean_fonts(coverage: dict[str, list | set], old_mandatory: set[str]):
     return new_mandatory, {**coverage, **out_cov}
 
 
-def main():
-    check_unicode_coverage()
-
-
-if __name__ == "__main__":
-    main()
+def check_characters_coverage(characters: str):
+    font_table = get_fonts()
+    fonts = _load_fonts(font_table)
+    for c in characters:
+        block = Unicode.block(c)
+        print(f"Checking coverage for: {block}: {c}")
+        for font in fonts:
+            if font.supports(c):
+                print(f"\t{font.name}")

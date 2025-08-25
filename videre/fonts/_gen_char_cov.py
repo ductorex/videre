@@ -14,17 +14,6 @@ from videre.fonts.font_utils import FontUtils
 from videre.fonts.unicode_utils import Unicode
 
 
-def check_characters_coverage(characters: str):
-    font_table = get_fonts()
-    fonts = _load_fonts(font_table)
-    for c in characters:
-        block = Unicode.block(c)
-        print(f"Checking coverage for: {block}: {c}")
-        for font in fonts:
-            if font.supports(c):
-                print(f"\t{font.name}")
-
-
 class CharFontPriority:
     __slots__ = ("rank", "cov")
 

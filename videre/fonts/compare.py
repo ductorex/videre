@@ -50,6 +50,5 @@ def main():
             print(f"[{i + 1}/{nb_common}] {char}: {value_font_1} != {value_font_2}")
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
