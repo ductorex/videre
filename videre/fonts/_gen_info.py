@@ -33,11 +33,10 @@ def save_fonts(fonts: dict[str, str]):
 
 def check_font():
     fu = FontUtils(FONT_NOTO_REGULAR.path)
-    support = fu.coverage()
     blocks = Unicode.blocks()
     print("Font:", fu.name)
-    for block, cov in support.items():
-        a = len(cov["coverage"])
+    for block, cov in fu.coverage().items():
+        a = len(cov)
         b = len(blocks[block])
         assert a <= b, (block, a, b)
         print(block, a, "/", b, get_percent(a, b), "%")

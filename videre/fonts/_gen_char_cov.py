@@ -21,11 +21,11 @@ class CharFontPriority:
         self,
         name: str,
         character: str,
-        block_to_covlen: dict[str, int],
+        block_to_cov: dict[str, list[str]],
         font_to_rank: dict[str, int],
     ):
-        self.rank = font_to_rank.get(name)
-        self.cov = block_to_covlen[Unicode.block(character)]
+        self.rank: int = font_to_rank.get(name)
+        self.cov: int = len(block_to_cov[Unicode.block(character)])
 
     def __lt__(self, other: Self) -> bool:
         if self.rank is None and other.rank is None:
@@ -57,23 +57,24 @@ def _load_fonts(font_table: dict[str, str] | None = None) -> list[FontUtils]:
     return fonts
 
 
-def generate_char_cov(priority_fonts: Sequence[str] = ()):
+def generate_char_cov(priority_fonts: Sequence[str] = (FONT_NOTO_REGULAR.name,)):
     font_to_rank = {name: order for order, name in enumerate(priority_fonts)}
-    font_to_block_cov_len: dict[str, dict[str, int]] = {}
+    font_to_block_to_cov: dict[str, dict[str, list[str]]] = {}
 
     fonts = _load_fonts()
     char_to_fonts = {}
     for font in fonts:
-        block_cov_len: dict[str, int] = {}
-        coverage = font.coverage(join=False)
-        for block, block_coverage in coverage.items():
-            covered_chars = block_coverage["coverage"]
+        block_to_covlen: dict[str, int] = {}
+        coverage = font.coverage()
+        font_to_block_to_cov[font.name] = coverage
+        for block, covered_chars in coverage.items():
             for c in covered_chars:
                 char_to_fonts.setdefault(c, []).append(font.name)
-            block_cov_len[block] = len(covered_chars)
-        font_to_block_cov_len[font.name] = block_cov_len
-    print("Characters:", len(list(Unicode.characters())))
-    print("Covered:", len(char_to_fonts))
+            block_to_covlen[block] = len(covered_chars)
+    nb_unicode = len(list(Unicode.characters()))
+    nb_covered = len(char_to_fonts)
+    print("Characters:", nb_unicode)
+    print("Covered:", nb_covered, f"({round(nb_covered * 100 / nb_unicode, 2)} %)")
 
     char_to_font: dict[str, str] = {}
     selected_fonts = set()
@@ -84,7 +85,7 @@ def generate_char_cov(priority_fonts: Sequence[str] = ()):
             selected_name = sorted(
                 names,
                 key=lambda name: CharFontPriority(
-                    name, c, font_to_block_cov_len[name], font_to_rank
+                    name, c, font_to_block_to_cov[name], font_to_rank
                 ),
             )[0]
         char_to_font[c] = selected_name
@@ -101,7 +102,7 @@ def generate_char_cov(priority_fonts: Sequence[str] = ()):
 
 def main():
     # check_characters_coverage("☐☑✅✓✔🗸🗹")
-    generate_char_cov(priority_fonts=[FONT_NOTO_REGULAR.name])
+    generate_char_cov()
 
 
 if __name__ == "__main__":

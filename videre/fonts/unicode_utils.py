@@ -5,6 +5,13 @@ import unicodedataplus
 from unicodedata import category, unidata_version
 
 
+Cc = "Cc"  # control characters
+Co = "Co"  # private use
+Cs = "Cs"  # surrogates
+Cn = "Cn"  # non-character or reserved
+UNPRINTABLE = (Cc, Co, Cs, Cn)
+
+
 class Unicode:
     VERSION = unidata_version
 
@@ -16,16 +23,8 @@ class Unicode:
         """
         for i in range(sys.maxunicode + 1):
             c = chr(i)
-            cat = category(c)
-            if cat == "Cc":  # control characters
-                continue
-            if cat == "Co":  # private use
-                continue
-            if cat == "Cs":  # surrogates
-                continue
-            if cat == "Cn":  # non-character or reserved
-                continue
-            yield c
+            if category(c) not in UNPRINTABLE:
+                yield c
 
     @classmethod
     def _printable(cls, c: str) -> bool:
@@ -44,12 +43,13 @@ class Unicode:
             return False
         return True
 
-    _UNPRINTABLE = {"Cc", "Co", "Cs", "Cn"}
-
     @classmethod
     def printable(cls, c: str) -> bool:
-        # return category(c) not in cls._UNPRINTABLE
-        return category(c) not in ("Cc", "Co", "Cs", "Cn")
+        """
+        2024/06/09
+        https://stackoverflow.com/a/68992289
+        """
+        return category(c) not in UNPRINTABLE
 
     @classmethod
     def block(cls, c: str) -> str:
