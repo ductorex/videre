@@ -2,7 +2,6 @@ import io
 import pathlib
 
 import pytest
-from PIL import Image
 
 from videre import Picture
 from videre.testing.utils import IMAGE_EXAMPLE
@@ -19,10 +18,8 @@ class SrcProvider:
         return self._path
 
     def bytes(self) -> bytes:
-        output = io.BytesIO()
-        image = Image.open(self._string)
-        image.save(output, format=image.format)
-        return output.getvalue()
+        with open(self._string, mode="rb") as f:
+            return f.read()
 
     def bytearray(self):
         return bytearray(self.bytes())
@@ -31,7 +28,7 @@ class SrcProvider:
         return io.BytesIO(self.bytes())
 
 
-def test_image_format(image_testing):
+def test_testing_image(image_testing):
     """Just check if testing image is correctly saved."""
     image_testing(SrcProvider().file_like())
 

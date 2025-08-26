@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import BinaryIO
+from PIL import Image
 
 import pygame
 
@@ -42,10 +43,19 @@ class Picture(Widget):
 
     def _src_to_surface(self):
         src = self.src
-        if isinstance(src, (bytes, bytearray)):
-            src = io.BytesIO(src)
         try:
-            return pygame.image.load(src).convert_alpha()
+            if isinstance(src, (str, Path)):
+                surface = pygame.image.load(src)
+            else:
+                if isinstance(src, (bytes, bytearray)):
+                    src = io.BytesIO(src)
+                assert isinstance(src, io.BytesIO)
+                image = Image.open(src)
+                surface = pygame.image.frombytes(
+                    image.tobytes(), image.size, image.mode
+                )
+            return surface.convert_alpha()
+
         except Exception as exc:
             print(f"Cannot load an image: {type(exc).__name__}: {exc}", file=sys.stderr)
             return None
