@@ -40,3 +40,6 @@ include = ["videre"]
 
 [tool.hatch.build.targets.wheel]
 include = ["videre"]
+
+[tool.pytest.ini_options]
+markers = ["win_params: arguments for fake_win.__init__"]
