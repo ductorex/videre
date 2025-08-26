@@ -8,6 +8,9 @@ from videre import Picture
 from videre.testing.utils import IMAGE_EXAMPLE
 
 
+IMAGE_RGB_MODE = "RGB"
+
+
 class SrcProvider:
     _string = IMAGE_EXAMPLE
     _path = pathlib.Path(_string)
@@ -21,6 +24,8 @@ class SrcProvider:
     def bytes(self) -> bytes:
         output = io.BytesIO()
         image = Image.open(self._string)
+        if image.mode != IMAGE_RGB_MODE:
+            image = image.convert(IMAGE_RGB_MODE)
         image.save(output, format=image.format)
         return output.getvalue()
 
@@ -29,6 +34,11 @@ class SrcProvider:
 
     def file_like(self):
         return io.BytesIO(self.bytes())
+
+
+def test_image_format(image_testing):
+    """Just check if testing image is correctly saved."""
+    image_testing(SrcProvider().file_like())
 
 
 @pytest.mark.parametrize("src", ["string", "path", "bytes", "bytearray", "file_like"])
