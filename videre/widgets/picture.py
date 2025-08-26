@@ -44,16 +44,11 @@ class Picture(Widget):
     def _src_to_surface(self):
         src = self.src
         try:
-            if isinstance(src, (str, Path)):
-                surface = pygame.image.load(src)
-            else:
-                if isinstance(src, (bytes, bytearray)):
-                    src = io.BytesIO(src)
-                assert isinstance(src, io.BytesIO)
-                image = Image.open(src)
-                surface = pygame.image.frombytes(
-                    image.tobytes(), image.size, image.mode
-                )
+            if isinstance(src, (bytes, bytearray)):
+                src = io.BytesIO(src)
+            assert isinstance(src, (str, Path, io.BytesIO))
+            image = Image.open(src)
+            surface = pygame.image.frombytes(image.tobytes(), image.size, image.mode)
             return surface.convert_alpha()
 
         except Exception as exc:
