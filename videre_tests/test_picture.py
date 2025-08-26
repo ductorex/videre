@@ -8,9 +8,6 @@ from videre import Picture
 from videre.testing.utils import IMAGE_EXAMPLE
 
 
-IMAGE_RGB_MODE = "RGB"
-
-
 class SrcProvider:
     _string = IMAGE_EXAMPLE
     _path = pathlib.Path(_string)
@@ -24,8 +21,6 @@ class SrcProvider:
     def bytes(self) -> bytes:
         output = io.BytesIO()
         image = Image.open(self._string)
-        if image.mode != IMAGE_RGB_MODE:
-            image = image.convert(IMAGE_RGB_MODE)
         image.save(output, format=image.format)
         return output.getvalue()
 
