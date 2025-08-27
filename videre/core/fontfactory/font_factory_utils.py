@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Self, TypeAlias, TypeVar
 
 import pygame
 
@@ -101,15 +101,11 @@ class Line[T: AbstractTextElement]:
         return info.x + info.width
 
 
-class CharsLine(Line[CharTask]):
-    __slots__ = ()
-
-
 class WordsLine(Line[WordTask]):
     __slots__ = ()
 
     @classmethod
-    def from_chars(cls, lines: list[Line[CharTask]], keep_spaces=False):
+    def from_chars(cls, lines: list[Line[CharTask]], *, keep_spaces=False):
         if keep_spaces:
             word_lines = [WordsLine._chars_to_word(line) for line in lines]
         else:
@@ -138,13 +134,19 @@ class WordsLine(Line[WordTask]):
             words.append(word)
         words_line = cls(chars_line.y)
         if words:
-            x0 = words[0][0].x
+            # Move words to left so that
+            # first word start at position 0 in the line
+            line_first_char_x = words[0][0].x
             for word in words:
-                w_x = word[0].x
-                x = w_x - x0
-                tasks = [ch.at(ch.x - w_x) for ch in word]
+                word_first_char_x = word[0].x
+                x = word_first_char_x - line_first_char_x
+                # Move chars to left so that
+                # first char start at position 0 in the word
+                tasks = [ch.at(ch.x - word_first_char_x) for ch in word]
+                # Compute word width using last char info
                 last_ch = tasks[-1]
                 w = last_ch.x + last_ch.width
+                # Create word object
                 words_line.add(WordTask(w, x, tasks))
         return words_line
 

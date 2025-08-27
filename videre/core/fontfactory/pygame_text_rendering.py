@@ -109,7 +109,9 @@ class PygameTextRendering(PygameUtils):
     ) -> RenderedText:
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
-            lines = WordsLine.from_chars(char_lines, align == TextAlign.NONE)
+            lines = WordsLine.from_chars(
+                char_lines, keep_spaces=align == TextAlign.NONE
+            )
         else:
             new_width, height, lines = self._get_word_tasks(text, width, compact)
         surface = self._render_word_lines(
@@ -133,13 +135,13 @@ class PygameTextRendering(PygameUtils):
             pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
         for line in lines:
             self._draw_underline(line, out, color)
-            y = line.y
-            s = line.x
+            ly = line.y
+            lx = line.x
             for word in line.elements:
-                x = s + word.x
+                wx = lx + word.x
                 for ch in word.tasks:
                     ch.font.render_to(
-                        out, (x + ch.x, y), ch.el, size=size, fgcolor=color
+                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=color
                     )
         return out
 
