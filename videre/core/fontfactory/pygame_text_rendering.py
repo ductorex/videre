@@ -344,6 +344,7 @@ class PygameTextRendering(PygameUtils):
         font = self._get_font(c)
 
         bounds = font.get_rect(c, size=self._size)
+        # todo: should instead be: width = bounds.width ?
         width = bounds.x + bounds.width
 
         (metric,) = font.get_metrics(c, size=self._size)
