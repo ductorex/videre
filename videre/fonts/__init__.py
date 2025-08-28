@@ -110,7 +110,9 @@ class FontProvider:
         return cls._parse_font_to_characters(font_to_characters)
 
     @classmethod
-    def _parse_font_to_characters(cls, font_to_characters: dict[str, str]):
+    def _parse_font_to_characters(
+        cls, font_to_characters: dict[str, str]
+    ) -> tuple[list[str], dict[str, int]]:
         fonts: list[str] = sorted(font_to_characters.keys())
         char_to_indice: dict[str, int] = {}
         font_to_indice = {font: indice for indice, font in enumerate(fonts)}
