@@ -36,5 +36,28 @@ def main():
         print(f"TTFont advance for {char} (pixels):", width_px)
 
 
+def main_check_word_rendering():
+    pygame.init()
+    size_points = 14
+    characters = "xil"
+    pygame_font = pygame.freetype.Font(FONT_NOTO_REGULAR.path, size=size_points)
+    pygame_font.origin = True
+    pygame_font.oblique = True
+    char_bounds = []
+    char_advances = []
+    for ch in characters:
+        bounds = pygame_font.get_rect(ch, size=size_points)
+        metrics, = pygame_font.get_metrics(ch, size=size_points)
+        advance = metrics[4] if metrics else 0
+        char_bounds.append(bounds)
+        char_advances.append(advance)
+        print(ch, "bound:", bounds, "advance:", advance)
+    full_bounds = pygame_font.get_rect(characters, size=size_points)
+    print(f"Full bounds: x={full_bounds.x} y={full_bounds.y} "
+          f"width={full_bounds.width} height={full_bounds.height}")
+    print("Total widths:", sum(bound.width for bound in char_bounds))
+    print("total advance", sum(char_advances))
+
+
 if __name__ == "__main__":
-    main()
+    main_check_word_rendering()
