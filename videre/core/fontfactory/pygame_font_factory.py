@@ -11,12 +11,12 @@ from videre.fonts.unicode_utils import Unicode
 class PygameFontFactory(PygameUtils):
     __slots__ = ("_prov", "_name_to_font", "_size", "_origin", "_base_font")
 
-    def __init__(self, size=14, origin=True):
+    def __init__(self, size=14):
         super().__init__()
         self._prov = FontProvider()
         self._name_to_font = {}
         self._size = size
-        self._origin = origin
+        self._origin = True
         self._base_font = self.get_font(" ")
 
     @property
