@@ -47,14 +47,16 @@ def main_check_word_rendering():
     char_advances = []
     for ch in characters:
         bounds = pygame_font.get_rect(ch, size=size_points)
-        metrics, = pygame_font.get_metrics(ch, size=size_points)
+        (metrics,) = pygame_font.get_metrics(ch, size=size_points)
         advance = metrics[4] if metrics else 0
         char_bounds.append(bounds)
         char_advances.append(advance)
         print(ch, "bound:", bounds, "advance:", advance)
     full_bounds = pygame_font.get_rect(characters, size=size_points)
-    print(f"Full bounds: x={full_bounds.x} y={full_bounds.y} "
-          f"width={full_bounds.width} height={full_bounds.height}")
+    print(
+        f"Full bounds: x={full_bounds.x} y={full_bounds.y} "
+        f"width={full_bounds.width} height={full_bounds.height}"
+    )
     print("Total widths:", sum(bound.width for bound in char_bounds))
     print("total advance", sum(char_advances))
 
