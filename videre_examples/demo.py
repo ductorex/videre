@@ -51,6 +51,10 @@ class Demo:
 
     on_demo = OnEvent[str]()
 
+    @on_demo("text input")
+    def on_text_input(self, *args):
+        return videre.Container(videre.TextInput(), padding=videre.Padding.all(20))
+
     @on_demo("clipboard")
     def demo_clipboard(self, *args):
         sentence = "☐ ☑ ✅ ✓ ✔ 🗸 🗹 ◉ ○"
@@ -80,10 +84,6 @@ class Demo:
             [videre.ContextButton("context button", actions=actions)],
             expand_horizontal=False,
         )
-
-    @on_demo("text input")
-    def on_text_input(self, *args):
-        return videre.Container(videre.TextInput(), padding=videre.Padding.all(20))
 
     @on_demo("nested_scrollview")
     def on_nested_scrollview(self, *args):

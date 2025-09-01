@@ -371,6 +371,11 @@ class Window(PygameUtils, Clipboard):
                 self._focus.handle_focus_out()
             self._focus = focus
 
+    def focus_out(self, widget: Widget):
+        if self._focus is widget:
+            self._focus.handle_focus_out()
+            self._focus = None
+
     @on_event(pygame.MOUSEBUTTONUP)
     def _on_mouse_button_up(self, event: Event):
         button = MouseButton(event.button)
@@ -436,8 +441,14 @@ class Window(PygameUtils, Clipboard):
 
     @on_event(pygame.KEYDOWN)
     def _on_keydown(self, event: Event):
+        kentry = KeyboardEntry(event)
         if self._focus:
-            self._focus.handle_keydown(KeyboardEntry(event))
+            self._focus.handle_keydown(kentry)
+        elif kentry.escape:
+            if self._context:
+                self.clear_context()
+            elif self.has_fancybox():
+                self.clear_fancybox()
 
     @on_event(CustomEvents.CALLBACK_EVENT)
     def _on_custom_callback(self, event: Event):

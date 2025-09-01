@@ -1,7 +1,7 @@
 from pygame.event import Event
 
 from videre import MouseButton
-from videre.core.events import MouseEvent
+from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.widgets.widget import Widget
 
@@ -46,6 +46,11 @@ class EventPropagator:
     @classmethod
     def handle_focus_in(cls, widget: Widget) -> Widget | None:
         return cls._handle(widget, Widget.handle_focus_in.__name__)
+
+    @classmethod
+    def handle_keydown(cls, widget: Widget, kentry: KeyboardEntry) -> Widget | None:
+        # Currently unused
+        return cls._handle(widget, Widget.handle_keydown.__name__, kentry)
 
     @classmethod
     def handle_mouse_over(cls, widget: Widget, event: MouseEvent):

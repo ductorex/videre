@@ -1,4 +1,5 @@
 from videre.colors import Colors
+from videre.core.events import KeyboardEntry
 from videre.core.pygame_utils import Color, Surface
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 

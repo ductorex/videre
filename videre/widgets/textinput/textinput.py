@@ -314,7 +314,9 @@ class TextInput(AbstractLayout):
 
     def handle_keydown(self, key: KeyboardEntry):
         self._debug("key_down")
-        if key.backspace or key.delete:
+        if key.escape:
+            self.get_window().focus_out(self)
+        elif key.backspace or key.delete:
             selection = self._get_selection()
             if selection and selection[0] != selection[1]:
                 # Delete selected text
