@@ -44,8 +44,8 @@ class _Action(Div):
 
 
 class ContextButton(AbstractButton):
-    __slots__ = ("_context", "_actions")
-    __wprops__ = {}
+    __slots__ = ("_context",)
+    __wprops__ = {"actions"}
 
     def __init__(
         self,
@@ -56,9 +56,23 @@ class ContextButton(AbstractButton):
         kwargs.pop("on_click", None)
         super().__init__(text, **kwargs)
         self._context: Widget | None = None
-        self._actions: Sequence[tuple[str, ActionFunction | None]] = [
-            (action, None) if isinstance(action, str) else action for action in actions
-        ]
+        self.actions = actions
+
+    @property
+    def actions(self) -> Sequence[tuple[str, ActionFunction | None]]:
+        return list(self._get_wprop("actions"))
+
+    @actions.setter
+    def actions(
+        self, actions: Sequence[str | tuple[str, ActionFunction | None]]
+    ) -> None:
+        self._set_wprop(
+            "actions",
+            [
+                (action, None) if isinstance(action, str) else action
+                for action in actions
+            ],
+        )
 
     def handle_mouse_down(self, event: MouseEvent):
         if event.button_left:
@@ -75,13 +89,11 @@ class ContextButton(AbstractButton):
         self._close_context()
 
     def _open_context(self):
-        if not self.disabled and self._actions:
+        actions = self.actions
+        if not self.disabled and actions:
             width = self._compute_width(self.get_window())
             self._context = Column(
-                [
-                    _Action(self, name, callback, width)
-                    for name, callback in self._actions
-                ]
+                [_Action(self, name, callback, width) for name, callback in actions]
             )
             self.get_window().set_context(self, self._context, y=-1)
 
@@ -94,7 +106,7 @@ class ContextButton(AbstractButton):
         text_width = max(
             (
                 Text(action[0]).render(window, None, None).get_width()
-                for action in self._actions
+                for action in self.actions
             ),
             default=0,
         )
