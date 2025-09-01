@@ -25,6 +25,7 @@ class Widget:
         "_rc",
         "_parent",
         "_children_pos",
+        "data",
     )
 
     def __init__(
@@ -33,6 +34,7 @@ class Widget:
         parent: Self | None = None,
         key: str | None = None,
         name: str | None = None,
+        data: Any = None,
     ):
         super().__init__()
 
@@ -49,6 +51,7 @@ class Widget:
         self._transient_state = {}
         self._surface: Surface | None = None
         self._rc = 0
+        self.data = data
 
         self._children_pos = PositionMapping()
         self._parent: Widget | None = None
