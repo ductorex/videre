@@ -12,6 +12,9 @@ from videre.layouts.row import Row
 from videre.widgets.button import Button
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
+from videre.core.constants import Alignment
+from videre.layouts.container import Container
+from videre.colors import Colors
 
 
 class Fancybox(AbstractLayout):
@@ -29,7 +32,13 @@ class Fancybox(AbstractLayout):
 
         if not isinstance(title, Text):
             title = Text(title)
-        title.weight = 1
+        title.strong = True
+
+        title_wrapper = Container(
+            title,
+            horizontal_alignment=Alignment.CENTER,
+            weight=1,
+        )
 
         formatted_buttons = []
         for button in buttons:
@@ -39,7 +48,7 @@ class Fancybox(AbstractLayout):
 
         dialog = Column(
             [
-                Row([title, button_close]),
+                Row([title_wrapper, button_close], vertical_alignment=Alignment.CENTER),
                 Container(content, weight=1),
                 *([Row(formatted_buttons)] if formatted_buttons else ()),
             ],
