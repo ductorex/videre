@@ -15,7 +15,7 @@ https://en.wikipedia.org/wiki/Check_mark
 🮱 	U+1FBB1 	INVERSE CHECK MARK
 """
 
-from videre.layouts.divutils.div import OnClickType
+from videre.layouts.div.div import OnClickType
 from videre.widgets.abstract_check_button import AbstractCheckButton
 
 

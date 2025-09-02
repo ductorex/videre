@@ -14,8 +14,8 @@ from .gradient import Gradient
 from .layouts.animator import Animator
 from .layouts.column import Column
 from .layouts.container import Container
-from videre.layouts.divutils.div import Div
-from videre.layouts.divutils.styling import Style, StyleDef
+from videre.layouts.div.div import Div
+from videre.layouts.div.styling import Style, StyleDef
 from .layouts.form import Form
 from .layouts.radiogroup import RadioGroup
 from .layouts.row import Row

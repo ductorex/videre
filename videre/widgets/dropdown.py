@@ -7,7 +7,7 @@ from videre.core.pygame_utils import Surface
 from videre.core.sides.border import Border
 from videre.layouts.column import Column
 from videre.layouts.container import Container
-from videre.layouts.divutils.div import Div
+from videre.layouts.div.div import Div
 from videre.layouts.row import Row
 from videre.widgets.text import Text
 

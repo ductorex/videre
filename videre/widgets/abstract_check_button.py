@@ -1,7 +1,7 @@
 from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.events import MouseButton
-from videre.layouts.divutils.div import Div
+from videre.layouts.div.div import Div
 from videre.widgets.character import Character
 
 

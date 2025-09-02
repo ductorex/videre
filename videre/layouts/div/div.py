@@ -7,7 +7,7 @@ from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.layouts.container import Container
 from videre.layouts.control_layout import ControlLayout
-from videre.layouts.divutils.styling import Style, StyleDef, StyleType
+from videre.layouts.div.styling import Style, StyleDef, StyleType
 from videre.widgets.widget import Widget
 
 OnClickType: TypeAlias = Callable[[Widget], None]
