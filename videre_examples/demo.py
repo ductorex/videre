@@ -1,7 +1,7 @@
 import logging
 
 import videre
-from videre.layouts.div import Div
+from videre.layouts.divutils.div import Div
 from videre.testing.utils import LOREM_IPSUM
 from videre.windowing.windowutils import OnEvent
 

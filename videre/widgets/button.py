@@ -1,4 +1,4 @@
-from videre.layouts.div import OnClickType
+from videre.layouts.divutils.div import OnClickType
 from videre.widgets.abstract_button import AbstractButton
 
 

@@ -1,10 +1,11 @@
 from typing import Callable, Self, Sequence, TypeAlias
 
+from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.events import MouseEvent
 from videre.core.sides.border import Border
 from videre.layouts.column import Column
-from videre.layouts.div import Div, Style, StyleDef
+from videre.layouts.divutils.div import Div
 from videre.widgets.abstract_button import AbstractButton
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget

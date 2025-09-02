@@ -1,7 +1,7 @@
 from videre import StyleDef
 from videre.colors import Colors
 from videre.core.sides.border import Border
-from videre.layouts.div import Div, OnClickType
+from videre.layouts.divutils.div import Div, OnClickType
 from videre.widgets.text import Text
 
 

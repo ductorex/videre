@@ -1,12 +1,13 @@
 from typing import Any, Self
 
+from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.events import MouseEvent
 from videre.core.pygame_utils import Surface
 from videre.core.sides.border import Border
 from videre.layouts.column import Column
 from videre.layouts.container import Container
-from videre.layouts.div import Div, Style, StyleDef
+from videre.layouts.divutils.div import Div
 from videre.layouts.row import Row
 from videre.widgets.text import Text
 

@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 import pytest
 import videre
+from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
-from videre.layouts.div import Style, StyleDef
 
 
 def test_div_simple(snap_win):
