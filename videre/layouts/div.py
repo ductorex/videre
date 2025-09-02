@@ -162,7 +162,7 @@ class Div(ControlLayout):
 
     def handle_click(self, button: MouseButton):
         if button == MouseButton.BUTTON_LEFT and self._on_click is not None:
-            self._on_click(self)
+            self.get_window().call_now(self._on_click, self)
 
     def _get_style(self) -> Style:
         if self._down:

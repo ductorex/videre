@@ -599,13 +599,13 @@ class TestWindowEvents:
 
     @patch("videre.windowing.window.Window._post_event")
     def test_run_later_method(self, mock_post):
-        """Test run_later method creates callback event"""
+        """Test call_later method creates callback event"""
 
         def test_func(a, b, key=None):
             pass
 
         # Test
-        self.window.run_later(test_func, "arg1", "arg2", key="value")
+        self.window.call_later(test_func, "arg1", "arg2", key="value")
 
         # Verify callback event was posted
         mock_post.assert_called_once()
@@ -672,7 +672,7 @@ def test_run_async(fake_win):
 
     function.called = 0
 
-    fake_win.run_async(function, 6, 7)
+    fake_win.call_async(function, 6, 7)
     # This render() will push call event into manual events queue
     fake_win.render()
     # This render() will handle manual events queue
@@ -694,7 +694,7 @@ def test_run_async_with_error(fake_win):
 
     function.called = 0
 
-    fake_win.run_async(function, 6, 7)
+    fake_win.call_async(function, 6, 7)
     # This render() will push call event into manual events queue
     fake_win.render()
     # This render() will handle manual events queue

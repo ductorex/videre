@@ -53,7 +53,9 @@ class Demo:
 
     @on_demo("text input")
     def on_text_input(self, *args):
-        return videre.Container(videre.TextInput(), padding=videre.Padding.all(20))
+        return videre.Container(
+            videre.TextInput("hello !"), padding=videre.Padding.all(20)
+        )
 
     @on_demo("clipboard")
     def demo_clipboard(self, *args):

@@ -69,6 +69,7 @@ class Window(PygameUtils, Clipboard):
         "_text_cursor",
         "_default_cursor",
         "data",
+        "_handled_exceptions",
     )
 
     def __init__(
@@ -79,6 +80,7 @@ class Window(PygameUtils, Clipboard):
         background: ColorDef = None,
         font_size=14,
         hide=False,
+        alert_on_exceptions: Sequence[type[Exception]] = (),
     ):
         super().__init__()
         self._exit_code = 0
@@ -112,6 +114,8 @@ class Window(PygameUtils, Clipboard):
 
         self._default_cursor = pygame.mouse.get_cursor()
         self._text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
+
+        self._handled_exceptions = tuple(alert_on_exceptions)
 
         self.data = None
 
@@ -254,19 +258,33 @@ class Window(PygameUtils, Clipboard):
     def notify(self, notification: Any):
         self._post_event(CustomEvents.notification_event(notification))
 
-    def run_later(self, function, *args, **kwargs):
+    def call_later(self, function, *args, **kwargs):
         wrapper = _handle_exception(self._force_quit, function)
         self._post_event(CustomEvents.callback_event(wrapper, *args, **kwargs))
 
-    def run_async(self, function, *args, **kwargs):
+    def call_async(self, function, *args, **kwargs):
         wrapper = _handle_exception(self._force_quit, function)
         self._post_event(
             CustomEvents.callback_event(launch_thread, wrapper, *args, **kwargs)
         )
 
-    def _force_quit(self, exception: Exception = None):
-        self._exit_code = -int(exception is not None)
-        self._post_event(pygame.event.Event(pygame.QUIT))
+    def call_now(self, function, *args, **kwargs):
+        wrapper = _handle_exception(self._force_quit, function)
+        return wrapper(*args, **kwargs)
+
+    def _force_quit(self, exc: Exception):
+        if self._handled_exceptions and isinstance(exc, self._handled_exceptions):
+            self._force_alert(exc)
+            return True
+        else:
+            self._exit_code = -int(exc is not None)
+            self._post_event(pygame.event.Event(pygame.QUIT))
+            return False
+
+    def _force_alert(self, exception: Exception):
+        self.clear_context()
+        self.clear_fancybox()
+        self._post_event(CustomEvents.callback_event(self.error, exception))
 
     def _post_event(self, event: Event):
         with self._lock:
@@ -280,6 +298,8 @@ class Window(PygameUtils, Clipboard):
         expand_buttons=True,
     ):
         assert not self._fancybox
+        if self._focus:
+            self.focus_out(self._focus)
         self._fancybox = Fancybox(content, title, buttons, expand_buttons)
         self.__refresh_controls()
 
@@ -300,6 +320,12 @@ class Window(PygameUtils, Clipboard):
                 vertical_alignment=Alignment.CENTER,
             ),
             title,
+        )
+
+    def error(self, exception: Exception):
+        self.alert(
+            f"{type(exception).__name__}: {exception}",
+            title=f"Error: {type(exception).__name__}",
         )
 
     def set_context(self, relative: Widget, control: Widget, x=0, y=0):
