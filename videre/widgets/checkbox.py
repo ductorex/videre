@@ -37,15 +37,12 @@ class Checkbox(AbstractCheckButton):
         prev = self._get_checked()
         if prev != value:
             self._set_checked(value)
-            if self._on_click:
-                self._on_click(self)
+            self.click()
 
     @property
     def on_change(self) -> OnClickType | None:
-        return self._on_click
+        return self._get_on_click()
 
     @on_change.setter
     def on_change(self, callback: OnClickType | None):
-        if self._on_click is not callback:
-            self._on_click = callback
-            self.update()
+        self._set_on_click(callback)

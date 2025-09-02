@@ -46,6 +46,14 @@ class Div(ControlLayout):
         (container,) = self._controls()
         return container
 
+    def _get_on_click(self) -> OnClickType | None:
+        return self._on_click
+
+    def _set_on_click(self, callback: OnClickType | None):
+        if self._on_click is not callback:
+            self._on_click = callback
+            self.update()
+
     def handle_mouse_enter(self, event: MouseEvent):
         self._hover = True
         self._set_style()
