@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 import videre
 from videre.core.constants import Alignment
 from videre.core.sides.border import Border

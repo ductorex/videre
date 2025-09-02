@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pygame
 import pytest
-
 from videre.core.constants import MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.widgets.widget import Widget

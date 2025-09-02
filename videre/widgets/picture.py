@@ -3,10 +3,9 @@ import logging
 import sys
 from pathlib import Path
 from typing import BinaryIO
-from PIL import Image
 
 import pygame
-
+from PIL import Image
 from videre.core.pygame_utils import Surface
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget

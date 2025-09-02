@@ -1,9 +1,7 @@
-from fontTools.ttLib import TTFont
-
-from videre.fonts import FONT_NOTO_REGULAR
-
 import pygame
 import pygame.freetype
+from fontTools.ttLib import TTFont
+from videre.fonts import FONT_NOTO_REGULAR
 
 
 def main():

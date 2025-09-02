@@ -1,5 +1,4 @@
 import pygame.event
-
 from videre.core.constants import MouseButton
 from videre.core.events import MouseEvent
 from videre.core.mouse_ownership import MouseOwnership

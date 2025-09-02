@@ -1,4 +1,5 @@
 import os
+
 from videre.fonts import _file_path
 
 FOLDER_FONT = os.path.abspath(os.path.join(os.path.dirname(__file__)))

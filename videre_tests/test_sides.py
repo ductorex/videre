@@ -1,10 +1,9 @@
 import pytest
-
 from videre.colors import Colors
 from videre.core.constants import Side
+from videre.core.sides.abstract_sides import AbstractSides
 from videre.core.sides.border import Border
 from videre.core.sides.margin import Margin
-from videre.core.sides.abstract_sides import AbstractSides
 
 
 def test_border_all_1():

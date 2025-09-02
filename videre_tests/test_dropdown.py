@@ -1,5 +1,4 @@
 import pytest
-
 import videre
 from videre.widgets.dropdown import _OptionWidget
 

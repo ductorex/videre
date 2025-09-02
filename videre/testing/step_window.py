@@ -1,7 +1,6 @@
 import io
 
 import pygame
-
 from videre.windowing.window import Window
 
 

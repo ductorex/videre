@@ -1,7 +1,6 @@
 import functools
 
 import pytest
-
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 

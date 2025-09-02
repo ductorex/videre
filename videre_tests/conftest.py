@@ -1,7 +1,6 @@
 import io
 
 import pytest
-
 from videre.testing.fake_user import FakeUser
 from videre.testing.step_window import StepWindow
 from videre.testing.utils import LD

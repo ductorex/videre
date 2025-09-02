@@ -1,6 +1,5 @@
 import pygame
 import pytest
-
 from videre import Text
 from videre.core.constants import MouseButton
 from videre.core.events import KeyboardEntry

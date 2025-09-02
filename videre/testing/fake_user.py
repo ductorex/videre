@@ -1,6 +1,5 @@
 import pygame
 from pygame.event import Event
-
 from videre.widgets.widget import Widget
 
 

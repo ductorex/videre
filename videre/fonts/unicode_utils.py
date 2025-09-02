@@ -1,9 +1,8 @@
 import sys
 from typing import Sequence
-
-import unicodedataplus
 from unicodedata import category, unidata_version
 
+import unicodedataplus
 
 Cc = "Cc"  # control characters
 Co = "Co"  # private use

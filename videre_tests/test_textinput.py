@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import pygame.mouse
 import pytest
-
 import videre
 
 

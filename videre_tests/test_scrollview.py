@@ -1,6 +1,5 @@
 import pygame
 import pytest
-
 import videre
 from videre import Column, Container, ScrollView, Text
 from videre.testing.utils import HD

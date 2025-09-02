@@ -1,6 +1,5 @@
 import pygame
 import pygame.gfxdraw
-
 from videre.core.constants import Alignment
 from videre.core.pygame_utils import Surface
 from videre.core.sides.border import Border

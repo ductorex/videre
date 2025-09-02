@@ -8,7 +8,6 @@ from typing import Self, Sequence
 
 from fontTools.ttLib import TTCollection
 from tqdm import tqdm
-
 from videre.fonts import FOLDER_FONT, FONT_NOTO_REGULAR, get_fonts
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.unicode_utils import Unicode

@@ -1,7 +1,6 @@
 import pygame
 import pygame.gfxdraw
 from cursword import get_next_word_end_position, get_previous_word_start_position
-
 from videre.colors import Colors
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_text_rendering import RenderedText

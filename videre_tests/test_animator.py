@@ -204,7 +204,7 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_frame_counting(self, fake_win):
         """Test AbstractAnimation frame counting"""
-        from videre.widgets.abstractanimation import AbstractAnimation, FPS
+        from videre.widgets.abstractanimation import FPS, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def __init__(self, **kwargs):
@@ -244,7 +244,7 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_default_framing(self, fake_win):
         """Test AbstractAnimation with default FPS framing"""
-        from videre.widgets.abstractanimation import AbstractAnimation, FPS
+        from videre.widgets.abstractanimation import FPS, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def _on_frame(self):
@@ -264,7 +264,7 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_custom_framing(self, fake_win):
         """Test AbstractAnimation with custom FPR framing"""
-        from videre.widgets.abstractanimation import AbstractAnimation, FPR
+        from videre.widgets.abstractanimation import FPR, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def __init__(self, **kwargs):

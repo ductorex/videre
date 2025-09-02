@@ -1,10 +1,10 @@
 import bisect
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
-import logging
-from videre.core.fontfactory.pygame_text_rendering import RenderedText
 
+from videre.core.fontfactory.pygame_text_rendering import RenderedText
 
 logger = logging.getLogger(__name__)
 

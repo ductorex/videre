@@ -1,6 +1,5 @@
 import pygame
 import pygame.gfxdraw
-
 from videre.colors import Colors
 from videre.core.pygame_utils import Surface
 from videre.widgets.widget import Widget

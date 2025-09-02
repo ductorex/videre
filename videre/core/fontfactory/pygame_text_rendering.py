@@ -6,14 +6,13 @@ import pygame
 import pygame.freetype
 import pygame.gfxdraw
 import pygame.transform
-
 from videre.colors import Colors
 from videre.core.constants import TextAlign
 from videre.core.fontfactory.font_factory_utils import (
     CharTask,
     Line,
-    WordTask,
     WordsLine,
+    WordTask,
     align_words,
 )
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory

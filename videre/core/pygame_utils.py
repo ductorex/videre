@@ -1,6 +1,5 @@
 import pygame
 
-
 Color = pygame.Color
 Surface = pygame.Surface
 Event = pygame.event.Event
