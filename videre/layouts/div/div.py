@@ -79,10 +79,7 @@ class Div(ControlLayout):
 
     def click(self) -> None:
         if self._on_click is not None:
-            self._click()
-
-    def _click(self):
-        self.get_window().call_now(self._on_click, self)
+            self.get_window().call_now(self._on_click, self)
 
     def _get_style(self) -> Style:
         if self._down:

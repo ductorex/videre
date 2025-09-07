@@ -7,6 +7,7 @@ class FancyCloseButton(Button):
     __wprops__ = {}
     __slots__ = ()
 
-    def _click(self):
-        super()._click()
-        self.get_window().clear_fancybox()
+    def click(self) -> None:
+        if not self.disabled:
+            super().click()
+            self.get_window().clear_fancybox()
