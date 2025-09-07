@@ -33,3 +33,4 @@ from .widgets.radio import Radio
 from .widgets.text import Text
 from .widgets.textinput.textinput import TextInput
 from .windowing.window import Window
+from .windowing.fancyclosebutton import FancyCloseButton

@@ -46,9 +46,9 @@ class AbstractButton(Div):
     def text(self, text: str):
         self._text.text = text.strip()
 
-    def click(self):
+    def click(self) -> None:
         if not self.disabled:
-            return super().click()
+            super().click()
 
     def _set_style(self):
         super()._set_style()
