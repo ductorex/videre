@@ -24,6 +24,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "pytest-regressions>=2.8.2",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.12.10",
 ]
 
