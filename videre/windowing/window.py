@@ -12,7 +12,7 @@ from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 from videre.core.pygame_utils import Color, PygameUtils, Surface
-from videre.core.utils import launch_thread
+from videre.core.utils import OnClick, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
 from videre.widgets.text import Text
@@ -20,6 +20,7 @@ from videre.widgets.widget import Widget
 from videre.windowing.context import Context
 from videre.windowing.event_propagator import EventPropagator
 from videre.windowing.fancybox import Fancybox
+from videre.windowing.fancyclosebutton import FancyCloseButton
 from videre.windowing.windowlayout import WindowLayout
 from videre.windowing.windowutils import OnEvent, WidgetByKeyGetter
 
@@ -325,6 +326,25 @@ class Window(PygameUtils, Clipboard):
         self.alert(
             f"{type(exception).__name__}: {exception}",
             title=f"Error: {type(exception).__name__}",
+        )
+
+    def confirm(
+        self,
+        confirmation: str | Widget,
+        title: str | Text = "Confirm",
+        on_confirm: Callable[[], None] | None = None,
+    ):
+        if isinstance(confirmation, str):
+            confirmation = Text(confirmation)
+        if isinstance(title, str):
+            title = Text(title)
+        self.set_fancybox(
+            confirmation,
+            title,
+            buttons=[
+                FancyCloseButton(title.text, on_click=OnClick(on_confirm)),
+                FancyCloseButton("cancel"),
+            ],
         )
 
     def set_context(self, relative: Widget, control: Widget, x=0, y=0):
