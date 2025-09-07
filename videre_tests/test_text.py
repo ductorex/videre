@@ -5,8 +5,8 @@ import videre
 from videre.testing.utils import LOREM_IPSUM, SD
 
 NB_LINES = (0, 1, 2)
-WRAP = list(videre.TextWrap)
-ALIGN = list(videre.TextAlign)
+WRAP = [None] + list(videre.TextWrap)
+ALIGN = [None] + list(videre.TextAlign)
 
 
 @pytest.mark.parametrize("nb_lines,wrap", itertools.product(NB_LINES, WRAP))
@@ -19,7 +19,7 @@ def test_text(nb_lines, wrap, fake_win):
 
 @pytest.mark.parametrize(
     "align,wrap",
-    itertools.product([al for al in ALIGN if al != videre.TextAlign.NONE], WRAP),
+    itertools.product(ALIGN, WRAP),
 )
 @pytest.mark.win_params({"background": videre.Colors.yellow, **SD})
 def test_text_wrap(align, wrap, fake_win):

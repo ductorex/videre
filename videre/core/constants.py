@@ -16,7 +16,6 @@ class MouseButton(Enum):
 
 @unique
 class TextWrap(Enum):
-    NONE = 0
     CHAR = 1
     WORD = 2
     # WORD_THEN_CHAR = 3  # todo
@@ -24,7 +23,6 @@ class TextWrap(Enum):
 
 @unique
 class TextAlign(Enum):
-    NONE = 0
     LEFT = 1
     CENTER = 2
     RIGHT = 3

@@ -31,8 +31,8 @@ class Text(Widget):
         text="",
         size=0,
         height_delta=2,
-        wrap=TextWrap.NONE,
-        align=TextAlign.NONE,
+        wrap: TextWrap | None = None,
+        align: TextAlign | None = None,
         color: ColorDef = None,
         strong: bool = False,
         italic: bool = False,
@@ -75,19 +75,19 @@ class Text(Widget):
         return self._get_wprop("height_delta")
 
     @property
-    def wrap(self) -> TextWrap:
+    def wrap(self) -> TextWrap | None:
         return self._get_wprop("wrap")
 
     @wrap.setter
-    def wrap(self, wrap: TextWrap):
+    def wrap(self, wrap: TextWrap | None):
         self._set_wprop("wrap", wrap)
 
     @property
-    def align(self) -> TextAlign:
+    def align(self) -> TextAlign | None:
         return self._get_wprop("align")
 
     @align.setter
-    def align(self, align: TextAlign):
+    def align(self, align: TextAlign | None):
         self._set_wprop("align", align)
 
     @property
@@ -156,8 +156,8 @@ class Text(Widget):
             text=self.text,
             color=self.color,
             wrap_words=(wrap == TextWrap.WORD),
-            width=(None if wrap == TextWrap.NONE else width),
-            align=(TextAlign.NONE if wrap == TextWrap.NONE else self.align),
+            width=(None if wrap is None else width),
+            align=(None if wrap is None else self.align),
             selection=self.selection,
         )
         return self._rendered.surface

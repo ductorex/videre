@@ -150,8 +150,10 @@ class WordsLine(Line[WordTask]):
         return words_line
 
 
-def align_words(lines: list[Line[WordTask]], width: int, align=TextAlign.LEFT) -> None:
-    if align == TextAlign.NONE or align == TextAlign.LEFT:
+def align_words(
+    lines: list[Line[WordTask]], width: int, align: TextAlign | None = TextAlign.LEFT
+) -> None:
+    if align is None or align == TextAlign.LEFT:
         return
     if align == TextAlign.JUSTIFY:
         justify_words(lines, width)

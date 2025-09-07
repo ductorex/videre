@@ -102,15 +102,13 @@ class PygameTextRendering(PygameUtils):
         *,
         compact=True,
         color: Color = None,
-        align=TextAlign.LEFT,
-        wrap_words=False,
+        align: TextAlign | None = TextAlign.LEFT,
+        wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> RenderedText:
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
-            lines = WordsLine.from_chars(
-                char_lines, keep_spaces=align == TextAlign.NONE
-            )
+            lines = WordsLine.from_chars(char_lines, keep_spaces=align is None)
         else:
             new_width, height, lines = self._get_word_tasks(text, width, compact)
         surface = self._render_word_lines(
@@ -123,7 +121,7 @@ class PygameTextRendering(PygameUtils):
         width: int,
         height: int,
         lines: list[Line[WordTask]],
-        align: TextAlign,
+        align: TextAlign | None,
         color: Color,
         selection: tuple[int, int] | None = None,
     ) -> Surface:
@@ -149,7 +147,7 @@ class PygameTextRendering(PygameUtils):
         width: int,
         height: int,
         lines: list[Line[WordTask]],
-        align: TextAlign,
+        align: TextAlign | None,
         color: Color,
         selection: tuple[int, int] | None = None,
     ) -> Surface:
