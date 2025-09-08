@@ -7,6 +7,7 @@ from .core.constants import (
     Side,
     WINDOW_FPS,
 )
+from .core.utils import Procedure
 from .core.sides.border import Border
 from .core.sides.padding import Padding
 from .dialog import Dialog

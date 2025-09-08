@@ -575,7 +575,7 @@ class TestWindowEvents:
     def test_on_notification_no_callback(self):
         """Test _on_notification event handler with no callback set"""
         # No notification callback set
-        assert self.window._notification_callback is None
+        assert not self.window._notif_cbks
 
         # Create notification event
         notification_event = CustomEvents.notification_event("Test notification")

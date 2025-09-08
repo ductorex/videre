@@ -12,7 +12,7 @@ from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 from videre.core.pygame_utils import Color, PygameUtils, Surface
-from videre.core.utils import OnClick, launch_thread
+from videre.core.utils import Procedure, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
 from videre.widgets.text import Text
@@ -63,7 +63,7 @@ class Window(PygameUtils, Clipboard):
         "_context",
         "_fonts",
         "_hide",
-        "_notification_callback",
+        "_notif_cbks",
         "_lock",
         "_nb_frames",
         "_text_cursor",
@@ -109,7 +109,7 @@ class Window(PygameUtils, Clipboard):
 
         self._fonts = PygameFontFactory(size=font_size)
 
-        self._notification_callback: NotificationCallback | None = None
+        self._notif_cbks: list[NotificationCallback] = []
         self._nb_frames = 0
 
         self._default_cursor = pygame.mouse.get_cursor()
@@ -342,7 +342,7 @@ class Window(PygameUtils, Clipboard):
             confirmation,
             title,
             buttons=[
-                FancyCloseButton(title.text, on_click=OnClick(on_confirm)),
+                FancyCloseButton(title.text, on_click=Procedure(on_confirm)),
                 FancyCloseButton("cancel"),
             ],
         )
@@ -374,7 +374,21 @@ class Window(PygameUtils, Clipboard):
         )
 
     def set_notification_callback(self, callback: NotificationCallback | None):
-        self._notification_callback = callback
+        if callback is None:
+            self.clear_notification_callbacks()
+        else:
+            self.add_notification_callback(callback)
+
+    def add_notification_callback(self, callback: NotificationCallback):
+        if callback not in self._notif_cbks:
+            self._notif_cbks.append(callback)
+
+    def remove_notification_callback(self, callback: NotificationCallback):
+        if callback in self._notif_cbks:
+            self._notif_cbks.remove(callback)
+
+    def clear_notification_callbacks(self):
+        self._notif_cbks.clear()
 
     def get_element_by_key(self, key: str) -> WidgetBase | None:
         results = self._layout.collect_matches(WidgetByKeyGetter(key))
@@ -519,5 +533,5 @@ class Window(PygameUtils, Clipboard):
 
     @on_event(CustomEvents.NOTIFICATION_EVENT)
     def _on_notification(self, event: Event):
-        if self._notification_callback:
-            self._notification_callback(event.notification)
+        for callback in list(self._notif_cbks):
+            callback(event.notification)
