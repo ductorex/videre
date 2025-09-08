@@ -100,7 +100,7 @@ class ContextButton(AbstractButton):
 
     def _close_context(self):
         if self._context:
-            self.get_window().clear_context()
+            self.get_window().clear_context(self)
             self._context = None
 
     def _compute_width(self, window):

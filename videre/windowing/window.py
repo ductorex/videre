@@ -105,7 +105,7 @@ class Window(PygameUtils, Clipboard):
 
         self._controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
-        self._context = None
+        self._context: Context | None = None
 
         self._fonts = PygameFontFactory(size=font_size)
 
@@ -351,9 +351,27 @@ class Window(PygameUtils, Clipboard):
         self._context = Context(relative, control, x=x, y=y)
         self.__refresh_controls()
 
-    def clear_context(self):
-        self._context = None
-        self.__refresh_controls()
+    def clear_context(self, relative: Widget | None = None) -> bool:
+        """
+        Clear current context.
+        Return True if context was cleared, False otherwise.
+        """
+        if self.has_context(relative):
+            self._context = None
+            self.__refresh_controls()
+            return True
+        return False
+
+    def has_context(self, relative: Widget | None = None) -> bool:
+        """
+        Return True if a context is currently active.
+        :param relative: optional relative.
+            If given, return True only if
+            current context is attached to this relative.
+        """
+        return self._context is not None and (
+            relative is None or self._context.relative is relative
+        )
 
     def set_notification_callback(self, callback: NotificationCallback | None):
         self._notification_callback = callback

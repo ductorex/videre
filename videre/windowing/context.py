@@ -22,6 +22,10 @@ class Context(AbstractLayout):
         self._y = y
         super().__init__([container], **kwargs)
 
+    @property
+    def relative(self) -> Widget:
+        return self._relative
+
     def handle_focus_in(self) -> bool | Self:
         return self._relative.handle_focus_in()
 
