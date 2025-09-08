@@ -486,10 +486,10 @@ class Window(PygameUtils, Clipboard):
 
     @on_event(pygame.KEYDOWN)
     def _on_keydown(self, event: Event):
-        kentry = KeyboardEntry(event)
+        keyboard_entry = KeyboardEntry(event)
         if self._focus:
-            self._focus.handle_keydown(kentry)
-        elif kentry.escape:
+            self._focus.handle_keydown(keyboard_entry)
+        elif keyboard_entry.escape:
             if self._context:
                 self.clear_context()
             elif self.has_fancybox():
