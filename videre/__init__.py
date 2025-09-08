@@ -34,3 +34,4 @@ from .widgets.text import Text
 from .widgets.textinput.textinput import TextInput
 from .windowing.window import Window
 from .windowing.fancyclosebutton import FancyCloseButton
+from .widgets.submit_button import SubmitButton
