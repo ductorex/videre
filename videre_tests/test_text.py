@@ -17,10 +17,7 @@ def test_text(nb_lines, wrap, fake_win):
     fake_win.check()
 
 
-@pytest.mark.parametrize(
-    "align,wrap",
-    itertools.product(ALIGN, WRAP),
-)
+@pytest.mark.parametrize("align,wrap", itertools.product(ALIGN, WRAP))
 @pytest.mark.win_params({"background": videre.Colors.yellow, **SD})
 def test_text_wrap(align, wrap, fake_win):
     fake_win.controls = [videre.Text(LOREM_IPSUM, wrap=wrap, align=align)]

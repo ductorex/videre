@@ -121,10 +121,7 @@ class CursorCharPosEvent(_CursorEvent):
             0, bisect.bisect_right(word.tasks, pos, key=lambda chr: chr.pos) - 1
         )
         char = word.tasks[char_pos]
-        if pos not in (
-            char.pos,
-            char.pos + 1,
-        ):
+        if pos not in (char.pos, char.pos + 1):
             logger.error(
                 f"Unexpected char pos {char.pos} for cursor pos {pos}; char: {char}"
             )

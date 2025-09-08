@@ -32,9 +32,7 @@ class Fancybox(AbstractLayout):
         title.strong = True
 
         title_wrapper = Container(
-            title,
-            horizontal_alignment=Alignment.CENTER,
-            weight=1,
+            title, horizontal_alignment=Alignment.CENTER, weight=1
         )
 
         formatted_buttons = []

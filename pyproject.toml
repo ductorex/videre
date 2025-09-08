@@ -32,6 +32,10 @@ dev = [
 # Do not complain about unused imports in __init__ files.
 "__init__.py" = ["F401"]
 
+[tool.ruff.format]
+# Collapse lines even if they contain commas
+skip-magic-trailing-comma = true
+
 [build-system]
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
