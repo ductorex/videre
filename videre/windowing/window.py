@@ -339,7 +339,11 @@ class Window(PygameUtils, Clipboard):
         if isinstance(title, str):
             title = Text(title)
         self.set_fancybox(
-            confirmation,
+            Container(
+                confirmation,
+                horizontal_alignment=Alignment.CENTER,
+                vertical_alignment=Alignment.CENTER,
+            ),
             title,
             buttons=[
                 FancyCloseButton(title.text, on_click=Procedure(on_confirm)),

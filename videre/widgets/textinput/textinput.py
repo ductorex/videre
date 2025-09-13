@@ -6,6 +6,8 @@ from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_text_rendering import RenderedText
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_utils import Surface
+from videre.core.sides.border import Border
+from videre.core.sides.padding import Padding
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.widgets.text import Text
@@ -24,10 +26,14 @@ class TextInput(AbstractLayout):
     __size__ = 1
     __capture_mouse__ = True
 
-    def __init__(self, text="", size=0, **kwargs):
+    def __init__(self, text: str = "", size: int = 0, border: bool = True, **kwargs):
         # self._text = _InputText(text="Hello, 炎炎ノ消防隊: ", size=80)
         self._text = Text(text=text, size=size)
-        self._container = Container(self._text, background_color=(240, 240, 240))
+        border = Border.all(1) if border else None
+        padding = Padding.all(4) if border else None
+        self._container = Container(
+            self._text, background_color=(240, 240, 240), border=border, padding=padding
+        )
         super().__init__([self._container], **kwargs)
         self._cursor_event: CursorCharPosEvent | None = None
         self._selecting_pivot: int | None = None
@@ -259,11 +265,14 @@ class TextInput(AbstractLayout):
                         self._text.text = out_text
                         self._set_cursor(in_pos + len(inserted))
 
-    @classmethod
-    def _get_cursor_rect(cls, cursor: CursorDefinition, rendered: RenderedText):
+    def _get_cursor_rect(self, cursor: CursorDefinition, rendered: RenderedText):
+        container = self._container
+        margin = container.padding + container.border.margin()
         cursor_width = 2
         cursor_height = rendered.font_sizes.ascender + rendered.font_sizes.descender
-        return pygame.Rect(cursor.x, cursor.y, cursor_width, cursor_height)
+        return pygame.Rect(
+            margin.left + cursor.x, margin.top + cursor.y, cursor_width, cursor_height
+        )
 
     def draw(self, window, width: int = None, height: int = None) -> Surface:
         text_surface = self._control.render(window, width, height)
