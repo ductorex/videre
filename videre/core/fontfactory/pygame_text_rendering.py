@@ -102,7 +102,7 @@ class PygameTextRendering(PygameUtils):
         *,
         compact=True,
         color: Color = None,
-        align: TextAlign | None = TextAlign.LEFT,
+        align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> RenderedText:
