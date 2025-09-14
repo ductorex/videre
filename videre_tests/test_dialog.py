@@ -63,5 +63,6 @@ def test_dialog_methods_are_references():
 
     assert videre.Dialog.select_directory is filedial.select_directory
     assert videre.Dialog.select_file_to_open is filedial.select_file_to_open
-    assert videre.Dialog.select_many_files is filedial.select_many_files_to_open
     assert videre.Dialog.select_file_to_save is filedial.select_file_to_save
+    # Except this function
+    assert videre.Dialog.select_many_files is not filedial.select_many_files_to_open

@@ -321,6 +321,12 @@ class PygameTextRendering(PygameUtils):
             new_width = max(
                 (line.limit() for line in lines if line.elements), default=0
             )
+        else:
+            height = (
+                self._font_sizes.ascender + self._height_delta
+                if compact
+                else self._font_sizes.line_spacing
+            ) + self._font_sizes.descender
         return new_width, height
 
     @classmethod

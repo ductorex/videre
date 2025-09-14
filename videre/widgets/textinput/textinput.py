@@ -6,10 +6,9 @@ from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_text_rendering import RenderedText
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_utils import Surface
-from videre.core.sides.border import Border
-from videre.core.sides.padding import Padding
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
+from videre.layouts.div.div import Div
 from videre.widgets.text import Text
 from videre.widgets.textinput.cursor_event import (
     CursorCharPosEvent,
@@ -25,12 +24,14 @@ class TextInput(AbstractLayout):
     __slots__ = ("_text", "_container", "_cursor_event", "_selecting_pivot")
     __size__ = 1
     __capture_mouse__ = True
+    __padding__ = Div.__style__.default.padding
+    __border__ = Div.__style__.default.border
 
     def __init__(self, text: str = "", size: int = 0, border: bool = True, **kwargs):
         # self._text = _InputText(text="Hello, 炎炎ノ消防隊: ", size=80)
-        self._text = Text(text=text, size=size)
-        border = Border.all(1) if border else None
-        padding = Padding.all(4) if border else None
+        self._text = Text(text=text, size=size, height_delta=0)
+        border = self.__border__ if border else None
+        padding = self.__padding__ if border else None
         self._container = Container(
             self._text, background_color=(240, 240, 240), border=border, padding=padding
         )

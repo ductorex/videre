@@ -29,11 +29,11 @@ def test_render_text(wrap_words):
 
     s = ff_render_text("")
     assert s.get_width() == 0
-    assert s.get_height() == 0
+    assert s.get_height() == ascender + height_delta + descender
 
     s = ff_render_text("\v\b\t\r\0")
     assert s.get_width() == 0
-    assert s.get_height() == 0
+    assert s.get_height() == ascender + height_delta + descender
 
     s = ff_render_text("\n")
     assert s.get_width() == 0
