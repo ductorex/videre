@@ -41,15 +41,21 @@ class Fancybox(AbstractLayout):
                 button.weight = 1
             formatted_buttons.append(button)
 
-        dialog = Column(
+        super().__init__(
             [
-                Row([title_wrapper, button_close], vertical_alignment=Alignment.CENTER),
-                Container(content, weight=1),
-                *([Row(formatted_buttons)] if formatted_buttons else ()),
-            ],
-            expand_horizontal=True,
+                Column(
+                    [
+                        Row(
+                            [title_wrapper, button_close],
+                            vertical_alignment=Alignment.CENTER,
+                        ),
+                        Container(content, weight=1),
+                        *([Row(formatted_buttons)] if formatted_buttons else ()),
+                    ],
+                    expand_horizontal=True,
+                )
+            ]
         )
-        super().__init__([dialog])
 
     def _on_close(self, widget):
         self.get_window().clear_fancybox()
