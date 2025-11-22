@@ -95,15 +95,6 @@ class FontProvider:
     __slots__ = ("_font_name_to_path", "_fonts", "_characters")
 
     @classmethod
-    def _load_char_support(cls):
-        # Currently unused
-        with open(os.path.join(FOLDER_FONT, "char-support.json")) as file:
-            char_support = json.load(file)
-        fonts: list[str] = char_support["fonts"]
-        characters: dict[str, int] = char_support["characters"]
-        return fonts, characters
-
-    @classmethod
     def _load_font_to_characters(cls):
         with open(os.path.join(FOLDER_FONT, "font-to-characters.json")) as file:
             font_to_characters: dict[str, str] = json.load(file)

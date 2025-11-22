@@ -8,6 +8,7 @@ from typing import Self, Sequence
 
 from fontTools.ttLib import TTCollection
 from tqdm import tqdm
+
 from videre.fonts import FOLDER_FONT, FONT_NOTO_REGULAR, get_fonts
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.unicode_utils import Unicode
@@ -23,7 +24,7 @@ class CharFontPriority:
         block_to_cov: dict[str, list[str]],
         font_to_rank: dict[str, int],
     ):
-        self.rank: int = font_to_rank.get(name)
+        self.rank: int | None = font_to_rank.get(name)
         self.cov: int = len(block_to_cov[Unicode.block(character)])
 
     def __lt__(self, other: Self) -> bool:
@@ -38,7 +39,7 @@ class CharFontPriority:
             # self has rank, then self < other
             return True
         else:
-            # both has rank
+            # both have rank
             return self.rank < other.rank
 
 
@@ -65,13 +66,11 @@ def generate_char_cov(priority_fonts: Sequence[str] = (FONT_NOTO_REGULAR.name,))
 
     char_to_fonts = {}
     for font in fonts:
-        block_to_covlen: dict[str, int] = {}
         coverage = font.coverage()
         font_to_block_to_cov[font.name] = coverage
         for block, covered_chars in coverage.items():
             for c in covered_chars:
                 char_to_fonts.setdefault(c, []).append(font.name)
-            block_to_covlen[block] = len(covered_chars)
     nb_unicode = len(list(Unicode.characters()))
     nb_covered = len(char_to_fonts)
     print("Characters:", nb_unicode)

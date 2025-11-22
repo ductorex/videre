@@ -1,8 +1,8 @@
 import sys
 from typing import Sequence
-from unicodedata import category, unidata_version
 
 import unicodedataplus
+from unicodedata import category, unidata_version
 
 Cc = "Cc"  # control characters
 Co = "Co"  # private use
@@ -55,10 +55,8 @@ class Unicode:
         return unicodedataplus.block(c)
 
     @classmethod
-    def blocks(cls, wrapper=set) -> dict[str, Sequence[str]]:
+    def blocks(cls) -> dict[str, Sequence[str]]:
         blocks = {}
         for c in cls.characters():
             blocks.setdefault(cls.block(c), []).append(c)
-        if wrapper is not None:
-            blocks = {block: wrapper(chars) for block, chars in blocks.items()}
         return blocks
