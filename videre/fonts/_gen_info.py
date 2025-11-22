@@ -2,9 +2,14 @@ import json
 import os.path
 from collections import Counter
 
-from videre.fonts import FOLDER_FONT, FONT_BABEL_STONE, FONT_NOTO_REGULAR, get_fonts
 from videre.fonts._gen_char_cov import _load_fonts
 from videre.fonts.font_utils import FontUtils
+from videre.fonts.provider import (
+    FOLDER_FONT,
+    FONT_BABEL_STONE,
+    FONT_NOTO_REGULAR,
+    get_fonts,
+)
 from videre.fonts.unicode_utils import Unicode
 
 LEAST_FONT = FONT_BABEL_STONE.name

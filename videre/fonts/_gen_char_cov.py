@@ -9,8 +9,13 @@ from typing import Self, Sequence
 from fontTools.ttLib import TTCollection
 from tqdm import tqdm
 
-from videre.fonts import FOLDER_FONT, FONT_NOTO_REGULAR, get_fonts
 from videre.fonts.font_utils import FontUtils
+from videre.fonts.provider import (
+    FOLDER_FONT,
+    FONT_NOTO_REGULAR,
+    FontProvider,
+    get_fonts,
+)
 from videre.fonts.unicode_utils import Unicode
 
 
@@ -122,8 +127,6 @@ def _gen_font_to_characters(char_to_font: dict[str, str], save=True) -> dict[str
 
 
 def _compare_output_formats(char_support: dict, font_to_characters: dict[str, str]):
-    from videre.fonts import FontProvider
-
     fonts, char_to_indice = FontProvider._parse_font_to_characters(font_to_characters)
     assert fonts
     assert char_to_indice

@@ -2,8 +2,9 @@ import logging
 
 import pygame
 import pygame.freetype
+
 from videre.core.pygame_utils import PygameUtils
-from videre.fonts import FontProvider
+from videre.fonts.provider import FontProvider
 from videre.fonts.unicode_utils import Unicode
 
 
