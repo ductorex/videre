@@ -33,10 +33,9 @@ class AbstractCheckButton(Div):
         self._text.text = self._compute_checked_text()
 
     def handle_click(self, button: MouseButton):
-        ret = super().handle_click(button)
         if button == MouseButton.BUTTON_LEFT:
             self._set_checked(not self._get_checked())
-        return ret
+        return super().handle_click(button)
 
     def _compute_checked_text(self) -> str:
         return self._TEXT_1 if self._get_checked() else self._TEXT_0
