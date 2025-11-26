@@ -46,6 +46,30 @@ def test_row_space(space, fake_win):
     fake_win.check()
 
 
+@pytest.mark.parametrize("space", [0, 10, 40])
+def test_row_space_weight(space, fake_win):
+    fake_win.controls = [
+        videre.Row(
+            [
+                videre.Container(
+                    width=50, height=100, background_color=videre.Colors.red
+                ),
+                videre.Container(
+                    weight=1, height=50, background_color=videre.Colors.green
+                ),
+                videre.Container(
+                    weight=2, height=50, background_color=videre.Colors.green
+                ),
+                videre.Container(
+                    width=70, height=80, background_color=videre.Colors.blue
+                ),
+            ],
+            space=space,
+        )
+    ]
+    fake_win.check()
+
+
 class TestRowLayout:
     """Test Row layout edge cases and weight distribution"""
 

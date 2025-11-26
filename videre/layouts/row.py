@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from videre.core.constants import Alignment
 from videre.core.pygame_utils import Surface
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
-from videre.layouts.container import Container
 from videre.widgets.widget import Widget
 
 
@@ -55,31 +54,29 @@ class Row(AbstractControlsLayout):
         controls = self.controls
 
         space = self.space
-        if len(controls) > 1 and space > 0:
-            new_controls = [controls[0]]
-            for i in range(1, len(controls)):
-                new_controls.append(Container(width=space))
-                new_controls.append(controls[i])
-            controls = new_controls
 
         rendered: list[tuple[Widget, Surface] | None] = [None] * len(controls)
         sizes: list[int | None] = [None] * len(controls)
+
+        total_space = space * max(0, len(controls) - 1)
+        nb_rendered = 0
 
         weights = [ctrl.weight for ctrl in controls]
         total_weight = sum(weights)
         if width is None or total_weight == 0:
             for i, ctrl in enumerate(controls):
-                if width is not None and total_width >= width:
+                if width is not None and total_width + (nb_rendered * space) >= width:
                     break
                 surface = ctrl.render(window, None, h_hint)
                 rendered[i] = (ctrl, surface)
                 sizes[i] = surface.get_width()
                 total_width += surface.get_width()
                 max_height = max(max_height, surface.get_height())
+                nb_rendered += 1
         else:
             to_render = []
             for i, ctrl in enumerate(controls):
-                if total_width >= width:
+                if total_width + (nb_rendered * space) >= width:
                     break
                 if weights[i]:
                     to_render.append((i, ctrl))
@@ -89,25 +86,30 @@ class Row(AbstractControlsLayout):
                     sizes[i] = surface.get_width()
                     total_width += surface.get_width()
                     max_height = max(max_height, surface.get_height())
-            remaining_width = width - total_width
+                    nb_rendered += 1
+            remaining_width = width - total_width - space * max(0, nb_rendered - 1)
             if remaining_width > 0:
+                remaining_without_space = max(
+                    0, remaining_width - space * (len(controls) - nb_rendered)
+                )
                 for i, ctrl in to_render:
-                    if total_width >= width:
+                    if total_width + space * (nb_rendered - 1) >= width:
                         break
                     available_width = int(
-                        (remaining_width * weights[i]) // total_weight
+                        (remaining_without_space * weights[i]) // total_weight
                     )
                     surface = ctrl.render(window, available_width, h_hint)
                     rendered[i] = (ctrl, surface)
                     sizes[i] = available_width
                     total_width += available_width
                     max_height = max(max_height, surface.get_height())
+                    nb_rendered += 1
 
         alignment = self.vertical_alignment
         if width is None:
-            width = total_width
+            width = total_width + total_space
         else:
-            width = min(width, total_width)
+            width = min(width, total_width + space * max(0, nb_rendered - 1))
         if height is None:
             height = max_height
         else:
@@ -121,7 +123,7 @@ class Row(AbstractControlsLayout):
                 y = self._align_dim(height, surface.get_height(), alignment)
                 row.blit(surface, (x, y))
                 self._set_child_position(ctrl, x, y)
-                x += sizes[i]
+                x += sizes[i] + space
             else:
                 # TODO should we instead fully render control but not display it ?
                 # Because, sometimes control rendering may also imply
@@ -129,4 +131,5 @@ class Row(AbstractControlsLayout):
                 # better to fully render control, even if it
                 # must not be displayed in the layout.
                 controls[i].flush_changes()
+                x += space
         return row
