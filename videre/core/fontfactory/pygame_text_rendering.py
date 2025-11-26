@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
@@ -15,8 +14,8 @@ from videre.core.fontfactory.font_factory_utils import (
     WordTask,
     align_words,
 )
-from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
+from videre.core.pygame_utils import Color, Surface
 
 
 class FontSizes:
@@ -29,14 +28,15 @@ class FontSizes:
         "space_shift",
     )
 
-    def __init__(self, base_font: pygame.freetype.Font, size: int, height_delta=2):
+    def __init__(self, base: CharMeasures, size: int, height_delta=2):
+        base_font = base.font
         self.height_delta = height_delta
         self.line_spacing = base_font.get_sized_height(size) + height_delta
         self.ascender = abs(base_font.get_sized_ascender(size)) + 1
         self.descender = abs(base_font.get_sized_descender(size))
-        self.space_width = base_font.get_rect(" ", size=size).width
+        self.space_width = base.rect.width
 
-        (metric,) = base_font.get_metrics(" ", size=size)
+        metric = base.metrics
         self.space_shift = metric[4] if metric else self.space_width
 
 
@@ -54,7 +54,7 @@ class RenderedText:
         return 0
 
 
-class PygameTextRendering(PygameUtils):
+class PygameTextRendering:
     def __init__(
         self,
         fonts: PygameFontFactory,
@@ -64,35 +64,26 @@ class PygameTextRendering(PygameUtils):
         underline=False,
         height_delta=2,
     ):
-        super().__init__()
-
         size = size or fonts.size
         height_delta = 2 if height_delta is None else height_delta
+        strong = bool(strong)
+        italic = bool(italic)
+        base = fonts.get_char_measures(" ", size, strong, italic)
 
         self._fonts = fonts
         self._size = size
-        self._strong = bool(strong)
-        self._italic = bool(italic)
+        self._strong = strong
+        self._italic = italic
         self._underline = bool(underline)
 
         self._height_delta = height_delta
-        self._font_sizes = FontSizes(fonts.base_font, size, height_delta)
+        self._font_sizes = FontSizes(base, size, height_delta)
         self._render_word_lines = self._render_word_lines_old
 
-    def _get_font(self, text: str):
-        font = self._fonts.get_font(text)
-        try:
-            font.strong = self._strong
-            font.oblique = self._italic
-        except Exception as exc:
-            logging.warning(
-                f'Unable to set strong or italic for font "{font.name}": '
-                f"{type(exc).__name__}: {exc}"
-            )
-        return font
-
     def render_char(self, c: str, color: Color = None) -> Surface:
-        surface, box = self._get_font(c).render(c, size=self._size, fgcolor=color)
+        surface, box = self._fonts.get_font(
+            c, strong=self._strong, italic=self._italic
+        ).render(c, size=self._size, fgcolor=color)
         return surface
 
     def render_text(
@@ -127,7 +118,7 @@ class PygameTextRendering(PygameUtils):
     ) -> Surface:
         align_words(lines, width, align)
         size = self._size
-        out = self.new_surface(width, height)
+        out = self._fonts.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
             pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
         for line in lines:
@@ -153,7 +144,7 @@ class PygameTextRendering(PygameUtils):
     ) -> Surface:
         align_words(lines, width, align)
         size = self._size
-        out = self.new_surface(width, height)
+        out = self._fonts.new_surface(width, height)
         if selection:
             for rect in self._get_selection_rects(lines, selection):
                 pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
@@ -252,7 +243,7 @@ class PygameTextRendering(PygameUtils):
             c = "_"
             x1 = line.elements[0].x + line.elements[0].tasks[0].bounds.x
             x2 = line.limit()
-            font = self._get_font(c)
+            font = self._fonts.get_font(c, strong=self._strong, italic=self._italic)
             font.antialiased = False
             surface, box = font.render(
                 c, size=self._size, fgcolor=color or Colors.black
@@ -344,13 +335,16 @@ class PygameTextRendering(PygameUtils):
 
     def _parse_char(self, ic: tuple[int, str]):
         charpos, c = ic
-        font = self._get_font(c)
 
-        bounds = font.get_rect(c, size=self._size)
+        char_measures = self._fonts.get_char_measures(
+            c, self._size, self._strong, self._italic
+        )
+        font = char_measures.font
+        bounds = char_measures.rect
         # todo: should instead be: width = bounds.width ?
         width = bounds.x + bounds.width
 
-        (metric,) = font.get_metrics(c, size=self._size)
+        metric = char_measures.metrics
         horizontal_shift = metric[4] if metric else width
 
         return CharTask(c, font, width, horizontal_shift, bounds, charpos)

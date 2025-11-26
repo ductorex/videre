@@ -25,6 +25,25 @@ def test_text_wrap(align, wrap, fake_win):
 
 
 @pytest.mark.win_params({"background": videre.Colors.gray, **SD})
+def test_text_size(fake_win):
+    fake_win.controls = [
+        videre.Column(
+            [
+                videre.Text("hello", size=10),
+                videre.Text("hello", size=20, strong=True),
+                videre.Text("hello", size=30),
+                videre.Text("hello", size=20, strong=True),
+                videre.Text("hello", size=20, italic=True),
+                videre.Text("hello", size=20, strong=True),
+                videre.Text("hello", size=20),
+                videre.Text("hello", size=15),
+            ]
+        )
+    ]
+    fake_win.check()
+
+
+@pytest.mark.win_params({"background": videre.Colors.gray, **SD})
 def test_text_color(fake_win):
     fake_win.controls = [
         videre.Column(
