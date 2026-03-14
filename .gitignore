@@ -13,6 +13,5 @@ wheels/
 htmlcov
 .coverage
 coverage.json
-/*.md
-!/README.md
 .run
+/.*
