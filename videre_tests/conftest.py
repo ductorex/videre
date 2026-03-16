@@ -3,11 +3,11 @@ import io
 import pytest
 from videre.testing.fake_user import FakeUser
 from videre.testing.step_window import StepWindow
-from videre.testing.utils import LD
+from videre.testing.utils import LD, HD, SD
 
 
 @pytest.fixture
-def image_testing(image_regression):
+def _image_testing(image_regression):
     def check(image: io.BytesIO, **kwargs):
         image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)
 
@@ -20,19 +20,41 @@ def fake_user():
 
 
 @pytest.fixture
-def fake_win(image_testing, request):
+def win_HD():
+    return HD
+
+
+@pytest.fixture
+def win_SD():
+    return SD
+
+
+RESOLUTION_FIXTURES = ("win_HD", "win_SD")
+
+
+@pytest.fixture
+def fake_win(_image_testing, request):
+    params = next(
+        (
+            request.getfixturevalue(f)
+            for f in RESOLUTION_FIXTURES
+            if f in request.fixturenames
+        ),
+        LD,
+    )
+
     class FakeWindow(StepWindow):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
+        __slots__ = ()
 
         def check(self, basename: str | None = None):
             kwargs = {}
             if basename:
                 kwargs["basename"] = f"{request.node.name}_{basename}"
-            image_testing(self.snapshot(), **kwargs)
+            _image_testing(self.snapshot(), **kwargs)
 
     win_params = request.node.get_closest_marker("win_params")
-    win_params = (win_params and win_params.args[0]) or LD
+    win_params = {**params, **(win_params.args[0] if win_params else {})}
+    print(win_params)
     with FakeWindow(**win_params) as window:
         yield window
 

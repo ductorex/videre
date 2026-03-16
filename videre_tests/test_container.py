@@ -3,7 +3,6 @@ import itertools
 import pytest
 import videre
 from videre.core.sides.padding import Padding
-from videre.testing.utils import LD
 from videre.widgets.empty_widget import EmptyWidget
 
 
@@ -17,7 +16,7 @@ def test_simple_container(border_size, fake_win):
     fake_win.check()
 
 
-@pytest.mark.win_params({"background": "purple", **LD})
+@pytest.mark.win_params({"background": "purple"})
 def test_container_square(fake_win):
     fake_win.controls = [
         videre.Container(
@@ -32,7 +31,7 @@ def test_container_square(fake_win):
     fake_win.check()
 
 
-@pytest.mark.win_params({"background": "cyan", **LD})
+@pytest.mark.win_params({"background": "cyan"})
 @pytest.mark.parametrize("expand", [False, True], ids=("expand_false", "expand_true"))
 def test_container_square_col_no_width(fake_win, expand):
     fake_win.controls = [
@@ -54,7 +53,7 @@ def test_container_square_col_no_width(fake_win, expand):
     fake_win.check()
 
 
-@pytest.mark.win_params({"background": "cyan", **LD})
+@pytest.mark.win_params({"background": "cyan"})
 @pytest.mark.parametrize("expand", [False, True], ids=("expand_false", "expand_true"))
 def test_container_square_row_no_height(fake_win, expand):
     fake_win.controls = [

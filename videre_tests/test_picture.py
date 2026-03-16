@@ -27,11 +27,6 @@ class SrcProvider:
         return io.BytesIO(self.bytes())
 
 
-def test_testing_image(image_testing):
-    """Just check if testing image is correctly saved."""
-    image_testing(SrcProvider().file_like())
-
-
 @pytest.mark.parametrize("src", ["string", "path", "bytes", "bytearray", "file_like"])
 def test_image(src, fake_win):
     src_provider = SrcProvider()

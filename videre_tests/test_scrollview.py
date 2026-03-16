@@ -2,7 +2,6 @@ import pygame
 import pytest
 import videre
 from videre import Column, Container, ScrollView, Text
-from videre.testing.utils import HD
 
 
 class TestScrollViewRendering:
@@ -138,8 +137,7 @@ class TestScrollViewInteractions:
         finally:
             pygame.key.get_mods = original_get_mods
 
-    @pytest.mark.win_params(HD)
-    def test_wheel_at_scroll_limits(self, fake_win, fake_user):
+    def test_wheel_at_scroll_limits(self, fake_win, win_HD, fake_user):
         """Test mouse wheel behavior at scroll boundaries"""
         items = [Text(f"Item {i}", size=16) for i in range(10)]
         content = Column(items)
