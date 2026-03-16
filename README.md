@@ -4,6 +4,11 @@ Simple Python GUI framework based on Pygame.
 
 Still Work In Progress.
 
+## Origin of name
+
+https://fr.wiktionary.org/wiki/videre#la
+https://en.wiktionary.org/wiki/videre
+
 ## Development
 
 To run unit tests with Pytest + Coverage:
