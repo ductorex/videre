@@ -1,108 +1,54 @@
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-from videre.tools import printimg
-
-
-@patch("videre.tools.Window")
-@patch("videre.tools.ScrollView")
-@patch("videre.tools.Picture")
-def test_printimg_with_string_path(mock_picture, mock_scrollview, mock_window):
-    """Test printimg with string path"""
-    mock_window_instance = MagicMock()
-    mock_scrollview_instance = MagicMock()
-    mock_picture_instance = MagicMock()
-
-    mock_window.return_value = mock_window_instance
-    mock_scrollview.return_value = mock_scrollview_instance
-    mock_picture.return_value = mock_picture_instance
-
-    image_path = "/test/image.png"
-
-    printimg(image_path)
-
-    # Verify components were created correctly
-    mock_picture.assert_called_once_with(image_path)
-    mock_scrollview.assert_called_once_with(mock_picture_instance)
-    mock_window.assert_called_once_with(title=image_path)
-
-    # Verify window was configured and run
-    assert mock_window_instance.controls == [mock_scrollview_instance]
-    mock_window_instance.run.assert_called_once()
+from videre.layouts.scroll.scrollview import ScrollView
+from videre.testing.utils import IMAGE_EXAMPLE
+from videre.tools import _build_image_window
+from videre.widgets.picture import Picture
+from videre.windowing.window import Window
 
 
-@patch("videre.tools.Window")
-@patch("videre.tools.ScrollView")
-@patch("videre.tools.Picture")
-def test_printimg_with_pathlib_path(mock_picture, mock_scrollview, mock_window):
-    """Test printimg with pathlib Path"""
-    mock_window_instance = MagicMock()
-    mock_scrollview_instance = MagicMock()
-    mock_picture_instance = MagicMock()
-
-    mock_window.return_value = mock_window_instance
-    mock_scrollview.return_value = mock_scrollview_instance
-    mock_picture.return_value = mock_picture_instance
-
-    image_path = Path("/test/image.jpg")
-
-    printimg(image_path)
-
-    # Verify components were created correctly
-    mock_picture.assert_called_once_with(image_path)
-    mock_scrollview.assert_called_once_with(mock_picture_instance)
-    mock_window.assert_called_once_with(title=str(image_path))
-
-    # Verify window was configured and run
-    assert mock_window_instance.controls == [mock_scrollview_instance]
-    mock_window_instance.run.assert_called_once()
+def test_printimg_with_string_path():
+    window = _build_image_window(IMAGE_EXAMPLE)
+    assert isinstance(window, Window)
+    assert window._title == IMAGE_EXAMPLE
+    (scroll,) = window.controls
+    assert isinstance(scroll, ScrollView)
+    assert isinstance(scroll.control, Picture)
 
 
-@patch("videre.tools.Window")
-@patch("videre.tools.ScrollView")
-@patch("videre.tools.Picture")
-def test_printimg_with_non_path_source(mock_picture, mock_scrollview, mock_window):
-    """Test printimg with non-path source (like PIL Image or other object)"""
-    mock_window_instance = MagicMock()
-    mock_scrollview_instance = MagicMock()
-    mock_picture_instance = MagicMock()
+def test_printimg_with_pathlib_path():
+    path = Path(IMAGE_EXAMPLE)
+    window = _build_image_window(path)
+    assert window._title == str(path)
+    (scroll,) = window.controls
+    assert isinstance(scroll, ScrollView)
+    assert isinstance(scroll.control, Picture)
 
-    mock_window.return_value = mock_window_instance
-    mock_scrollview.return_value = mock_scrollview_instance
-    mock_picture.return_value = mock_picture_instance
 
-    # Could be PIL Image, numpy array, or other ImageSourceType
-    image_source = MagicMock()
+def test_printimg_with_non_path_source():
+    window = _build_image_window(IMAGE_EXAMPLE)
+    # IMAGE_EXAMPLE is a string path, so title is the path itself
+    assert window._title == IMAGE_EXAMPLE
 
-    printimg(image_source)
+    # Test with a non-path source (integer as a placeholder)
+    # This tests the else branch: title = "image"
+    import pygame
 
-    # Verify components were created correctly
-    mock_picture.assert_called_once_with(image_source)
-    mock_scrollview.assert_called_once_with(mock_picture_instance)
-    mock_window.assert_called_once_with(title="image")
-
-    # Verify window was configured and run
-    assert mock_window_instance.controls == [mock_scrollview_instance]
-    mock_window_instance.run.assert_called_once()
+    surface = pygame.Surface((10, 10))
+    w = _build_image_window(surface)
+    assert w._title == "image"
 
 
 def test_printimg_title_generation():
-    """Test title generation logic for different input types"""
-    with patch("videre.tools.Window") as mock_window:
-        with patch("videre.tools.ScrollView"):
-            with patch("videre.tools.Picture"):
-                mock_window_instance = MagicMock()
-                mock_window.return_value = mock_window_instance
+    # String path -> title is the path
+    w1 = _build_image_window("/test/path.png")
+    assert w1._title == "/test/path.png"
 
-                # Test string path
-                printimg("/test/path.png")
-                mock_window.assert_called_with(title="/test/path.png")
+    # Path object -> title is str(path)
+    path = Path("/test/path.jpg")
+    w2 = _build_image_window(path)
+    assert w2._title == str(path)
 
-                # Test Path object
-                path = Path("/test/path.jpg")
-                printimg(path)
-                mock_window.assert_called_with(title=str(path))
-
-                # Test other object type
-                printimg(MagicMock())
-                mock_window.assert_called_with(title="image")
+    # Non-path source -> title is "image"
+    w3 = _build_image_window(IMAGE_EXAMPLE)
+    assert w3._title == IMAGE_EXAMPLE

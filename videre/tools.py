@@ -5,7 +5,7 @@ from .widgets.picture import ImageSourceType, Picture
 from .windowing.window import Window
 
 
-def printimg(src: ImageSourceType):
+def _build_image_window(src: ImageSourceType) -> Window:
     if isinstance(src, (str, Path)):
         title = str(src)
     else:
@@ -13,4 +13,8 @@ def printimg(src: ImageSourceType):
 
     window = Window(title=title)
     window.controls = [ScrollView(Picture(src))]
-    window.run()
+    return window
+
+
+def printimg(src: ImageSourceType):
+    _build_image_window(src).run()

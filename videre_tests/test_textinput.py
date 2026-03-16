@@ -1,8 +1,7 @@
-from unittest.mock import patch
-
 import pygame.mouse
 import pytest
 import videre
+from videre.core.clipboard import Clipboard
 
 
 def test_value(fake_win):
@@ -454,48 +453,55 @@ def test_delete_selection(fake_win, fake_user, key, ctrl, shift):
     assert ti._get_selection() is None
 
 
-@patch("videre.core.clipboard.pyperclip.copy")
-@patch("videre.core.clipboard.pyperclip.paste")
-def test_select_all(mock_paste, mock_copy, fake_win, fake_user):
-    string = "hello, world"
-    ti = videre.TextInput(text=string)
-    fake_win.controls = [ti]
-    fake_win.render()
-    fake_user.click_at(ti.global_x, ti.global_y)
-    fake_win.render()
-    assert ti._get_cursor() == 0
-    assert ti._get_selection() == (0, 0)
+def test_select_all(fake_win, fake_user):
+    clipboard_store = {"content": ""}
+    original_copy = Clipboard._copy
+    original_paste = Clipboard._paste
+    Clipboard._copy = staticmethod(lambda text: clipboard_store.update(content=text))
+    Clipboard._paste = staticmethod(lambda: clipboard_store["content"])
 
-    fake_user.keyboard_entry("a", ctrl=True)
-    fake_win.check()
-    assert ti._get_cursor() == len(string)
-    assert ti._get_selection() == (0, len(string))
+    try:
+        string = "hello, world"
+        ti = videre.TextInput(text=string)
+        fake_win.controls = [ti]
+        fake_win.render()
+        fake_user.click_at(ti.global_x, ti.global_y)
+        fake_win.render()
+        assert ti._get_cursor() == 0
+        assert ti._get_selection() == (0, 0)
 
-    fake_user.keyboard_entry("left", shift=True)
-    fake_win.render()
-    assert ti._get_cursor() == len(string) - 1
-    assert ti._get_selection() == (0, len(string) - 1)
+        fake_user.keyboard_entry("a", ctrl=True)
+        fake_win.check()
+        assert ti._get_cursor() == len(string)
+        assert ti._get_selection() == (0, len(string))
 
-    fake_user.keyboard_entry("c", ctrl=True)
-    fake_win.render()
-    mock_copy.assert_called_once_with(string[:-1])
-    assert ti._get_cursor() == len(string) - 1
-    assert ti._get_selection() == (0, len(string) - 1)
+        fake_user.keyboard_entry("left", shift=True)
+        fake_win.render()
+        assert ti._get_cursor() == len(string) - 1
+        assert ti._get_selection() == (0, len(string) - 1)
 
-    mock_paste.return_value = "blabla"
-    fake_user.keyboard_entry("v", ctrl=True)
-    fake_win.render()
-    mock_paste.assert_called_once()
-    assert ti.value == "blabla" + string[-1:] == "blablad"
-    assert ti._get_cursor() == len("blabla")
-    assert ti._get_selection() is None
+        fake_user.keyboard_entry("c", ctrl=True)
+        fake_win.render()
+        assert clipboard_store["content"] == string[:-1]
+        assert ti._get_cursor() == len(string) - 1
+        assert ti._get_selection() == (0, len(string) - 1)
 
-    mock_paste.return_value = "toto"
-    fake_user.keyboard_entry("v", ctrl=True)
-    fake_win.render()
-    assert ti.value == "blablatotod"
-    assert ti._get_cursor() == len("blablatoto")
-    assert ti._get_selection() is None
+        clipboard_store["content"] = "blabla"
+        fake_user.keyboard_entry("v", ctrl=True)
+        fake_win.render()
+        assert ti.value == "blabla" + string[-1:] == "blablad"
+        assert ti._get_cursor() == len("blabla")
+        assert ti._get_selection() is None
+
+        clipboard_store["content"] = "toto"
+        fake_user.keyboard_entry("v", ctrl=True)
+        fake_win.render()
+        assert ti.value == "blablatotod"
+        assert ti._get_cursor() == len("blablatoto")
+        assert ti._get_selection() is None
+    finally:
+        Clipboard._copy = original_copy
+        Clipboard._paste = original_paste
 
 
 def test_select_and_text_input(fake_win, fake_user):

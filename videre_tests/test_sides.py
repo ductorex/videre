@@ -153,3 +153,11 @@ def test_abstract_side():
 
     assert sides_1 == sides_3
     assert {sides_1, sides_2, sides_3} == {sides_1, sides_2}
+
+
+def test_abstract_side_repr():
+    sides = AbstractSides(top=1, bottom=2)
+    r = repr(sides)
+    assert "AbstractSides" in r
+    assert "top=1" in r
+    assert "bottom=2" in r

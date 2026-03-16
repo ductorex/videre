@@ -8,10 +8,13 @@ logger = logging.getLogger(__name__)
 class Clipboard:
     __slots__ = ()
 
+    _copy = staticmethod(pyperclip.copy)
+    _paste = staticmethod(pyperclip.paste)
+
     @classmethod
     def get_clipboard(cls) -> str:
         try:
-            text = pyperclip.paste()
+            text = cls._paste()
             logger.debug(f"Got clipboard text: {text!r}")
             return text
         except Exception as e:
@@ -21,7 +24,7 @@ class Clipboard:
     @classmethod
     def set_clipboard(cls, text: str):
         try:
-            pyperclip.copy(text)
+            cls._copy(text)
             logger.debug(f"Copied text to clipboard: {text!r}")
         except Exception as e:
             logger.warning(f"Failed to copy text to clipboard: {e}")

@@ -12,8 +12,12 @@ class PygameContext:
         pygame.quit()
 
 
-def test_display_mode():
+def main():
     with PygameContext():
         surface = pygame.display.set_mode((300, 400), flags=pygame.HIDDEN)
         assert surface.get_width() == 300
         assert surface.get_height() == 400
+
+
+if __name__ == "__main__":
+    main()

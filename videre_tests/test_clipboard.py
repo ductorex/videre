@@ -1,100 +1,88 @@
-from unittest.mock import MagicMock, patch
+import pyperclip
+import pytest
 
 from videre.core.clipboard import Clipboard
 
 
-@patch("videre.core.clipboard.pyperclip.paste")
-def test_get_clipboard_success(mock_paste):
-    """Test successful clipboard retrieval"""
-    mock_paste.return_value = "test clipboard content"
-
-    result = Clipboard.get_clipboard()
-
-    assert result == "test clipboard content"
-    mock_paste.assert_called_once()
-
-
-@patch("videre.core.clipboard.pyperclip.paste")
-def test_get_clipboard_failure(mock_paste):
-    """Test clipboard retrieval failure"""
-    mock_paste.side_effect = Exception("Clipboard error")
-
-    result = Clipboard.get_clipboard()
-
-    assert result == ""
-    mock_paste.assert_called_once()
+@pytest.fixture(autouse=True)
+def _restore_clipboard_backend():
+    """Restore real pyperclip backend after each test."""
+    original_copy = Clipboard._copy
+    original_paste = Clipboard._paste
+    yield
+    Clipboard._copy = original_copy
+    Clipboard._paste = original_paste
 
 
-@patch("videre.core.clipboard.pyperclip.copy")
-def test_set_clipboard_success(mock_copy):
-    """Test successful clipboard setting"""
-    text = "text to copy"
-
-    Clipboard.set_clipboard(text)
-
-    mock_copy.assert_called_once_with(text)
+def test_get_clipboard_success():
+    Clipboard._paste = staticmethod(lambda: "test clipboard content")
+    assert Clipboard.get_clipboard() == "test clipboard content"
 
 
-@patch("videre.core.clipboard.pyperclip.copy")
-def test_set_clipboard_failure(mock_copy):
-    """Test clipboard setting failure"""
-    mock_copy.side_effect = Exception("Copy error")
+def test_get_clipboard_failure():
+    def failing_paste():
+        raise Exception("Clipboard error")
 
-    # Should not raise exception
+    Clipboard._paste = staticmethod(failing_paste)
+    assert Clipboard.get_clipboard() == ""
+
+
+def test_set_clipboard_success():
+    copied = []
+    Clipboard._copy = staticmethod(lambda text: copied.append(text))
+    Clipboard.set_clipboard("text to copy")
+    assert copied == ["text to copy"]
+
+
+def test_set_clipboard_failure():
+    def failing_copy(text):
+        raise Exception("Copy error")
+
+    Clipboard._copy = staticmethod(failing_copy)
+    # Should not raise
     Clipboard.set_clipboard("test text")
-
-    mock_copy.assert_called_once_with("test text")
 
 
 def test_clipboard_class_structure():
-    """Test that Clipboard class has the expected structure"""
     clipboard = Clipboard()
-
     assert hasattr(clipboard, "get_clipboard")
     assert hasattr(clipboard, "set_clipboard")
     assert callable(clipboard.get_clipboard)
     assert callable(clipboard.set_clipboard)
 
 
-@patch("videre.core.clipboard.pyperclip")
-def test_clipboard_integration(mock_pyperclip):
-    """Test clipboard get/set integration"""
-    mock_pyperclip.paste.return_value = "initial content"
-    mock_pyperclip.copy = MagicMock()
+def test_clipboard_integration():
+    store = {"content": "initial content"}
+    Clipboard._paste = staticmethod(lambda: store["content"])
+    Clipboard._copy = staticmethod(lambda text: store.update(content=text))
 
-    # Get initial content
-    content = Clipboard.get_clipboard()
-    assert content == "initial content"
-
-    # Set new content
-    new_content = "new clipboard content"
-    Clipboard.set_clipboard(new_content)
-
-    # Verify copy was called
-    mock_pyperclip.copy.assert_called_once_with(new_content)
+    assert Clipboard.get_clipboard() == "initial content"
+    Clipboard.set_clipboard("new clipboard content")
+    assert Clipboard.get_clipboard() == "new clipboard content"
 
 
 def test_clipboard_empty_string():
-    """Test clipboard operations with empty string"""
-    with patch("videre.core.clipboard.pyperclip.paste") as mock_paste:
-        mock_paste.return_value = ""
-        result = Clipboard.get_clipboard()
-        assert result == ""
+    Clipboard._paste = staticmethod(lambda: "")
+    assert Clipboard.get_clipboard() == ""
 
-    with patch("videre.core.clipboard.pyperclip.copy") as mock_copy:
-        Clipboard.set_clipboard("")
-        mock_copy.assert_called_once_with("")
+    copied = []
+    Clipboard._copy = staticmethod(lambda text: copied.append(text))
+    Clipboard.set_clipboard("")
+    assert copied == [""]
 
 
 def test_clipboard_unicode_content():
-    """Test clipboard operations with unicode content"""
     unicode_text = "Hello 世界! 🌍 Ñañá"
 
-    with patch("videre.core.clipboard.pyperclip.paste") as mock_paste:
-        mock_paste.return_value = unicode_text
-        result = Clipboard.get_clipboard()
-        assert result == unicode_text
+    Clipboard._paste = staticmethod(lambda: unicode_text)
+    assert Clipboard.get_clipboard() == unicode_text
 
-    with patch("videre.core.clipboard.pyperclip.copy") as mock_copy:
-        Clipboard.set_clipboard(unicode_text)
-        mock_copy.assert_called_once_with(unicode_text)
+    copied = []
+    Clipboard._copy = staticmethod(lambda text: copied.append(text))
+    Clipboard.set_clipboard(unicode_text)
+    assert copied == [unicode_text]
+
+
+def test_clipboard_default_backend():
+    assert Clipboard._copy is pyperclip.copy
+    assert Clipboard._paste is pyperclip.paste
