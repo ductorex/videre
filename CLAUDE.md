@@ -9,8 +9,11 @@ Videre is a Python GUI framework built on Pygame. It provides a widget/layout sy
 ## Common Commands
 
 ```bash
+# Run all tests in parallel (pytest-xdist)
+uv run pytest -n auto videre_tests
+
 # Run all tests with coverage
-uv run pytest --cov=videre --cov-report=term-missing --cov-report=html --cov-report=json videre_tests
+uv run pytest -n auto --cov=videre --cov-report=term-missing videre_tests
 
 # Run a single test file
 uv run pytest videre_tests/test_file.py
@@ -79,11 +82,13 @@ Layouts form a clear inheritance chain:
 ### Testing (`videre/testing/`, `videre_tests/`)
 
 - `StepWindow`: Headless window using context manager (`with StepWindow() as win`). Supports `render()`, `snapshot()`, `screenshot()` for step-by-step testing without an event loop.
-- `FakeUser`: Simulates user interactions (click, keyboard, mouse events).
+- `FakeUser`: Simulates user interactions (click, keyboard, mouse events) by posting real pygame events. Prefer `FakeUser` + `fake_win.render()` over mocking for event-related tests.
 - Image regression tests via `pytest-regressions`: snapshots compared with `image_regression.check()`.
 - Test fixtures (`conftest.py`): `fake_win` (window with `check()` for snapshot comparison), `snap_win` (auto-checks snapshot on exit), `fake_user`, `image_testing`.
 - Marker `@pytest.mark.win_params(dict)` passes kwargs to `StepWindow.__init__`.
 - Predefined window sizes in `videre/testing/utils.py`: `LD` (320x240), `SD` (640x480), `HD` (1280x720), `FHD` (1920x1080). Default test window is `LD`.
+- Tests run in parallel via `pytest-xdist` (`-n auto`). Avoid global mutable state in tests.
+- `Clipboard` backend is injectable via `Clipboard._copy`/`Clipboard._paste` class attributes — substitute in tests instead of patching `pyperclip`.
 
 ## Ruff Configuration
 
