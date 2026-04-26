@@ -25,7 +25,7 @@ def main():
     print("Bounds", bounds)
 
     with TTFont(FONT_NOTO_REGULAR.path) as font:
-        units_per_em = font["head"].unitsPerEm
+        units_per_em = getattr(font["head"], "unitsPerEm")
         print("Units per em:", units_per_em)  # value: 1000
         glyph_set = font.getGlyphSet()
         glyph = glyph_set[char]

@@ -296,7 +296,7 @@ class Widget:
     def handle_click(self, button: MouseButton):
         pass
 
-    def handle_focus_in(self) -> bool | Self:
+    def handle_focus_in(self) -> "bool | Widget":
         """Return True if this widget accepts the focus, False otherwise."""
         return False
 

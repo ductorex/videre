@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import videre
 from videre.layouts.div.div import Div
@@ -165,7 +166,7 @@ class Demo:
         text = (
             "Hello, World! How are you? I'm fine, thanks, and you? I am ok, too, dear!"
         )
-        parameters = {
+        parameters: dict[str, Any] = {
             "padding": videre.Padding.all(50),
             "border": videre.Border.all(1),
             "weight": 1,

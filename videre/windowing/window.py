@@ -1,7 +1,7 @@
 import functools
 import logging
 import threading
-from typing import Any, Callable, Sequence, TypeVar
+from typing import Any, Callable, Sequence
 
 import pygame
 from pygame.event import Event
@@ -28,9 +28,6 @@ logger = logging.getLogger(__name__)
 
 
 NotificationCallback = Callable[[Any], None]
-
-
-WidgetBase = TypeVar("WidgetBase", bound=Widget)
 
 
 def _handle_exception(on_except, function):
@@ -150,7 +147,7 @@ class Window(PygameUtils, Clipboard):
 
     @controls.setter
     def controls(self, controls: Sequence[Widget]):
-        self._controls = controls
+        self._controls = list(controls)
         self.__refresh_controls()
 
     @property
@@ -397,7 +394,7 @@ class Window(PygameUtils, Clipboard):
     def clear_notification_callbacks(self):
         self._notif_cbks.clear()
 
-    def get_element_by_key(self, key: str) -> WidgetBase | None:
+    def get_element_by_key(self, key: str) -> Widget | None:
         results = self._layout.collect_matches(WidgetByKeyGetter(key))
         return results[0] if results else None
 

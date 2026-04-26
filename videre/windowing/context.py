@@ -1,5 +1,3 @@
-from typing import Self
-
 from videre.colors import Colors
 from videre.core.pygame_utils import Surface
 from videre.core.sides.border import Border
@@ -26,7 +24,7 @@ class Context(AbstractLayout):
     def relative(self) -> Widget:
         return self._relative
 
-    def handle_focus_in(self) -> bool | Self:
+    def handle_focus_in(self) -> bool | Widget:
         return self._relative.handle_focus_in()
 
     def draw(

@@ -561,7 +561,7 @@ class VideoView(videre.Container):
     def _on_reset_similarity(self):
         pass
 
-    def _on_select_video(self, checkbox: videre.Checkbox):
+    def _on_select_video(self, checkbox: Widget):
         pass
 
 
