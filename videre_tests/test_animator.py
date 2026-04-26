@@ -214,7 +214,7 @@ class TestAbstractAnimation:
             def _on_frame(self):
                 self.frame_calls += 1
 
-            def draw(self, window, view_width=None, view_height=None):
+            def draw(self, window, width: int | None = None, height: int | None = None):
                 # Simple implementation for testing
                 import pygame
 
@@ -250,7 +250,7 @@ class TestAbstractAnimation:
             def _on_frame(self):
                 pass
 
-            def draw(self, window, view_width=None, view_height=None):
+            def draw(self, window, width=None, height=None):
                 import pygame
 
                 return pygame.Surface((50, 50))
@@ -274,7 +274,7 @@ class TestAbstractAnimation:
             def _on_frame(self):
                 self.frame_calls += 1
 
-            def draw(self, window, view_width=None, view_height=None):
+            def draw(self, window, width=None, height=None):
                 import pygame
 
                 return pygame.Surface((50, 50))

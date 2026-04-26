@@ -20,8 +20,8 @@ class AbstractSides[T, S]:
     def _parse(self, value: T | None) -> S:
         return self.__default__ if value is None else self.__parser__(value)
 
-    def __parser__(self, value: T) -> S:
-        return value
+    def __parser__(self, side: T) -> S:
+        return side
 
     def __repr__(self):
         sides = []

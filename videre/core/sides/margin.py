@@ -5,14 +5,14 @@ class Margin(AbstractSides[int, int]):
     __slots__ = ()
     __default__ = 0
 
-    def __parser__(self, value: int) -> int:
-        if not isinstance(value, int):
+    def __parser__(self, side: int) -> int:
+        if not isinstance(side, int):
             raise TypeError(
-                f"Unsupported {type(self).__name__} value type: {type(value).__name__}"
+                f"Unsupported {type(self).__name__} value type: {type(side).__name__}"
             )
-        if value < 0:
-            raise ValueError(f"Unsupported {type(self).__name__} value: {value}")
-        return value
+        if side < 0:
+            raise ValueError(f"Unsupported {type(self).__name__} value: {side}")
+        return side
 
     @classmethod
     def all(cls, value: int):

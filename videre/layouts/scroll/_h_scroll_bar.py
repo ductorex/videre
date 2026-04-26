@@ -125,12 +125,12 @@ class _HScrollBar(Widget):
         self._hover = False
         self._set_color()
 
-    def _jump(self, x: int, w: int, grip_length: int):
+    def _jump(self, grip_pos: int, bar_length: int, grip_length: int):
         assert self.on_jump is not None
-        if x == w - grip_length:
+        if grip_pos == bar_length - grip_length:
             self.on_jump(self.content_length)
         else:
-            content_pos = (x * self.content_length) / w
+            content_pos = (grip_pos * self.content_length) / bar_length
             self.on_jump(round(content_pos))
 
     def _compute(
@@ -159,10 +159,11 @@ class _HScrollBar(Widget):
         return round(scroll_pos), round(scroll_length)
 
     def draw(
-        self, window, view_width: int | None = None, view_height: int | None = None
+        self, window, width: int | None = None, height: int | None = None
     ) -> Surface:
-        assert view_width and view_height
-        scroll, pos = self._compute(window, view_width, view_height)
+        # NB: here, width is view width, and height is view height.
+        assert width and height
+        scroll, pos = self._compute(window, width, height)
         assert self._parent is not None
         self._parent._set_child_position(self, *pos)
         return scroll

@@ -25,16 +25,16 @@ class TrackerWidget(Widget):
         surface.fill((200, 200, 200))
         return surface
 
-    def handle_mouse_wheel(self, dx, dy, shift):
-        self.events.append(("mouse_wheel", dx, dy, shift))
+    def handle_mouse_wheel(self, x, y, shift):
+        self.events.append(("mouse_wheel", x, y, shift))
         return True
 
     def handle_text_input(self, text):
         self.events.append(("text_input", text))
         return True
 
-    def handle_keydown(self, entry):
-        self.events.append(("keydown", entry))
+    def handle_keydown(self, key):
+        self.events.append(("keydown", key))
         return True
 
     def handle_focus_in(self):
