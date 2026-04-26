@@ -2,7 +2,7 @@ import io
 import logging
 import sys
 from pathlib import Path
-from typing import BinaryIO, Literal, cast
+from typing import BinaryIO
 
 import pygame
 from PIL import Image
@@ -46,15 +46,8 @@ class Picture(Widget):
             if isinstance(src, (bytes, bytearray)):
                 src = io.BytesIO(src)
             assert isinstance(src, (str, Path, io.BytesIO))
-            image = Image.open(src)
-            mode = image.mode
-            assert mode in ("P", "RGB", "RGBX", "RGBA", "ARGB", "BGRA"), (
-                f"Unsupported image mode: {mode}"
-            )
-            pygame_mode = cast(
-                Literal["P", "RGB", "RGBX", "RGBA", "ARGB", "BGRA"], mode
-            )
-            surface = pygame.image.frombytes(image.tobytes(), image.size, pygame_mode)
+            image = Image.open(src).convert("RGBA")
+            surface = pygame.image.frombytes(image.tobytes(), image.size, "RGBA")
             return surface.convert_alpha()
 
         except Exception as exc:
