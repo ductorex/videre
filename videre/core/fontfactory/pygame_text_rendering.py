@@ -80,7 +80,7 @@ class PygameTextRendering:
         self._font_sizes = FontSizes(base, size, height_delta)
         self._render_word_lines = self._render_word_lines_old
 
-    def render_char(self, c: str, color: Color = None) -> Surface:
+    def render_char(self, c: str, color: Color | None = None) -> Surface:
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
         ).render(c, size=self._size, fgcolor=color)
@@ -89,10 +89,10 @@ class PygameTextRendering:
     def render_text(
         self,
         text: str,
-        width: int = None,
+        width: int | None = None,
         *,
         compact=True,
-        color: Color = None,
+        color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,

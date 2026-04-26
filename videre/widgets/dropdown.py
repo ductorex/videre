@@ -133,6 +133,8 @@ class Dropdown(Div):
             margin = margin + container.border.margin()
         return margin.left + text_width + margin.right
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         self._container().width = self._compute_width(window)
         return super().draw(window, width, None)

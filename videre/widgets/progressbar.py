@@ -21,7 +21,9 @@ class ProgressBar(Widget):
     def value(self, progress: float):
         self._set_wprop("value", min(max(0.0, float(progress)), 1.0))
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         bg_w = 102 if width is None else max(width, 2)
         bg_h = window.fonts.font_height
         inner_w = int((bg_w - 2) * self.value)

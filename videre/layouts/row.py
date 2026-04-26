@@ -47,7 +47,9 @@ class Row(AbstractControlsLayout):
     def space(self, space: int):
         self._set_wprop("space", space)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         h_hint = height if self.expand_vertical else None
         max_height = 0
         total_width = 0

@@ -33,8 +33,8 @@ class Container(AbstractLayout):
         background_color: ColoringDefinition = None,
         vertical_alignment: Alignment = Alignment.START,
         horizontal_alignment: Alignment = Alignment.START,
-        width: int = None,
-        height: int = None,
+        width: int | None = None,
+        height: int | None = None,
         square: bool = False,
         **kwargs,
     ):
@@ -121,7 +121,9 @@ class Container(AbstractLayout):
     def square(self, square: bool):
         self._set_wprop("square", bool(square))
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         square = self.square
         width = _resolve_size(self.width, width)
         height = _resolve_size(self.height, height)

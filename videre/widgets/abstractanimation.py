@@ -88,7 +88,7 @@ class AbstractAnimation(Widget):
     __wprops__ = {}
     __slots__ = ("_nb_frames", "_framing")
 
-    def __init__(self, framing: AbstractFraming = None, **kwargs):
+    def __init__(self, framing: AbstractFraming | None = None, **kwargs):
         super().__init__(**kwargs)
         self._nb_frames = 0
         self._framing = framing or FPS()

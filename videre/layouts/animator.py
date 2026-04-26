@@ -59,7 +59,9 @@ class Animator(AbstractLayout):
             self._nb_frames += 1
             self.update()
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         control = self.control
         on_frame = self.on_frame
         if on_frame:

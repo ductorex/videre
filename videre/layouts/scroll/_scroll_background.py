@@ -15,7 +15,9 @@ class _ScrollBackground(Widget):
     def configure(self, thickness: int, both: bool, hover: bool):
         self._set_wprops(thickness=thickness, both=both, hover=hover)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         assert width and height
 
         thickness = self._get_wprop("thickness")

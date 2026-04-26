@@ -11,6 +11,8 @@ class ControlLayout(AbstractLayout):
     def __init__(self, control: Widget, **kwargs):
         super().__init__([control], **kwargs)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         (control,) = self._controls()
         return control.render(window, width, height)

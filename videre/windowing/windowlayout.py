@@ -21,11 +21,15 @@ class WindowLayout(AbstractControlsLayout):
     def background(self, value: Color | None):
         self._set_wprop("background", value or self._FILL)
 
-    def render(self, window, width: int = None, height: int = None) -> Surface:
+    def render(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         screen = window.get_screen()
         return super().render(window, screen.get_width(), screen.get_height())
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         screen = window.get_screen()
 
         screen_width, screen_height = screen.get_width(), screen.get_height()

@@ -275,7 +275,9 @@ class TextInput(AbstractLayout):
             margin.left + cursor.x, margin.top + cursor.y, cursor_width, cursor_height
         )
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         text_surface = self._control.render(window, width, height)
         rendered = self._text._rendered
         surface = text_surface.copy()

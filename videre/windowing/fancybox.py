@@ -66,7 +66,9 @@ class Fancybox(AbstractLayout):
         owner = super().get_mouse_owner(x_in_parent, y_in_parent)
         return owner or MouseOwnership(self, x_in_parent, y_in_parent)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         assert width is not None
         assert height is not None
         dialog_part = 0.8

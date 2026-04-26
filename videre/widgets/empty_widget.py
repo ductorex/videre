@@ -6,5 +6,7 @@ class EmptyWidget(Widget):
     __wprops__ = {}
     __slots__ = ()
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         return window.new_surface(0, 0)

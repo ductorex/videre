@@ -150,7 +150,9 @@ class Text(Widget):
             height_delta=self.height_delta,
         )
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         wrap = self.wrap
         self._rendered = self._text_rendering(window).render_text(
             text=self.text,

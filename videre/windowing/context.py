@@ -29,7 +29,9 @@ class Context(AbstractLayout):
     def handle_focus_in(self) -> bool | Self:
         return self._relative.handle_focus_in()
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         self._relative._assert_rendered()
         (container,) = self._controls()
         x = self._relative.global_x + self._x

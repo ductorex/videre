@@ -54,7 +54,9 @@ class Picture(Widget):
             print(f"Cannot load an image: {type(exc).__name__}: {exc}", file=sys.stderr)
             return None
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         surface = self._src_to_surface()
         if surface is None:
             surface = Text(self.alt).render(window, width, height)

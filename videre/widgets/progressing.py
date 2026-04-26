@@ -8,7 +8,7 @@ class Progressing(AbstractAnimation):
     __wprops__ = {"_cursor", "_direction"}
     __slots__ = ("_max_cursor",)
 
-    def __init__(self, framing: AbstractFraming = None, steps=15, **kwargs):
+    def __init__(self, framing: AbstractFraming | None = None, steps=15, **kwargs):
         super().__init__(framing=framing or FPS(30), **kwargs)
         self._set_wprops(_cursor=0, _direction=1)
         self._max_cursor = steps
@@ -21,7 +21,9 @@ class Progressing(AbstractAnimation):
             next_direction = -curr_direction
         self._set_wprops(_cursor=next_cursor, _direction=next_direction)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         bg_w = 102 if width is None else max(width, 2)
         bg_h = window.fonts.font_height
         inner_w = (bg_w - 2) // 2

@@ -199,7 +199,9 @@ class ScrollView(AbstractLayout):
             # scroll bottom
             return content_pos > view_length - content_length
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         thickness = self.scroll_thickness
         c_w_hint = width if self.wrap_horizontal else None
         c_h_hint = height if self.wrap_vertical else None

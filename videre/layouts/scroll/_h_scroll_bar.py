@@ -157,7 +157,9 @@ class _HScrollBar(Widget):
         scroll_length = (scrollbar_length * view_length) / content_length
         return round(scroll_pos), round(scroll_length)
 
-    def draw(self, window, view_width: int = None, view_height: int = None) -> Surface:
+    def draw(
+        self, window, view_width: int | None = None, view_height: int | None = None
+    ) -> Surface:
         assert view_width and view_height
         scroll, pos = self._compute(window, view_width, view_height)
         self._parent._set_child_position(self, *pos)

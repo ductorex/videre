@@ -86,5 +86,7 @@ class Character(Widget):
         )
         return rendering
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         return self._text_rendering(window).render_char(self.text, color=self.color)

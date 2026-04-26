@@ -47,7 +47,9 @@ class Column(AbstractControlsLayout):
     def space(self, space: int):
         self._set_wprop("space", space)
 
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         w_hint = width if self.expand_horizontal else None
         max_width = 0
         total_height = 0

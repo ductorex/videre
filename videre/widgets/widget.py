@@ -261,7 +261,9 @@ class Widget:
         self._old = self._new.copy()
         self._transient_state.clear()
 
-    def render(self, window, width: int = None, height: int = None) -> Surface:
+    def render(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         new_update = (window, width, height)
         if (
             self._surface is None
@@ -277,7 +279,9 @@ class Widget:
         return self._surface
 
     @abstractmethod
-    def draw(self, window, width: int = None, height: int = None) -> Surface:
+    def draw(
+        self, window, width: int | None = None, height: int | None = None
+    ) -> Surface:
         raise NotImplementedError()
 
     def handle_mouse_wheel(self, x: int, y: int, shift: bool):

@@ -167,11 +167,11 @@ class Window(PygameUtils, Clipboard):
 
     def text_rendering(
         self,
-        size: int = None,
+        size: int | None = None,
         strong: bool = False,
         italic: bool = False,
         underline: bool = False,
-        height_delta: int = None,
+        height_delta: int | None = None,
     ) -> PygameTextRendering:
         return PygameTextRendering(
             self.fonts,
