@@ -35,7 +35,7 @@ def test_printimg_with_non_path_source():
     import pygame
 
     surface = pygame.Surface((10, 10))
-    w = _build_image_window(surface)
+    w = _build_image_window(surface)  # ty: ignore[invalid-argument-type]
     assert w._title == "image"
 
 

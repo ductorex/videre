@@ -1,4 +1,4 @@
-from typing import Callable, TypeAlias
+from typing import Callable, TypeAlias, cast
 
 from videre.colors import Colors
 from videre.core.constants import Alignment, MouseButton
@@ -44,7 +44,7 @@ class Div(ControlLayout):
 
     def _container(self) -> Container:
         (container,) = self._controls()
-        return container
+        return cast(Container, container)
 
     def _get_on_click(self) -> OnClickType | None:
         return self._on_click

@@ -82,7 +82,7 @@ class Gradient(PygameUtils):
         return surface
 
     @classmethod
-    def parse(cls, coloring: ColorDef | Self) -> Self:
+    def parse(cls, coloring: ColorDef | Self) -> "Gradient":
         if isinstance(coloring, Gradient):
             return coloring
         return Gradient(parse_color(coloring))

@@ -36,6 +36,8 @@ class Widget:
         name: str | None = None,
         data: Any = None,
     ):
+        from videre.windowing.window import Window
+
         super().__init__()
 
         new: dict = {"weight": weight}
@@ -44,10 +46,10 @@ class Widget:
                 name = ""
             new["name"] = name
 
-        self._key = key or id(self)
+        self._key: str = key or str(id(self))
         self._old = {}
         self._new = new
-        self._old_update = ()
+        self._old_update: tuple[Window, int | None, int | None] | None = None
         self._transient_state = {}
         self._surface: Surface | None = None
         self._rc = 0
@@ -214,14 +216,21 @@ class Widget:
     def get_window(self):
         from videre.windowing.window import Window
 
+        assert self._old_update is not None
         window: Window = self._old_update[0]
         return window
 
     def _prev_scope_width(self) -> int:
-        return self._old_update[1]
+        assert self._old_update is not None
+        width = self._old_update[1]
+        assert width is not None
+        return width
 
     def _prev_scope_height(self) -> int:
-        return self._old_update[2]
+        assert self._old_update is not None
+        height = self._old_update[2]
+        assert height is not None
+        return height
 
     @classmethod
     def _has_wprop(cls, name: str) -> bool:

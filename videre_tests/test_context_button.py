@@ -61,7 +61,7 @@ def test_context_button_execute_action(fake_win, fake_user):
 
 
 def test_context_button_focus_out_closes(fake_win, fake_user):
-    cb = ContextButton("Menu", actions=[("Action", None)])
+    cb = ContextButton("Menu", actions=[("Action", None)])  # ty: ignore[invalid-argument-type]
     other = videre.Button("Other")
     fake_win.controls = [videre.Column([cb, other])]
     fake_win.render()
@@ -79,7 +79,7 @@ def test_context_button_focus_out_closes(fake_win, fake_user):
 
 
 def test_context_button_actions_property():
-    cb = ContextButton("Menu", actions=["A", ("B", None)])
+    cb = ContextButton("Menu", actions=["A", ("B", None)])  # ty: ignore[invalid-argument-type]
     assert cb.actions == [("A", None), ("B", None)]
 
 

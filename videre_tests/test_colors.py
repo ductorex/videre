@@ -7,9 +7,9 @@ def test_parse_color():
     with pytest.raises(ValueError, match="Color tuple/list must have 3 or 4 values"):
         assert parse_color([])
     with pytest.raises(ValueError, match="Color tuple/list must have 3 or 4 values"):
-        assert parse_color((1, 2))
+        assert parse_color((1, 2))  # ty: ignore[invalid-argument-type]
     with pytest.raises(ValueError, match="Unsupported color definition: int"):
-        assert parse_color(1)
+        assert parse_color(1)  # ty: ignore[invalid-argument-type]
     with pytest.raises(ValueError, match="Unknown color name: batman"):
         assert parse_color("batman")
     with pytest.raises(

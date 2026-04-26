@@ -7,10 +7,17 @@ from videre.fonts.unicode_utils import Unicode
 
 
 class AbstractTextElement(ABC):
-    __slots__ = ("x",)
+    __slots__ = ("x", "width", "horizontal_shift")
 
-    def __init__(self, x=0):
+    def __init__(
+        self,
+        x: int | float = 0,
+        width: int | float = 0,
+        horizontal_shift: int | float = 0,
+    ):
         self.x = x
+        self.width = width
+        self.horizontal_shift = horizontal_shift
 
     @abstractmethod
     def is_newline(self) -> bool:
@@ -20,28 +27,26 @@ class AbstractTextElement(ABC):
     def is_printable(self) -> bool:
         raise NotImplementedError()
 
-    def at(self, x: int) -> Self:
+    def at(self, x: int | float) -> Self:
         self.x = x
         return self
 
 
 class CharTask(AbstractTextElement):
-    __slots__ = ("el", "font", "width", "horizontal_shift", "bounds", "pos")
+    __slots__ = ("el", "font", "bounds", "pos")
 
     def __init__(
         self,
         c: str,
         font,
         width: int,
-        horizontal_shift: int,
+        horizontal_shift: int | float,
         bounds: pygame.Rect,
         pos: int,
     ):
-        super().__init__(0)
+        super().__init__(0, width, horizontal_shift)
         self.el = c
         self.font = font
-        self.width = width
-        self.horizontal_shift = horizontal_shift
         self.bounds = bounds
         self.pos = pos
 
@@ -56,16 +61,19 @@ class CharTask(AbstractTextElement):
 
 
 class WordTask(AbstractTextElement):
-    __slots__ = ("width", "tasks", "height", "horizontal_shift")
+    __slots__ = ("tasks", "height")
 
     def __init__(
-        self, width: int, x: int, tasks: list[CharTask], height=0, horizontal_shift=0
+        self,
+        width: int | float,
+        x: int | float,
+        tasks: list[CharTask],
+        height=0,
+        horizontal_shift=0,
     ):
-        super().__init__(x)
-        self.width = width
+        super().__init__(x, width, horizontal_shift)
         self.tasks = tasks
         self.height = height
-        self.horizontal_shift = horizontal_shift
 
     def __repr__(self):
         return f"{self.x}:" + repr("".join(t.el for t in self.tasks))
@@ -81,7 +89,7 @@ class Line[T: AbstractTextElement]:
     __slots__ = ("x", "y", "newline", "elements")
 
     def __init__(self, y=0, newline=False):
-        self.x = 0
+        self.x: int | float = 0
         self.y = y
         self.newline = newline
         self.elements: list[T] = []
@@ -95,7 +103,7 @@ class Line[T: AbstractTextElement]:
     def add(self, element: T):
         self.elements.append(element)
 
-    def limit(self) -> int:
+    def limit(self) -> int | float:
         info = self.elements[-1]
         return info.x + info.width
 
@@ -151,7 +159,9 @@ class WordsLine(Line[WordTask]):
 
 
 def align_words(
-    lines: list[Line[WordTask]], width: int, align: TextAlign | None = TextAlign.LEFT
+    lines: list[Line[WordTask]],
+    width: int | float,
+    align: TextAlign | None = TextAlign.LEFT,
 ) -> None:
     if align is None or align == TextAlign.LEFT:
         return
@@ -168,7 +178,7 @@ def align_words(
                 line.x = remaining
 
 
-def justify_words(lines: list[Line[WordTask]], width: int) -> None:
+def justify_words(lines: list[Line[WordTask]], width: int | float) -> None:
     paragraphs = []
     p = []
     for line in lines:

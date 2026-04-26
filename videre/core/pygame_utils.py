@@ -13,5 +13,5 @@ class PygameUtils:
         pygame.init()
 
     @classmethod
-    def new_surface(cls, width: int, height: int) -> Surface:
+    def new_surface(cls, width: int | float, height: int | float) -> Surface:
         return Surface((width, height), flags=pygame.SRCALPHA)

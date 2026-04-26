@@ -13,6 +13,7 @@ from videre.core.fontfactory.font_factory_utils import (
     WordsLine,
     WordTask,
     align_words,
+    AbstractTextElement,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_utils import Color, Surface
@@ -46,7 +47,7 @@ class RenderedText:
     surface: Surface
     font_sizes: FontSizes
 
-    def first_x(self) -> int:
+    def first_x(self) -> int | float:
         if self.lines:
             line = self.lines[0]
             if line.elements:
@@ -109,8 +110,8 @@ class PygameTextRendering:
 
     def _render_word_lines_old(
         self,
-        width: int,
-        height: int,
+        width: int | float,
+        height: int | float,
         lines: list[Line[WordTask]],
         align: TextAlign | None,
         color: Color | None,
@@ -162,7 +163,7 @@ class PygameTextRendering:
     @classmethod
     def _get_rendering_blocks(cls, lines: list[Line[WordTask]]):
         nb_chars = 0
-        blocks: list[tuple[int, int, int, list[CharTask]]] = []
+        blocks: list[tuple[int | float, int | float, int | float, list[CharTask]]] = []
         for line in lines:
             for word in line.elements:
                 nb_chars += len(word.tasks)
@@ -257,22 +258,22 @@ class PygameTextRendering:
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool
-    ) -> tuple[int, int, list[Line[CharTask]]]:
+    ) -> tuple[int | float, int | float, list[Line[CharTask]]]:
         return self._get_tasks(self._get_chars, self._parse_char, text, width, compact)
 
     def _get_word_tasks(
         self, text: str, width: int, compact: bool
-    ) -> tuple[int, int, list[Line[WordTask]]]:
+    ) -> tuple[int | float, int | float, list[Line[WordTask]]]:
         return self._get_tasks(self._get_words, self._parse_word, text, width, compact)
 
-    def _get_tasks[T](
+    def _get_tasks[T: AbstractTextElement](
         self,
         get_elements: Callable[[str], Iterable[Any]],
         parse_element: Callable[[Any], T],
         text: str,
         width: int | None,
         compact: bool,
-    ) -> tuple[int, int, list[Line[T]]]:
+    ) -> tuple[int | float, int | float, list[Line[T]]]:
         lines = []
         task_line = Line[T]()
         x = 0
@@ -296,7 +297,9 @@ class PygameTextRendering:
         new_width, height = self._get_text_dimensions(lines, compact)
         return new_width, height, lines
 
-    def _get_text_dimensions(self, lines: list[Line], compact: bool) -> tuple[int, int]:
+    def _get_text_dimensions(
+        self, lines: list[Line], compact: bool
+    ) -> tuple[int | float, int | float]:
         # Compute width, height and ys
         new_width, height = 0, 0
         if lines:

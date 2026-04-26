@@ -126,7 +126,7 @@ class TestScrollViewInteractions:
         # This requires mocking the shift key state
 
         original_get_mods = pygame.key.get_mods
-        pygame.key.get_mods = lambda: pygame.KMOD_SHIFT
+        pygame.key.get_mods = lambda: pygame.KMOD_SHIFT  # ty: ignore[invalid-assignment]
 
         try:
             fake_user.mouse_wheel(x=0, y=-1)
@@ -396,13 +396,13 @@ class TestScrollViewEdgeCases:
         try:
             inner_x = inner_scroll.global_x + 1
             inner_y = inner_scroll.global_y + 1
-            pygame.mouse.get_pos = lambda: (inner_x, inner_y)
+            pygame.mouse.get_pos = lambda: (inner_x, inner_y)  # ty: ignore[invalid-assignment]
             fake_user.mouse_wheel(x=0, y=-1)
             fake_win.check("scroll_inner")
 
             outer_x = inner_scroll.right + 2
             outer_y = outer_scroll.global_y + 1
-            pygame.mouse.get_pos = lambda: (outer_x, outer_y)
+            pygame.mouse.get_pos = lambda: (outer_x, outer_y)  # ty: ignore[invalid-assignment]
             fake_user.mouse_wheel(x=0, y=-1)
             fake_win.check("scroll_outer")
         finally:

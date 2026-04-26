@@ -1,9 +1,11 @@
+from typing import cast
+
 from videre.core.constants import Side
 
 
 class AbstractSides[T, S]:
     __slots__ = ("top", "right", "bottom", "left")
-    __default__ = None
+    __default__: S | None = None
 
     def __init__(
         self,
@@ -18,10 +20,12 @@ class AbstractSides[T, S]:
         self.right: S = self._parse(right)
 
     def _parse(self, value: T | None) -> S:
-        return self.__default__ if value is None else self.__parser__(value)
+        if value is None:
+            return cast(S, self.__default__)
+        return self.__parser__(value)
 
     def __parser__(self, side: T) -> S:
-        return side
+        return cast(S, side)
 
     def __repr__(self):
         sides = []

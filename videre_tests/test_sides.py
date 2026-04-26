@@ -130,12 +130,12 @@ def test_border_left_0():
 
 def test_bad_border():
     with pytest.raises(ValueError, match="Unsupported border side value: ''"):
-        Border(top="")
+        Border(top="")  # ty: ignore[invalid-argument-type]
 
 
 def test_margin():
     with pytest.raises(TypeError, match="Unsupported Margin value type: str"):
-        Margin(top="")
+        Margin(top="")  # ty: ignore[invalid-argument-type]
 
     with pytest.raises(ValueError, match="Unsupported Margin value: -1"):
         Margin(top=-1)

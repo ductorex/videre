@@ -10,8 +10,8 @@ def _restore_clipboard_backend():
     original_copy = Clipboard._copy
     original_paste = Clipboard._paste
     yield
-    Clipboard._copy = original_copy
-    Clipboard._paste = original_paste
+    Clipboard._copy = original_copy  # ty: ignore[invalid-assignment]
+    Clipboard._paste = original_paste  # ty: ignore[invalid-assignment]
 
 
 def test_get_clipboard_success():

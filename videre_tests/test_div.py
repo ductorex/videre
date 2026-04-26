@@ -103,7 +103,7 @@ def test_div_no_click_handler(fake_win, fake_user):
 def test_div_invalid_style():
     control = videre.Text("Hello")
     with pytest.raises(TypeError, match="Invalid style type: str"):
-        videre.Div(control, style="invalid_style")
+        videre.Div(control, style="invalid_style")  # ty: ignore[invalid-argument-type]
 
 
 def test_style_fill_with():

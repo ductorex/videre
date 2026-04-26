@@ -79,7 +79,7 @@ class TestWidgetAdvanced:
 
     def test_widget_key_property(self):
         widget1 = Widget()
-        assert widget1._key == id(widget1)
+        assert widget1._key == str(id(widget1))
 
         widget2 = Widget(key="my_custom_key")
         assert widget2._key == "my_custom_key"

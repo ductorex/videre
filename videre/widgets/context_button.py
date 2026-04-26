@@ -112,4 +112,5 @@ class ContextButton(AbstractButton):
             default=0,
         )
         padding = Div.__style__.default.padding
+        assert padding is not None
         return padding.left + text_width + padding.right
