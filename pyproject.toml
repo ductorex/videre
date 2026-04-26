@@ -21,20 +21,14 @@ Repository = "https://github.com/ductorex/videre"
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.44.0",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "pytest-regressions>=2.8.2",
     "pytest-xdist>=3.8.0",
     "ruff>=0.12.10",
+    "ty>=0.0.32",
 ]
-
-[tool.ruff.lint.per-file-ignores]
-# Do not complain about unused imports in __init__ files.
-"__init__.py" = ["F401"]
-
-[tool.ruff.format]
-# Collapse lines even if they contain commas
-skip-magic-trailing-comma = true
 
 [build-system]
 requires = ["hatchling >= 1.26"]
@@ -48,3 +42,18 @@ include = ["videre"]
 
 [tool.pytest.ini_options]
 markers = ["win_params: arguments for fake_win.__init__"]
+
+[tool.ruff.lint.per-file-ignores]
+# Do not complain about unused imports in __init__ files.
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+# Collapse lines even if they contain commas
+skip-magic-trailing-comma = true
+
+[tool.poe.tasks]
+format = "ruff format"
+lint = "ruff check --fix"
+typecheck = """ty check --output-format concise \
+    videre videre_examples videre_tests"""
+check = ["format", "lint", "typecheck"]

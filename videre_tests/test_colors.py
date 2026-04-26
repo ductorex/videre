@@ -13,7 +13,7 @@ def test_parse_color():
     with pytest.raises(ValueError, match="Unknown color name: batman"):
         assert parse_color("batman")
     with pytest.raises(
-        ValueError, match="Too long color hex \(at most 8 digits expected\)"
+        ValueError, match=r"Too long color hex \(at most 8 digits expected\)"
     ):
         assert parse_color("#abcdef01c")
     with pytest.raises(ValueError, match="Expected a non-empty string color"):
