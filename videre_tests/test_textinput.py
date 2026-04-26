@@ -60,6 +60,7 @@ def test_cursor_move_by_keyboard(fake_win, fake_user):
     # Click on ','
     # We have only 1 line, without wrap,
     # so line contains only 1 word embedding full string.
+    assert ti._text._rendered is not None
     word = ti._text._rendered.lines[0].elements[0]
     char = word.tasks[5]
     assert char.el == ","

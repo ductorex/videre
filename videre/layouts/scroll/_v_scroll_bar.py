@@ -30,7 +30,7 @@ class _VScrollBar(_HScrollBar):
         button = event.button
         y = event.y
         if self.on_jump and button == MouseButton.BUTTON_LEFT:
-            grip_length = self._surface.get_height()
+            grip_length = self._assert_rendered().get_height()
             h = self._bar_length()
             if y < self.y or y >= self.y + grip_length:
                 y = min(y, h - grip_length)
@@ -43,7 +43,7 @@ class _VScrollBar(_HScrollBar):
             grab_y = event.y
             y = grab_y - self._grabbed[0]
             h = self._bar_length()
-            grip_length = self._surface.get_height()
+            grip_length = self._assert_rendered().get_height()
             y = min(max(y, 0), h - grip_length)
             if y != self.y:
                 self._jump(y, h, grip_length)

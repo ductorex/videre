@@ -827,8 +827,12 @@ json = [
 def load_colors():
     print("import pygame")
     for desc in sorted(json, key=lambda d: d["name"].lower()):
-        name = desc["name"].lower()
-        str_r, str_g, str_b = desc["rgb"][4:-1].split(",")
+        name_val = desc["name"]
+        rgb_val = desc["rgb"]
+        assert isinstance(name_val, str)
+        assert isinstance(rgb_val, str)
+        name = name_val.lower()
+        str_r, str_g, str_b = rgb_val[4:-1].split(",")
         r = int(str_r.strip())
         g = int(str_g.strip())
         b = int(str_b.strip())

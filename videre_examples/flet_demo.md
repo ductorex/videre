@@ -1,3 +1,4 @@
+```python
 import flet as ft
 
 _irrelevant_ = [
@@ -40,3 +41,4 @@ _done_ = [
     ft.Dropdown,  # <select>options...</select>
     ft.TextField,
 ]
+```

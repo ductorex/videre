@@ -33,6 +33,7 @@ class _ScrollBackground(Widget):
             b_height = max(0, height - thickness) if both else height
             x, y = width - thickness, 0
 
+        assert self._parent is not None
         self._parent._set_child_position(self, x, y)
 
         surface = window.new_surface(b_width, b_height)

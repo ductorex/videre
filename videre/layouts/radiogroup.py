@@ -51,10 +51,14 @@ class RadioGroup(ControlLayout):
         self._set_new_value(new_value)
 
     def _set_new_value(self, new_value: Any, react=True):
+        from videre.widgets.radio import Radio
+
         if new_value == self._get_wprop("value"):
             return
         self._set_wprop("value", new_value)
+
         for radio in self.collect_matches(is_radio):
+            assert isinstance(radio, Radio)
             radio._set_checked(radio.value == new_value)
         if react:
             on_change = self.on_change

@@ -533,13 +533,11 @@ def test_window_default_mouse_over(fake_win):
 
 
 def test_run_async(fake_win):
-    data = SimpleNamespace(value=1)
+    data = SimpleNamespace(value=1, called=0)
 
     def function(a, b):
         data.value += a * b
-        function.called += 1
-
-    function.called = 0
+        data.called += 1
 
     fake_win.call_async(function, 6, 7)
     # This render() will push call event into manual events queue
@@ -548,20 +546,18 @@ def test_run_async(fake_win):
     fake_win.render()
     # Let's wait a little, to let thread run.
     time.sleep(0.25)
-    assert function.called == 1
+    assert data.called == 1
     assert data.value == 43
     assert fake_win._exit_code == 0
 
 
 def test_run_async_with_error(fake_win):
-    data = SimpleNamespace(value=1)
+    data = SimpleNamespace(value=1, called=0)
 
     def function(a, b):
-        function.called += 1
+        data.called += 1
         raise Exception("function error")
         data.value += a * b
-
-    function.called = 0
 
     fake_win.call_async(function, 6, 7)
     # This render() will push call event into manual events queue
@@ -570,6 +566,6 @@ def test_run_async_with_error(fake_win):
     fake_win.render()
     # Let's wait a little, to let thread run.
     time.sleep(0.25)
-    assert function.called == 1
+    assert data.called == 1
     assert data.value == 1
     assert fake_win._exit_code == -1

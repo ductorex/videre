@@ -133,9 +133,10 @@ class Widget:
             return self._parent.global_y + self.y
         return self.y
 
-    def _assert_rendered(self):
+    def _assert_rendered(self) -> Surface:
         if not self._surface:
             raise RuntimeError(f"{self} not yet drawn")
+        return self._surface
 
     @property
     def top(self) -> int:
@@ -151,23 +152,19 @@ class Widget:
 
     @property
     def bottom(self) -> int:
-        self._assert_rendered()
-        return self.top + self._surface.get_height() - 1
+        return self.top + self._assert_rendered().get_height() - 1
 
     @property
     def right(self) -> int:
-        self._assert_rendered()
-        return self.left + self._surface.get_width() - 1
+        return self.left + self._assert_rendered().get_width() - 1
 
     @property
     def rendered_width(self) -> int:
-        self._assert_rendered()
-        return self._surface.get_width()
+        return self._assert_rendered().get_width()
 
     @property
     def rendered_height(self) -> int:
-        self._assert_rendered()
-        return self._surface.get_height()
+        return self._assert_rendered().get_height()
 
     def get_root(self) -> "Widget":
         root = self

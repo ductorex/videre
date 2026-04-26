@@ -44,8 +44,10 @@ class _FontInfo:
 
     def __init__(self, path: str):
         with TTFont(path) as font:
-            self.name = font["name"].getDebugName(4)
-        self.path = path
+            name = font["name"].getDebugName(4)
+            assert name is not None
+        self.name: str = name
+        self.path: str = path
 
     def __repr__(self):
         return f"({self.name})[{self.path}]"

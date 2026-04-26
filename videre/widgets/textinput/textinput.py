@@ -113,6 +113,7 @@ class TextInput(AbstractLayout):
             self.update()
 
     def _get_cursor(self) -> int:
+        assert self._cursor_event is not None
         return self._cursor_event.pos
 
     def handle_mouse_enter(self, event: MouseEvent):

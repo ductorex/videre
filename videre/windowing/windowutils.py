@@ -34,7 +34,9 @@ class OnEvent[K]:
         return decorator
 
     def __str__(self):
-        return str({et: f.__name__ for et, f in self._callbacks.items()})
+        return str(
+            {et: getattr(f, "__name__", str(f)) for et, f in self._callbacks.items()}
+        )
 
     def __len__(self):
         return len(self._callbacks)

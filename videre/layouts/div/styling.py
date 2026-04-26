@@ -76,6 +76,8 @@ class StyleDef:
         if style is None:
             return base_style
         else:
+            assert base_style.hover is not None
+            assert base_style.click is not None
             output = {
                 "default": dataclasses.replace(base_style.default),
                 "hover": base_style.hover.get_specific_from(base_style.default),

@@ -1,7 +1,7 @@
 import sys
 from typing import Sequence
 
-import unicodedataplus
+import unicodedataplus  # ty: ignore
 from unicodedata import category, unidata_version
 
 Cc = "Cc"  # control characters

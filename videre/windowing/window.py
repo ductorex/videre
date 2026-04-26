@@ -495,6 +495,7 @@ class Window(PygameUtils, Clipboard):
         for button in m_event.buttons:
             if self._down[button]:
                 down = self._down[button]
+                assert down is not None
                 parent_x = 0 if down.parent is None else down.parent.global_x
                 parent_y = 0 if down.parent is None else down.parent.global_y
                 EventPropagator.handle_mouse_down_move(

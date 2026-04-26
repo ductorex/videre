@@ -90,7 +90,7 @@ class _HScrollBar(Widget):
         button = event.button
         x = event.x
         if self.on_jump and button == MouseButton.BUTTON_LEFT:
-            grip_length = self._surface.get_width()
+            grip_length = self._assert_rendered().get_width()
             w = self._bar_length()
             if x < self.x or x >= self.x + grip_length:
                 x = min(x, w - grip_length)
@@ -112,7 +112,7 @@ class _HScrollBar(Widget):
             grab_x = event.x
             x = grab_x - self._grabbed[0]
             w = self._bar_length()
-            grip_length = self._surface.get_width()
+            grip_length = self._assert_rendered().get_width()
             x = min(max(x, 0), w - grip_length)
             if x != self.x:
                 self._jump(x, w, grip_length)
@@ -162,5 +162,6 @@ class _HScrollBar(Widget):
     ) -> Surface:
         assert view_width and view_height
         scroll, pos = self._compute(window, view_width, view_height)
+        assert self._parent is not None
         self._parent._set_child_position(self, *pos)
         return scroll

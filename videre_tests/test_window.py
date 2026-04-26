@@ -13,40 +13,36 @@ def test_window_change_background(fake_win):
 
 
 def test_window_notify(fake_win, fake_user):
-    data = SimpleNamespace(notifications=[])
+    data = SimpleNamespace(notifications=[], send_called=0, cb_called=0)
 
     def send_notification(*args):
-        send_notification.called += 1
+        data.send_called += 1
         fake_win.notify("Test Notification")
-
-    send_notification.called = 0
 
     button = videre.Button("Send Notification", on_click=send_notification)
     fake_win.controls = [button]
 
     def callback(notification):
-        callback.called += 1
+        data.cb_called += 1
         assert notification == "Test Notification"
         data.notifications.append(notification)
-
-    callback.called = 0
 
     fake_win.set_notification_callback(callback)
 
     fake_win.render()
-    assert send_notification.called == 0
-    assert callback.called == 0
+    assert data.send_called == 0
+    assert data.cb_called == 0
     assert len(data.notifications) == 0
 
     fake_user.click(button)
     # First render will handle click
     fake_win.render()
-    assert send_notification.called == 1
-    assert callback.called == 0
+    assert data.send_called == 1
+    assert data.cb_called == 0
     # Then second render will process the notification
     fake_win.render()
-    assert send_notification.called == 1
-    assert callback.called == 1
+    assert data.send_called == 1
+    assert data.cb_called == 1
     assert len(data.notifications) == 1
     assert data.notifications[0] == "Test Notification"
 
