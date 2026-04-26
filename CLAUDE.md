@@ -29,7 +29,15 @@ uv run ruff check
 
 # Lint with auto-fix
 uv run ruff check --fix
+
+# Type-check (ty)
+uv run poe typecheck
+
+# Format + lint --fix + typecheck (full pre-commit gate)
+uv run poe check
 ```
+
+The `poe` tasks are defined in `pyproject.toml` under `[tool.poe.tasks]`. `typecheck` runs `ty check` against `videre`, `videre_examples`, and `videre_tests`.
 
 ## Architecture
 

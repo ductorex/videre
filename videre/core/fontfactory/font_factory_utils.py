@@ -71,7 +71,7 @@ class WordTask(AbstractTextElement):
         return f"{self.x}:" + repr("".join(t.el for t in self.tasks))
 
     def is_newline(self) -> bool:
-        return self.height and not self.width
+        return bool(self.height and not self.width)
 
     def is_printable(self) -> bool:
         return bool(self.width)
