@@ -31,14 +31,14 @@ class FontSizes:
 
     def __init__(self, base: CharMeasures, size: int, height_delta=2):
         base_font = base.font
-        self.height_delta = height_delta
-        self.line_spacing = base_font.get_sized_height(size) + height_delta
-        self.ascender = abs(base_font.get_sized_ascender(size)) + 1
-        self.descender = abs(base_font.get_sized_descender(size))
-        self.space_width = base.rect.width
-
         metric = base.metrics
-        self.space_shift = metric[4] if metric else self.space_width
+
+        self.height_delta: int = height_delta
+        self.line_spacing: int = base_font.get_sized_height(size) + height_delta
+        self.ascender: int = abs(base_font.get_sized_ascender(size)) + 1
+        self.descender: int = abs(base_font.get_sized_descender(size))
+        self.space_width: int = base.rect.width
+        self.space_shift: int | float = metric[4] if metric else self.space_width
 
 
 @dataclass(slots=True)
@@ -72,10 +72,10 @@ class PygameTextRendering:
         base = fonts.get_char_measures(" ", size, strong, italic)
 
         self._fonts = fonts
-        self._size = size
-        self._strong = strong
-        self._italic = italic
-        self._underline = bool(underline)
+        self._size: int = size
+        self._strong: bool = strong
+        self._italic: bool = italic
+        self._underline: bool = bool(underline)
 
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
@@ -336,7 +336,7 @@ class PygameTextRendering:
             words.extend(word for word in line.split(" ") if word)
         return words
 
-    def _parse_char(self, ic: tuple[int, str]):
+    def _parse_char(self, ic: tuple[int, str]) -> CharTask:
         charpos, c = ic
 
         char_measures = self._fonts.get_char_measures(
@@ -352,7 +352,7 @@ class PygameTextRendering:
 
         return CharTask(c, font, width, horizontal_shift, bounds, charpos)
 
-    def _parse_word(self, word: str):
+    def _parse_word(self, word: str) -> WordTask:
         width, height, lines = self._get_char_tasks(word, None, False)
         if width:
             (line,) = lines
