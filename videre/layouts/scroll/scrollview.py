@@ -128,7 +128,7 @@ class ScrollView(AbstractLayout):
         self._transient_state["scroll_event_y"] = True
 
     def _has_scroll_event_y(self) -> bool:
-        return self._transient_state.get("scroll_event_y")
+        return bool(self._transient_state.get("scroll_event_y"))
 
     def on_jump_y(self, content_y: int):
         prev = self._content_y

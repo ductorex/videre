@@ -149,6 +149,7 @@ class Container(AbstractLayout):
                 inner_height = margin.get_inner_height(outer_height)
         elif width is None:
             # height available
+            assert height is not None
             outer_height = max(height, min_height)
             inner_height = margin.get_inner_height(outer_height)
             if square:

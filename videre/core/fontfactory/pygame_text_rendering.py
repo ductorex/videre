@@ -113,7 +113,7 @@ class PygameTextRendering:
         height: int,
         lines: list[Line[WordTask]],
         align: TextAlign | None,
-        color: Color,
+        color: Color | None,
         selection: tuple[int, int] | None = None,
     ) -> Surface:
         align_words(lines, width, align)
@@ -139,7 +139,7 @@ class PygameTextRendering:
         height: int,
         lines: list[Line[WordTask]],
         align: TextAlign | None,
-        color: Color,
+        color: Color | None,
         selection: tuple[int, int] | None = None,
     ) -> Surface:
         align_words(lines, width, align)

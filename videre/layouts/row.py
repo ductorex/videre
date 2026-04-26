@@ -122,10 +122,12 @@ class Row(AbstractControlsLayout):
         for i, render in enumerate(rendered):
             if render:
                 ctrl, surface = render
+                size_i = sizes[i]
+                assert size_i is not None
                 y = self._align_dim(height, surface.get_height(), alignment)
                 row.blit(surface, (x, y))
                 self._set_child_position(ctrl, x, y)
-                x += sizes[i] + space
+                x += size_i + space
             else:
                 # TODO should we instead fully render control but not display it ?
                 # Because, sometimes control rendering may also imply

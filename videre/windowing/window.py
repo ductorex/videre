@@ -346,7 +346,10 @@ class Window(PygameUtils, Clipboard):
             ),
             title,
             buttons=[
-                FancyCloseButton(title.text, on_click=Procedure(on_confirm)),
+                FancyCloseButton(
+                    title.text,
+                    on_click=Procedure(on_confirm) if on_confirm is not None else None,
+                ),
                 FancyCloseButton("cancel"),
             ],
         )
@@ -461,17 +464,18 @@ class Window(PygameUtils, Clipboard):
     def _on_mouse_button_up(self, event: Event):
         button = MouseButton(event.button)
         owner = self._layout.get_mouse_owner(*event.pos)
+        down_widget = self._down[button]
         if owner:
             EventPropagator.handle_mouse_up(
                 owner.widget,
                 MouseEvent(x=owner.x_in_parent, y=owner.y_in_parent, buttons=[button]),
             )
-            if self._down[button] == owner.widget:
+            if down_widget == owner.widget:
                 EventPropagator.handle_click(owner.widget, button)
-            elif self._down[button]:
-                EventPropagator.handle_mouse_down_canceled(self._down[button], button)
-        elif self._down[button]:
-            EventPropagator.handle_mouse_down_canceled(self._down[button], button)
+            elif down_widget is not None:
+                EventPropagator.handle_mouse_down_canceled(down_widget, button)
+        elif down_widget is not None:
+            EventPropagator.handle_mouse_down_canceled(down_widget, button)
         self._down[button] = None
 
     @on_event(pygame.MOUSEMOTION)

@@ -49,6 +49,7 @@ class _VScrollBar(_HScrollBar):
                 self._jump(y, h, grip_length)
 
     def _jump(self, y: int, h: int, grip_length: int):
+        assert self.on_jump is not None
         if y == h - grip_length:
             self.on_jump(self.content_length)
         else:

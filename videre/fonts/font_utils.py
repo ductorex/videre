@@ -7,10 +7,14 @@ class FontUtils:
         self._path = path
         self._font = TTFont(path, fontNumber=font_index, allowVID=allow_vid)
         # (2024/06/11) https://stackoverflow.com/a/72228817
-        self.name: str = self._font["name"].getDebugName(4)
-        self._unicode_map: dict = self._font.getBestCmap()
-        if self._unicode_map is None:
-            raise ValueError(f"Cannot find best unicode table in font: {self.name}")
+        debug_name = self._font["name"].getDebugName(4)
+        if debug_name is None:
+            raise ValueError(f"Cannot get name for font: {path}")
+        unicode_map = self._font.getBestCmap()
+        if unicode_map is None:
+            raise ValueError(f"Cannot find best unicode table in font: {debug_name}")
+        self.name: str = debug_name
+        self._unicode_map: dict = unicode_map
 
     def supported(self):
         return [

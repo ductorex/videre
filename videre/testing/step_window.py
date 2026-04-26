@@ -32,7 +32,7 @@ class StepWindow(Window):
         if not self._step_mode:
             raise RuntimeError("screenshot() requires step-mode (`with window`)")
         data = io.BytesIO()
-        pygame.image.save(self._screen, data)
+        pygame.image.save(self.get_screen(), data)
         data.flush()
         return data
 

@@ -30,10 +30,13 @@ class TextInput(AbstractLayout):
     def __init__(self, text: str = "", size: int = 0, border: bool = True, **kwargs):
         # self._text = _InputText(text="Hello, 炎炎ノ消防隊: ", size=80)
         self._text = Text(text=text, size=size, height_delta=0)
-        border = self.__border__ if border else None
-        padding = self.__padding__ if border else None
+        container_border = self.__border__ if border else None
+        container_padding = self.__padding__ if border else None
         self._container = Container(
-            self._text, background_color=(240, 240, 240), border=border, padding=padding
+            self._text,
+            background_color=(240, 240, 240),
+            border=container_border,
+            padding=container_padding,
         )
         super().__init__([self._container], **kwargs)
         self._cursor_event: CursorCharPosEvent | None = None
@@ -67,14 +70,21 @@ class TextInput(AbstractLayout):
     def _has_selection(self) -> bool:
         return self.__selection() is not None
 
-    def _get_selection(self) -> tuple[int, int]:
+    def _get_selection(self) -> tuple[int, int] | None:
         return self.__selection()
+
+    def _required_selection(self) -> tuple[int, int]:
+        selection = self.__selection()
+        assert selection is not None
+        return selection
 
     def _set_selection(self, start: int | None = None, end: int | None = None):
         prev_selection = self.__selection()
+        selection: tuple[int, int] | None
         if start is None and end is None:
             selection = None
         elif start is None:
+            assert end is not None
             assert prev_selection
             selection = (prev_selection[0], end)
         elif end is None:
@@ -99,7 +109,9 @@ class TextInput(AbstractLayout):
         return Widget.get_mouse_owner(self, x_in_parent, y_in_parent)
 
     def _mouse_to_pos(self, x: int, y: int) -> int:
-        return CursorMouseEvent(x, y).to_pos(self._text._rendered)
+        rendered = self._text._rendered
+        assert rendered is not None
+        return CursorMouseEvent(x, y).to_pos(rendered)
 
     def _set_cursor(self, pos: int):
         event = CursorCharPosEvent(pos)
@@ -171,7 +183,7 @@ class TextInput(AbstractLayout):
         self._debug("text_input", repr(text))
         if self._has_selection():
             # Replace selected text
-            start, end = self._get_selection()
+            start, end = self._required_selection()
             in_text = self._text.text
             out_text = in_text[:start] + text + in_text[end:]
             self._text.text = out_text
@@ -228,6 +240,7 @@ class TextInput(AbstractLayout):
                 shift=key.shift,
                 right=False,
             )
+            assert ret.out_pos is not None
             self._set_cursor(ret.out_pos)
             self._set_selection(*ret.out_selection)
         elif key.right:
@@ -239,6 +252,7 @@ class TextInput(AbstractLayout):
                 shift=key.shift,
                 right=True,
             )
+            assert ret.out_pos is not None
             self._set_cursor(ret.out_pos)
             self._set_selection(*ret.out_selection)
         elif key.ctrl:
@@ -247,7 +261,7 @@ class TextInput(AbstractLayout):
                 self._set_selection(0, len(self._text.text))
                 self._set_cursor(len(self._text.text))
             elif key.c and self._has_selection():
-                start, end = self._get_selection()
+                start, end = self._required_selection()
                 content = self._text.text[start:end]
                 self.get_window().set_clipboard(content)
                 self._debug("copied", repr(content))
@@ -256,7 +270,7 @@ class TextInput(AbstractLayout):
                 if inserted:
                     in_text = self._text.text
                     if self._has_selection():
-                        start, end = self._get_selection()
+                        start, end = self._required_selection()
                         out_text = in_text[:start] + inserted + in_text[end:]
                         self._text.text = out_text
                         self._set_cursor(start + len(inserted))
@@ -285,6 +299,7 @@ class TextInput(AbstractLayout):
 
         # Draw cursor if focused
         if self._has_focus() and self._cursor_event:
+            assert rendered is not None
             cursor_def = self._cursor_event.handle(rendered)
             cursor = self._get_cursor_rect(cursor_def, rendered)
             pygame.gfxdraw.box(surface, cursor, Colors.black)

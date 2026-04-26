@@ -126,6 +126,7 @@ class _HScrollBar(Widget):
         self._set_color()
 
     def _jump(self, x: int, w: int, grip_length: int):
+        assert self.on_jump is not None
         if x == w - grip_length:
             self.on_jump(self.content_length)
         else:

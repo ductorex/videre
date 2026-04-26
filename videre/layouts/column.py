@@ -123,10 +123,12 @@ class Column(AbstractControlsLayout):
         for i, render in enumerate(rendered):
             if render:
                 ctrl, surface = render
+                size_i = sizes[i]
+                assert size_i is not None
                 x = self._align_dim(width, surface.get_width(), alignment)
                 column.blit(surface, (x, y))
                 self._set_child_position(ctrl, x, y)
-                y += sizes[i] + space
+                y += size_i + space
             else:
                 # todo see comment in Row
                 controls[i].flush_changes()

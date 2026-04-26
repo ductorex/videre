@@ -9,11 +9,11 @@ from videre.gradient import ColoringDefinition
 
 @dataclass(slots=True)
 class Style:
-    border: Border = None
-    padding: Padding = None
-    background_color: ColoringDefinition = None
-    vertical_alignment: Alignment = None
-    horizontal_alignment: Alignment = None
+    border: Border | None = None
+    padding: Padding | None = None
+    background_color: ColoringDefinition | None = None
+    vertical_alignment: Alignment | None = None
+    horizontal_alignment: Alignment | None = None
     width: int | None = None
     height: int | None = None
     square: bool | None = None
@@ -58,26 +58,18 @@ class Style:
 @dataclass(slots=True)
 class StyleDef:
     default: Style = dataclasses.field(default_factory=Style)
-    hover: Style | None = None
-    click: Style | None = None
+    hover: Style = dataclasses.field(default_factory=Style)
+    click: Style = dataclasses.field(default_factory=Style)
 
     def __post_init__(self):
-        if self.hover is None:
-            self.hover = dataclasses.replace(self.default)
-        else:
-            self.hover.fill_with(self.default)
-        if self.click is None:
-            self.click = dataclasses.replace(self.default)
-        else:
-            self.click.fill_with(self.default)
+        self.hover.fill_with(self.default)
+        self.click.fill_with(self.default)
 
-    def merged_with(self, style: "StyleType | None") -> Self:
+    def merged_with(self, style: "StyleType | None") -> "StyleDef":
         base_style = self
         if style is None:
             return base_style
         else:
-            assert base_style.hover is not None
-            assert base_style.click is not None
             output = {
                 "default": dataclasses.replace(base_style.default),
                 "hover": base_style.hover.get_specific_from(base_style.default),
@@ -85,10 +77,9 @@ class StyleDef:
             }
             if isinstance(style, StyleDef):
                 for key in ("default", "hover", "click"):
-                    if getattr(style, key) is not None:
-                        output_key = dataclasses.replace(getattr(style, key))
-                        output_key.fill_with(output[key])
-                        output[key] = output_key
+                    output_key = dataclasses.replace(getattr(style, key))
+                    output_key.fill_with(output[key])
+                    output[key] = output_key
             elif isinstance(style, dict):
                 for key in ("default", "hover", "click"):
                     if key in style:
