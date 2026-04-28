@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pygame
 from pygame.event import Event
+
 from videre.core.constants import MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry
 from videre.layouts.column import Column

@@ -1,5 +1,6 @@
+from videre.colors import Color
 from videre.colors import ColorDef, parse_color
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_utils import Surface
 from videre.widgets.widget import Widget
 
 
@@ -81,12 +82,14 @@ class Character(Widget):
         if size is None:
             size = window.fonts.symbol_size
 
-        rendering: PygameTextRendering = window.text_rendering(
+        return window.text_rendering(
             size=size, strong=self.strong, italic=self.italic, underline=self.underline
         )
-        return rendering
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Surface:
-        return self._text_rendering(window).render_char(self.text, color=self.color)
+        drawer = self._text_rendering(window).render_char_drawer(
+            self.text, color=self.color
+        )
+        return window.executor.render_to_surface(drawer)

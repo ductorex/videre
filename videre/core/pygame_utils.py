@@ -1,8 +1,17 @@
 import pygame
 
-Color = pygame.Color
+from videre.core.drawer import Color as DrawerColor
+
 Surface = pygame.Surface
 Event = pygame.event.Event
+
+
+def to_drawer_color(c: pygame.Color) -> DrawerColor:
+    return DrawerColor(c.r, c.g, c.b, c.a)
+
+
+def from_drawer_color(color: DrawerColor) -> pygame.Color:
+    return pygame.Color(color.r, color.g, color.b, color.a)
 
 
 class PygameUtils:

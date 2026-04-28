@@ -1,9 +1,9 @@
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, Self, TypeAlias
+from typing import Any, Self, TypeAlias, Iterator
 
 from videre import Alignment, Border, Padding
-from videre.core.pygame_utils import Color
+from videre.colors import Color
 from videre.gradient import ColoringDefinition
 
 
@@ -19,37 +19,20 @@ class Style:
     square: bool | None = None
     color: Color | None = None
 
+    def __iter__(self) -> Iterator[tuple[str, Any]]:
+        for field in dataclasses.fields(self):
+            yield field.name, getattr(self, field.name)
+
     def fill_with(self, other: "Style"):
-        for key in (
-            "border",
-            "padding",
-            "background_color",
-            "vertical_alignment",
-            "horizontal_alignment",
-            "width",
-            "height",
-            "square",
-            "color",
-        ):
+        for field in dataclasses.fields(self):
+            key = field.name
             if getattr(self, key) is None:
                 setattr(self, key, getattr(other, key))
 
     def get_specific_from(self, other: "Style"):
         return Style(
-            **{
-                key: value
-                for key, value in self.to_dict().items()
-                if value != getattr(other, key)
-            }
+            **{key: value for key, value in self if value != getattr(other, key)}
         )
-
-    def to_dict(self):
-        return dataclasses.asdict(self)
-
-    def container_styles(self) -> dict:
-        style = dataclasses.asdict(self)
-        del style["color"]
-        return style
 
     def copy(self, **changes) -> Self:
         return dataclasses.replace(self, **changes)

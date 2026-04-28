@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+
 import videre
 from videre import Style, StyleDef
 from videre.core.constants import Alignment

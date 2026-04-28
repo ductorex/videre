@@ -1,5 +1,6 @@
 import pygame.mouse
 import pytest
+
 import videre
 from videre.core.clipboard import Clipboard
 

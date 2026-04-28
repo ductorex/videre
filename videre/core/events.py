@@ -3,6 +3,7 @@ from typing import Sequence
 
 import pygame
 from pygame.event import Event
+
 from videre import MouseButton
 
 

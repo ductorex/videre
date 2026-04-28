@@ -1,5 +1,6 @@
+from videre.colors import Color
 from videre.colors import Colors
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_utils import Surface, from_drawer_color
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 
 
@@ -33,7 +34,7 @@ class WindowLayout(AbstractControlsLayout):
         screen = window.get_screen()
 
         screen_width, screen_height = screen.get_width(), screen.get_height()
-        screen.fill(self.background)
+        screen.fill(from_drawer_color(self.background))
         for control in self.controls:
             surface = control.render(window, screen_width, screen_height)
             screen.blit(surface, (control.x, control.y))

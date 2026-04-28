@@ -1,5 +1,6 @@
 import pygame
 import pytest
+
 from videre import Text
 from videre.widgets.widget import Widget
 

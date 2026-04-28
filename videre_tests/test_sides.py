@@ -1,4 +1,5 @@
 import pytest
+
 from videre.colors import Colors
 from videre.core.constants import Side
 from videre.core.sides.abstract_sides import AbstractSides

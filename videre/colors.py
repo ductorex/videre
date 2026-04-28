@@ -1,6 +1,6 @@
 from typing import TypeAlias
 
-from videre.core.pygame_utils import Color
+from videre.core.drawer import Color
 
 
 class Colors:
@@ -206,7 +206,9 @@ def parse_color(value: ColorDef) -> Color:
     elif value is None:
         return Colors.transparent
     else:
-        raise ValueError(f"Unsupported color definition: {type(value).__name__}")
+        raise ValueError(
+            f"Unsupported color definition: {type(value).__name__}: {value}"
+        )
 
 
 class _ColorToString:

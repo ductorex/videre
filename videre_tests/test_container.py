@@ -1,6 +1,7 @@
 import itertools
 
 import pytest
+
 import videre
 from videre.core.sides.padding import Padding
 from videre.widgets.empty_widget import EmptyWidget

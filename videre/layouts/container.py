@@ -1,6 +1,5 @@
-import pygame
-import pygame.gfxdraw
 from videre.core.constants import Alignment
+from videre.core.drawer import Position
 from videre.core.pygame_utils import Surface
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
@@ -190,18 +189,24 @@ class Container(AbstractLayout):
             inner_height, inner_surface.get_height(), self.vertical_alignment
         )
         # inner_box = pygame.Rect(0, 0, inner_width - x, inner_height - y)
-        surface = self.background_color.generate(outer_width, outer_height)
+        surface = window.new_surface(outer_width, outer_height)
+        drawer = self.background_color.generate_drawer(outer_width, outer_height)
         for border_color, border_points in border.describe_borders(
             outer_width, outer_height
         ):
             if border_points:
                 if border_points[0] == border_points[-1]:
                     # Certainly a line
-                    pygame.gfxdraw.line(
-                        surface, *border_points[0], *border_points[1], border_color
+                    drawer.line(
+                        border_color,
+                        Position(border_points[0][0], border_points[0][1]),
+                        Position(border_points[1][0], border_points[1][1]),
                     )
                 else:
-                    pygame.gfxdraw.filled_polygon(surface, border_points, border_color)
+                    drawer.filled_polygon(
+                        [Position(p[0], p[1]) for p in border_points], border_color
+                    )
+        window.executor.execute(drawer, surface)
         inner_x, inner_y = margin.left + x, margin.top + y
         surface.blit(inner_surface, (inner_x, inner_y), area=None)
         self._set_child_position(control, inner_x, inner_y)

@@ -1,5 +1,5 @@
 from videre.colors import ColorDef, parse_color, stringify_color
-from videre.core.pygame_utils import Color
+from videre.core.drawer import Color
 from videre.core.sides.abstract_sides import AbstractSides
 from videre.core.sides.margin import Margin
 

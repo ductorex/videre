@@ -48,18 +48,8 @@ from dataclasses import dataclass
 from typing import Callable
 
 import videre
-from videre import (
-    Border,
-    Column,
-    Container,
-    Padding,
-    ProgressBar,
-    Row,
-    Text,
-    TextWrap,
-)
+from videre import Border, Column, Container, Padding, ProgressBar, Row, Text, TextWrap
 from videre.testing.step_window import StepWindow
-
 
 # -----------------------------------------------------------------------------
 # Scenario builders
@@ -72,11 +62,7 @@ Setup = tuple[object, Callable[[int], None] | None]
 
 
 def setup_static_simple() -> Setup:
-    root = Container(
-        Text("Hello world"),
-        border=Border.all(1),
-        padding=Padding.all(8),
-    )
+    root = Container(Text("Hello world"), border=Border.all(1), padding=Padding.all(8))
     return root, None
 
 
@@ -86,9 +72,7 @@ def _grid(rows: int, cols: int) -> Column:
             Row(
                 [
                     Container(
-                        Text(f"{r}.{c}"),
-                        border=Border.all(1),
-                        padding=Padding.all(2),
+                        Text(f"{r}.{c}"), border=Border.all(1), padding=Padding.all(2)
                     )
                     for c in range(cols)
                 ]
@@ -152,10 +136,7 @@ def setup_deep_nesting(depth: int = 12) -> Setup:
 
 def setup_text_heavy() -> Setup:
     paragraph = " ".join(["The quick brown fox jumps over the lazy dog."] * 30)
-    root = Container(
-        Text(paragraph, wrap=TextWrap.WORD),
-        padding=Padding.all(10),
-    )
+    root = Container(Text(paragraph, wrap=TextWrap.WORD), padding=Padding.all(10))
     return root, None
 
 
@@ -231,9 +212,7 @@ def _print_row(name: str, s: Stats) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Videre render performance benchmark."
-    )
+    parser = argparse.ArgumentParser(description="Videre render performance benchmark.")
     parser.add_argument(
         "--frames",
         type=int,
@@ -266,9 +245,7 @@ def main() -> None:
     if args.only is not None:
         if args.only not in scenarios:
             available = ", ".join(scenarios)
-            raise SystemExit(
-                f"Unknown scenario: {args.only!r}. Available: {available}"
-            )
+            raise SystemExit(f"Unknown scenario: {args.only!r}. Available: {available}")
         scenarios = {args.only: scenarios[args.only]}
 
     for name, setup in scenarios.items():

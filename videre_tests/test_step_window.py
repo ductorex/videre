@@ -1,6 +1,7 @@
 """Tests for StepWindow error paths."""
 
 import pytest
+
 from videre.testing.step_window import StepWindow
 
 

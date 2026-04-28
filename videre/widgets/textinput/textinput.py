@@ -1,7 +1,8 @@
 import pygame
-import pygame.gfxdraw
 from cursword import get_next_word_end_position, get_previous_word_start_position
+
 from videre.colors import Colors
+from videre.core.drawer import Drawer, Rectangle
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_text_rendering import RenderedText
 from videre.core.mouse_ownership import MouseOwnership
@@ -302,6 +303,10 @@ class TextInput(AbstractLayout):
             assert rendered is not None
             cursor_def = self._cursor_event.handle(rendered)
             cursor = self._get_cursor_rect(cursor_def, rendered)
-            pygame.gfxdraw.box(surface, cursor, Colors.black)
+            drawer = Drawer(surface.get_width(), surface.get_height())
+            drawer.box(
+                Rectangle(cursor.x, cursor.y, cursor.width, cursor.height), Colors.black
+            )
+            window.executor.execute(drawer, surface)
 
         return surface

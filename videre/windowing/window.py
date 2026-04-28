@@ -5,13 +5,16 @@ from typing import Any, Callable, Sequence
 
 import pygame
 from pygame.event import Event
-from videre.colors import ColorDef, Colors, parse_color
+
+from videre.colors import ColorDef, Colors, parse_color, Color
+from videre.core.abstract_font_factory import AbstractFontFactory
 from videre.core.clipboard import Clipboard
 from videre.core.constants import WINDOW_FPS, Alignment, MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.core.pygame_drawer_executor import PygameDrawerExecutor
+from videre.core.pygame_utils import PygameUtils, Surface
 from videre.core.utils import Procedure, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
@@ -59,6 +62,7 @@ class Window(PygameUtils, Clipboard):
         "_fancybox",
         "_context",
         "_fonts",
+        "_executor",
         "_hide",
         "_notif_cbks",
         "_lock",
@@ -105,6 +109,7 @@ class Window(PygameUtils, Clipboard):
         self._context: Context | None = None
 
         self._fonts = PygameFontFactory(size=font_size)
+        self._executor = PygameDrawerExecutor(self._fonts)
 
         self._notif_cbks: list[NotificationCallback] = []
         self._nb_frames = 0
@@ -138,8 +143,12 @@ class Window(PygameUtils, Clipboard):
         return self._nb_frames
 
     @property
-    def fonts(self) -> PygameFontFactory:
+    def fonts(self) -> AbstractFontFactory:
         return self._fonts
+
+    @property
+    def executor(self) -> PygameDrawerExecutor:
+        return self._executor
 
     @property
     def controls(self) -> tuple[Widget, ...]:
@@ -171,7 +180,7 @@ class Window(PygameUtils, Clipboard):
         height_delta: int | None = None,
     ) -> PygameTextRendering:
         return PygameTextRendering(
-            self.fonts,
+            self._fonts,
             size=size,
             strong=strong,
             italic=italic,

@@ -1,49 +1,60 @@
 import pygame
 import pytest
-from videre.colors import Colors
+from pygame.surface import Surface
+
+from videre.colors import Colors, Color
+from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
+from videre.core.pygame_drawer_executor import PygameDrawerExecutor
+from videre.core.pygame_utils import to_drawer_color
 from videre.gradient import Gradient
+
+
+def _gen_grad(Gradient: Gradient, width: int, height: int) -> Surface:
+    drawer = Gradient.generate_drawer(width, height)
+    xqtor = PygameDrawerExecutor(fonts=PygameFontFactory())
+    return xqtor.render_to_surface(drawer)
 
 
 def test_gradient_single_color():
     gradient = Gradient(Colors.red)
-    surface = gradient.generate(100, 100)
+    surface = _gen_grad(gradient, 100, 100)
     assert surface.get_width() == 100
     assert surface.get_height() == 100
     # Check that the entire surface is red
     for x in range(100):
         for y in range(100):
-            assert surface.get_at((x, y)) == Colors.red
+            assert to_drawer_color(surface.get_at((x, y))) == Colors.red
 
 
 def test_gradient_horizontal():
     gradient = Gradient(Colors.red, Colors.blue, vertical=False)
-    surface = gradient.generate(100, 50)
+    surface = _gen_grad(gradient, 100, 50)
     assert surface.get_width() == 100
     assert surface.get_height() == 50
     # Check colors at extremities
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((99, 0)) == Colors.blue
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.red
+    assert to_drawer_color(surface.get_at((99, 0))) == Colors.blue
 
 
 def test_gradient_vertical():
     gradient = Gradient(Colors.red, Colors.blue, vertical=True)
-    surface = gradient.generate(50, 100)
+    surface = _gen_grad(gradient, 50, 100)
     assert surface.get_width() == 50
     assert surface.get_height() == 100
     # Check colors at extremities
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((0, 99)) == Colors.blue
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.red
+    assert to_drawer_color(surface.get_at((0, 99))) == Colors.blue
 
 
 def test_gradient_multiple_colors():
     gradient = Gradient(Colors.red, Colors.green, Colors.blue)
-    surface = gradient.generate(101, 50)
+    surface = _gen_grad(gradient, 101, 50)
     assert surface.get_width() == 101
     assert surface.get_height() == 50
     # Check colors at transition points
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((50, 0)) == Colors.green
-    assert surface.get_at((100, 0)) == Colors.blue
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.red
+    assert to_drawer_color(surface.get_at((50, 0))) == Colors.green
+    assert to_drawer_color(surface.get_at((100, 0))) == Colors.blue
 
 
 def test_gradient_parse():
@@ -73,8 +84,8 @@ def test_gradient_empty():
 
 def test_gradient_surface_reuse():
     gradient = Gradient(Colors.red, Colors.blue)
-    surface1 = gradient.generate(100, 100)
-    surface2 = gradient.generate(100, 100)
+    surface1 = _gen_grad(gradient, 100, 100)
+    surface2 = _gen_grad(gradient, 100, 100)
     # Check that surfaces are different (no shared reference)
     assert surface1 is not surface2
     # Check that surfaces have the same content
@@ -86,23 +97,23 @@ def test_gradient_surface_reuse():
 def test_gradient_edge_cases():
     # Test 1x1 surface
     gradient = Gradient(Colors.red, Colors.blue)
-    surface = gradient.generate(1, 1)
+    surface = _gen_grad(gradient, 1, 1)
     assert surface.get_width() == 1
     assert surface.get_height() == 1
-    assert surface.get_at((0, 0)) == Colors.red
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.red
 
     # Test with very large dimensions
-    surface = gradient.generate(1000, 1000)
+    surface = _gen_grad(gradient, 1000, 1000)
     assert surface.get_width() == 1000
     assert surface.get_height() == 1000
     # Check start and end colors
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((999, 999)) == Colors.blue
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.red
+    assert to_drawer_color(surface.get_at((999, 999))) == Colors.blue
 
 
 def test_gradient_color_interpolation():
     gradient = Gradient(Colors.red, Colors.blue)
-    surface = gradient.generate(100, 1)
+    surface = _gen_grad(gradient, 100, 1)
 
     # Check middle point interpolation
     middle_color = surface.get_at((49, 0))
@@ -112,9 +123,9 @@ def test_gradient_color_interpolation():
 
     # Test with transparent colors
     transparent_gradient = Gradient(Colors.transparent, Colors.red)
-    surface = transparent_gradient.generate(100, 1)
-    assert surface.get_at((0, 0)) == Colors.transparent
-    assert surface.get_at((99, 0)) == Colors.red
+    surface = _gen_grad(transparent_gradient, 100, 1)
+    assert to_drawer_color(surface.get_at((0, 0))) == Colors.transparent
+    assert to_drawer_color(surface.get_at((99, 0))) == Colors.red
 
 
 def test_gradient_error_cases():
@@ -122,25 +133,25 @@ def test_gradient_error_cases():
 
     # Test with negative dimensions
     with pytest.raises(pygame.error):
-        gradient.generate(-1, 100)
+        _gen_grad(gradient, -1, 100)
 
     with pytest.raises(pygame.error):
-        gradient.generate(100, -1)
+        _gen_grad(gradient, 100, -1)
 
     # zero-dimensions are supported
-    surface = gradient.generate(0, 100)
+    surface = _gen_grad(gradient, 0, 100)
     assert surface.get_width() == 0
     assert surface.get_height() == 100
 
-    surface = gradient.generate(100, 0)
+    surface = _gen_grad(gradient, 100, 0)
     assert surface.get_width() == 100
     assert surface.get_height() == 0
 
 
 def test_gradient_similar_colors():
     # Test with very similar colors
-    similar_gradient = Gradient(Colors.red, pygame.Color(255, 0, 1))
-    surface = similar_gradient.generate(100, 1)
+    similar_gradient = Gradient(Colors.red, Color(255, 0, 1))
+    surface = _gen_grad(similar_gradient, 100, 1)
 
     # Check that interpolation is still working
     middle_color = surface.get_at((49, 0))

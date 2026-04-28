@@ -1,9 +1,10 @@
 from typing import Any
 
+from videre.colors import Color
 from videre.colors import ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
 from videre.core.fontfactory.pygame_text_rendering import RenderedText
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_utils import Surface
 from videre.widgets.widget import Widget
 
 
@@ -162,4 +163,4 @@ class Text(Widget):
             align=(None if wrap is None else self.align),
             selection=self.selection,
         )
-        return self._rendered.surface
+        return window.executor.render_to_surface(self._rendered.drawer)

@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
-import pygame
-import pygame.freetype
-import pygame.gfxdraw
-import pygame.transform
 from videre.colors import Colors
 from videre.core.constants import TextAlign
+from videre.core.drawer import Color, Drawer, Position, Rectangle
 from videre.core.fontfactory.font_factory_utils import (
     CharTask,
     Line,
@@ -16,7 +13,7 @@ from videre.core.fontfactory.font_factory_utils import (
     AbstractTextElement,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_drawer_executor import PygameDrawerExecutor
 
 
 class FontSizes:
@@ -44,8 +41,8 @@ class FontSizes:
 @dataclass(slots=True)
 class RenderedText:
     lines: list[Line[WordTask]]
-    surface: Surface
     font_sizes: FontSizes
+    drawer: Drawer
 
     def first_x(self) -> int | float:
         if self.lines:
@@ -65,13 +62,14 @@ class PygameTextRendering:
         underline=False,
         height_delta=2,
     ):
-        size = size or fonts.size
+        size = size or fonts.default_size
         height_delta = 2 if height_delta is None else height_delta
         strong = bool(strong)
         italic = bool(italic)
         base = fonts.get_char_measures(" ", size, strong, italic)
 
         self._fonts = fonts
+        self._executor = PygameDrawerExecutor(fonts)
         self._size: int = size
         self._strong: bool = strong
         self._italic: bool = italic
@@ -79,13 +77,13 @@ class PygameTextRendering:
 
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
-        self._render_word_lines = self._render_word_lines_old
 
-    def render_char(self, c: str, color: Color | None = None) -> Surface:
-        surface, box = self._fonts.get_font(
-            c, strong=self._strong, italic=self._italic
-        ).render(c, size=self._size, fgcolor=color)
-        return surface
+    def render_char_drawer(self, c: str, color: Color | None = None) -> Drawer:
+        df = self._fonts.resolve(c, strong=self._strong, italic=self._italic)
+        cm = self._fonts.char_metrics(df, c, self._size)
+        drawer = Drawer(cm.width, cm.height)
+        drawer.text(df, Position(-cm.x, cm.y), c, size=self._size, fgcolor=color)
+        return drawer
 
     def render_text(
         self,
@@ -103,12 +101,12 @@ class PygameTextRendering:
             lines = WordsLine.from_chars(char_lines, keep_spaces=align is None)
         else:
             new_width, height, lines = self._get_word_tasks(text, width, compact)
-        surface = self._render_word_lines(
+        drawer = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return RenderedText(lines, surface, self._font_sizes)
+        return RenderedText(lines, self._font_sizes, drawer)
 
-    def _render_word_lines_old(
+    def _render_word_lines(
         self,
         width: int | float,
         height: int | float,
@@ -116,72 +114,35 @@ class PygameTextRendering:
         align: TextAlign | None,
         color: Color | None,
         selection: tuple[int, int] | None = None,
-    ) -> Surface:
+    ) -> Drawer:
         align_words(lines, width, align)
         size = self._size
-        out = self._fonts.new_surface(width, height)
+        drawer = Drawer(width, height)
+        selection_color = Color(100, 100, 255, 100)
         for rect in self._get_selection_rects(lines, selection):
-            pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
+            drawer.box(rect, selection_color)
+        fg = color
+        underline_color = fg if fg is not None else Colors.black
         for line in lines:
-            self._draw_underline(line, out, color)
+            urect = self._underline_rect(line)
+            if urect is not None:
+                drawer.box(urect, underline_color)
             ly = line.y
             lx = line.x
             for word in line.elements:
                 wx = lx + word.x
                 for ch in word.tasks:
-                    ch.font.render_to(
-                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=color
+                    df = self._fonts.resolve(
+                        ch.el, strong=self._strong, italic=self._italic
                     )
-        return out
-
-    def _render_word_lines_new(
-        self,
-        width: int,
-        height: int,
-        lines: list[Line[WordTask]],
-        align: TextAlign | None,
-        color: Color | None,
-        selection: tuple[int, int] | None = None,
-    ) -> Surface:
-        align_words(lines, width, align)
-        size = self._size
-        out = self._fonts.new_surface(width, height)
-        if selection:
-            for rect in self._get_selection_rects(lines, selection):
-                pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
-        for ly, lx, wx, chars in self._get_rendering_blocks(lines):
-            first = chars[0]
-            s = "".join(ch.el for ch in chars)
-            first.font.render_to(
-                out, (lx + wx + first.x, ly), s, size=size, fgcolor=color
-            )
-        if self._underline:
-            for line in lines:
-                self._draw_underline(line, out, color)
-        return out
-
-    @classmethod
-    def _get_rendering_blocks(cls, lines: list[Line[WordTask]]):
-        nb_chars = 0
-        blocks: list[tuple[int | float, int | float, int | float, list[CharTask]]] = []
-        for line in lines:
-            for word in line.elements:
-                nb_chars += len(word.tasks)
-                current: list[CharTask] = []
-                for char in word.tasks:
-                    if not current or current[0].font == char.font:
-                        current.append(char)
-                    else:
-                        blocks.append((line.y, line.x, word.x, current))
-                        current = [char]
-                if current:
-                    blocks.append((line.y, line.x, word.x, current))
-        # print(f"Blocks: {len(blocks)} vs characters: {nb_chars}")
-        return blocks
+                    drawer.text(
+                        df, Position(wx + ch.x, ly), ch.el, size=size, fgcolor=fg
+                    )
+        return drawer
 
     def _get_selection_rects(
         self, lines: list[Line[WordTask]], selection: tuple[int, int] | None
-    ) -> list[pygame.Rect]:
+    ) -> list[Rectangle]:
         if selection is None:
             return []
 
@@ -190,7 +151,7 @@ class PygameTextRendering:
             return []
         assert start < end
 
-        rects = []
+        rects: list[Rectangle] = []
         for line in lines:
             if not line.elements:
                 continue
@@ -228,33 +189,26 @@ class PygameTextRendering:
             else:
                 end_x = line.elements[-1].x + line.elements[-1].width
 
-            # Create selection rectangle for this line
-            rect = pygame.Rect(
-                start_x,
-                line.y - self._font_sizes.ascender,
-                end_x - start_x,
-                self._font_sizes.ascender + self._font_sizes.descender,
+            rects.append(
+                Rectangle(
+                    start_x,
+                    line.y - self._font_sizes.ascender,
+                    end_x - start_x,
+                    self._font_sizes.ascender + self._font_sizes.descender,
+                )
             )
-            rects.append(rect)
 
         return rects
 
-    def _draw_underline(self, line: Line[WordTask], out: Surface, color):
-        if self._underline and line:
-            c = "_"
-            x1 = line.elements[0].x + line.elements[0].tasks[0].bounds.x
-            x2 = line.limit()
-            font = self._fonts.get_font(c, strong=self._strong, italic=self._italic)
-            font.antialiased = False
-            surface, box = font.render(
-                c, size=self._size, fgcolor=color or Colors.black
-            )
-            font.antialiased = True
-            us = surface.convert_alpha()
-            width = x2 - x1
-            height = box.height
-            underline = pygame.transform.smoothscale(us, (width, height))
-            out.blit(underline, (x1, line.y - box.y))
+    def _underline_rect(self, line: Line[WordTask]) -> Rectangle | None:
+        if not (self._underline and line and line.elements):
+            return None
+        df = self._fonts.resolve(" ", strong=self._strong, italic=self._italic)
+        um = self._fonts.underline_metrics(df, self._size)
+        first_word = line.elements[0]
+        x1 = line.x + first_word.x + first_word.tasks[0].bounds.x
+        x2 = line.x + line.limit()
+        return Rectangle(x1, line.y + um.offset, x2 - x1, um.thickness)
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool
