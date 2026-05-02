@@ -2,10 +2,9 @@ from typing import Self
 
 from videre.colors import ColorDef, Colors, parse_color
 from videre.core.drawer import Color, Drawer, Position
-from videre.core.pygame_utils import PygameUtils
 
 
-class Gradient(PygameUtils):
+class Gradient:
     """
     Optimized gradient implementation using direct drawing with pygame.draw.
     This approach is more efficient than using smoothscale for gradients.
@@ -16,8 +15,6 @@ class Gradient(PygameUtils):
     __slots__ = ("_colors", "_vertical")
 
     def __init__(self, *colors: Color, vertical=False):
-        super().__init__()
-
         self._colors = colors or [Colors.transparent]
         self._vertical: bool = vertical
 

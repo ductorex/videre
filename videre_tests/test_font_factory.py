@@ -14,10 +14,10 @@ from videre.core.pygame_drawer_executor import PygameDrawerExecutor
 def test_render_text(wrap_words):
     height_delta = 2
     ff = PygameFontFactory(size=24)
-    font = ff.base_font
+    line = ff.line_metrics(ff.resolve(" "), ff.default_size)
     line_height = ff.font_height + height_delta
-    ascender = abs(font.get_sized_ascender(ff.default_size)) + 1
-    descender = abs(font.get_sized_descender(ff.default_size))
+    ascender = line.ascender + 1
+    descender = line.descender
     compact_y = ascender + height_delta
     assert line_height == 35
     assert ascender == 27
@@ -173,3 +173,26 @@ _PARITY_CASES: list[tuple[str, dict, str, dict]] = [
 # TODO Each case should instead be checked at the level of pixel.
 #      Either by comparing to expected surface saved in image (file regression),
 #      or by checking drawer object precisely.
+
+
+def test_lone_carriage_return_produces_phantom_lines():
+    # A lone `\r` (e.g. in `\r\n`) is treated as an extra line break in addition
+    # to the `\n` that follows it. `_get_words` does not normalize line endings,
+    # and `_parse_word("\r")` returns a WordTask with no tasks (so newline=True).
+    # This test pins the existing behavior — TODO: normalize `\r` in
+    # `_get_words` to treat `\r\n` as a single line break.
+    height_delta = 2
+    ff = PygameFontFactory(size=24)
+    tr = PygameTextRendering(ff, height_delta=height_delta)
+    line_height = ff.font_height + height_delta
+    descender = ff.line_metrics(ff.resolve(" "), ff.default_size).descender
+
+    # `\n\n` = 2 line breaks -> 3 lines
+    height_lf = tr.render_text("\n\n", width=100, wrap_words=True).drawer.get_height()
+    assert height_lf == 3 * line_height + descender
+
+    # `\r\n\r\n` = 4 line breaks (each lone `\r` also counts) -> 5 lines
+    height_crlf = tr.render_text(
+        "\r\n\r\n", width=100, wrap_words=True
+    ).drawer.get_height()
+    assert height_crlf == 5 * line_height + descender

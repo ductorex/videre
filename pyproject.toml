@@ -8,6 +8,7 @@ dependencies = [
     "cursword>=0.1.1",
     "filedial>=0.1.0",
     "fonttools>=4.59.1",
+    "freetype-py>=2.5.1",
     "numpy>=2.3.2",
     "pillow>=11.3.0",
     "pygame>=2.6.1",

@@ -20,13 +20,10 @@ class CharMetrics:
     """Bounding box height of the rendered glyph."""
 
     x: int
-    """Horizontal position of the text origin in rendered glyph (pygame notion ?)"""
+    """Horizontal position of the text origin in rendered glyph"""
 
     y: int
-    """Vertical position of the text origin in rendered glyph (pygame notion ?)"""
-
-    horizontal_shift: float
-    """Horizontal offset between the cursor origin and the glyph's left edge."""
+    """Vertical position of the text origin in rendered glyph"""
 
 
 @dataclass(slots=True, frozen=True)

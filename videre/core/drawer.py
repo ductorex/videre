@@ -261,7 +261,15 @@ class Drawer:
         size: int | None = None,
         fgcolor: Color | None = None,
     ) -> None:
-        # TODO A method equivalent to font.render(character, ...) ?
+        """Draw `text` at `destination`.
+
+        NB: `destination` is expressed in surface coordinates (top-left
+        origin), but it does **not** point to the top-left of the painted
+        text. It is the **text origin**: `x` is the pen position before the
+        first glyph (the leftmost painted pixel sits at `x + CharMetrics.x`
+        of that glyph), `y` is the baseline (glyphs with descenders extend
+        below `y`, ascenders extend above).
+        """
         self._cmd(TextArgs(font, destination, text, size, fgcolor))
 
     @classmethod

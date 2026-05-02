@@ -76,7 +76,6 @@ class Character(Widget):
         self._set_wprop("underline", bool(underline))
 
     def _text_rendering(self, window):
-        from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 
         size = self.size
         if size is None:

@@ -1,24 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import Self
 
-import pygame
-
-from videre import TextAlign
+from videre.core.constants import TextAlign
 from videre.fonts.unicode_utils import Unicode
 
 
 class AbstractTextElement(ABC):
-    __slots__ = ("x", "width", "horizontal_shift")
+    __slots__ = ("x", "width", "advance")
 
     def __init__(
-        self,
-        x: int | float = 0,
-        width: int | float = 0,
-        horizontal_shift: int | float = 0,
+        self, x: int | float = 0, width: int | float = 0, advance: int | float = 0
     ):
         self.x = x
         self.width = width
-        self.horizontal_shift = horizontal_shift
+        self.advance = advance
 
     @abstractmethod
     def is_newline(self) -> bool:
@@ -34,21 +29,14 @@ class AbstractTextElement(ABC):
 
 
 class CharTask(AbstractTextElement):
-    __slots__ = ("el", "font", "bounds", "pos")
+    __slots__ = ("el", "bounds_x", "pos")
 
     def __init__(
-        self,
-        c: str,
-        font,
-        width: int,
-        horizontal_shift: int | float,
-        bounds: pygame.Rect,
-        pos: int,
+        self, c: str, width: int, advance: int | float, bounds_x: int, pos: int
     ):
-        super().__init__(0, width, horizontal_shift)
+        super().__init__(0, width, advance)
         self.el = c
-        self.font = font
-        self.bounds = bounds
+        self.bounds_x = bounds_x
         self.pos = pos
 
     def __repr__(self):
@@ -62,25 +50,25 @@ class CharTask(AbstractTextElement):
 
 
 class WordTask(AbstractTextElement):
-    __slots__ = ("tasks", "height")
+    __slots__ = ("tasks", "newline")
 
     def __init__(
         self,
         width: int | float,
         x: int | float,
         tasks: list[CharTask],
-        height=0,
-        horizontal_shift=0,
+        newline: bool = False,
+        advance: int | float = 0,
     ):
-        super().__init__(x, width, horizontal_shift)
+        super().__init__(x, width, advance)
         self.tasks = tasks
-        self.height = height
+        self.newline = newline
 
     def __repr__(self):
         return f"{self.x}:" + repr("".join(t.el for t in self.tasks))
 
     def is_newline(self) -> bool:
-        return bool(self.height and not self.width)
+        return self.newline
 
     def is_printable(self) -> bool:
         return bool(self.width)

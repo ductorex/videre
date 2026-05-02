@@ -59,7 +59,7 @@ class CursorMouseEvent:
         char_pos = max(0, bisect.bisect_right(char_xs, x) - 1)
         char = word.tasks[char_pos]
         left = char.x
-        right = char.x + char.horizontal_shift
+        right = char.x + char.advance
 
         # NB: x may be outside the line, e.g. before line start or after line end.
         # So, it is not guaranteed that left <= x <= right.
@@ -127,7 +127,7 @@ class CursorCharPosEvent(_CursorEvent):
             )
 
         left = char.x
-        right = char.x + char.horizontal_shift
+        right = char.x + char.advance
 
         cursor_y = line.y - rendered.font_sizes.ascender
         if pos > char.pos:

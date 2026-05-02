@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from videre.colors import Colors
+from videre.core.abstract_font_factory import CharMetrics, LineMetrics
 from videre.core.constants import TextAlign
 from videre.core.drawer import Color, Drawer, Position, Rectangle
 from videre.core.fontfactory.font_factory_utils import (
@@ -12,7 +13,7 @@ from videre.core.fontfactory.font_factory_utils import (
     align_words,
     AbstractTextElement,
 )
-from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
+from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.pygame_drawer_executor import PygameDrawerExecutor
 
 
@@ -26,16 +27,13 @@ class FontSizes:
         "space_shift",
     )
 
-    def __init__(self, base: CharMeasures, size: int, height_delta=2):
-        base_font = base.font
-        metric = base.metrics
-
+    def __init__(self, line: LineMetrics, space: CharMetrics, height_delta: int = 2):
         self.height_delta: int = height_delta
-        self.line_spacing: int = base_font.get_sized_height(size) + height_delta
-        self.ascender: int = abs(base_font.get_sized_ascender(size)) + 1
-        self.descender: int = abs(base_font.get_sized_descender(size))
-        self.space_width: int = base.rect.width
-        self.space_shift: int | float = metric[4] if metric else self.space_width
+        self.line_spacing: int = line.height + height_delta
+        self.ascender: int = line.ascender + 1
+        self.descender: int = line.descender
+        self.space_width: int = space.width
+        self.space_shift: int | float = line.space_advance
 
 
 @dataclass(slots=True)
@@ -66,7 +64,9 @@ class PygameTextRendering:
         height_delta = 2 if height_delta is None else height_delta
         strong = bool(strong)
         italic = bool(italic)
-        base = fonts.get_char_measures(" ", size, strong, italic)
+        space_font = fonts.resolve(" ", strong=strong, italic=italic)
+        line = fonts.line_metrics(space_font, size)
+        space = fonts.char_metrics(space_font, " ", size)
 
         self._fonts = fonts
         self._executor = PygameDrawerExecutor(fonts)
@@ -76,9 +76,17 @@ class PygameTextRendering:
         self._underline: bool = bool(underline)
 
         self._height_delta = height_delta
-        self._font_sizes = FontSizes(base, size, height_delta)
+        self._font_sizes = FontSizes(line, space, height_delta)
 
     def render_char_drawer(self, c: str, color: Color | None = None) -> Drawer:
+        """
+        Generate a drawer for a single character.
+        `c` is expected to have len(c) == 1.
+        Generated drawer represents a single character,
+        without any text-formatting padding.
+        Best suited for cases when we want to use a character as a painting
+        (e.g emojis, check mark, square, etc.), not as a text.
+        """
         df = self._fonts.resolve(c, strong=self._strong, italic=self._italic)
         cm = self._fonts.char_metrics(df, c, self._size)
         drawer = Drawer(cm.width, cm.height)
@@ -206,7 +214,7 @@ class PygameTextRendering:
         df = self._fonts.resolve(" ", strong=self._strong, italic=self._italic)
         um = self._fonts.underline_metrics(df, self._size)
         first_word = line.elements[0]
-        x1 = line.x + first_word.x + first_word.tasks[0].bounds.x
+        x1 = line.x + first_word.x + first_word.tasks[0].bounds_x
         x2 = line.x + line.limit()
         return Rectangle(x1, line.y + um.offset, x2 - x1, um.thickness)
 
@@ -243,7 +251,7 @@ class PygameTextRendering:
                     task_line = Line[T]()
                     x = 0
                 task_line.add(info.at(x))
-                x += info.horizontal_shift
+                x += info.advance
         # Add remaining line if necessary
         if task_line:
             lines.append(task_line)
@@ -293,27 +301,28 @@ class PygameTextRendering:
     def _parse_char(self, ic: tuple[int, str]) -> CharTask:
         charpos, c = ic
 
-        char_measures = self._fonts.get_char_measures(
-            c, self._size, self._strong, self._italic
-        )
-        font = char_measures.font
-        bounds = char_measures.rect
-        # todo: should instead be: width = bounds.width ?
-        width = bounds.x + bounds.width
+        df = self._fonts.resolve(c, strong=self._strong, italic=self._italic)
+        cm = self._fonts.char_metrics(df, c, self._size)
+        # todo: should instead be: width = cm.width ?
+        width = cm.x + cm.width
+        advance = cm.advance if cm.advance else width
 
-        metric = char_measures.metrics
-        horizontal_shift = metric[4] if metric else width
-
-        return CharTask(c, font, width, horizontal_shift, bounds, charpos)
+        return CharTask(c, width, advance, cm.x, charpos)
 
     def _parse_word(self, word: str) -> WordTask:
-        width, height, lines = self._get_char_tasks(word, None, False)
+        width, _, lines = self._get_char_tasks(word, None, False)
         if width:
             (line,) = lines
             tasks = line.elements
             last_char = tasks[-1]
-            shift = last_char.x + last_char.horizontal_shift
+            shift = last_char.x + last_char.advance
         else:
             tasks = []
             shift = 0
-        return WordTask(width, 0, tasks, height, shift + self._font_sizes.space_shift)
+        return WordTask(
+            width,
+            0,
+            tasks,
+            newline=not tasks,
+            advance=shift + self._font_sizes.space_shift,
+        )
