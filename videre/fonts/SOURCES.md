@@ -1,0 +1,240 @@
+# Sources et licences des polices videre
+
+Catalogue des fichiers présents dans `videre/fonts/`, leur source upstream, et la licence applicable. Sert pour la traçabilité, le re-téléchargement, et la conformité de redistribution OFL/APL.
+
+Pour les variantes Bold/Italic/BoldItalic disponibles upstream et non encore téléchargées, voir `docs/font-bold-italic-availability.md`.
+
+## Licences présentes dans le dépôt
+
+- `videre/fonts/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre **toutes** les polices Noto, indépendamment du sous-dossier (`noto/`, `noto-serif/`, `noto-mono/`).
+- `videre/fonts/other-ttf/LICENSE_APL.txt` — Arphic Public License. Couvre `BabelStoneHan.ttf` exclusivement.
+
+Les deux licences autorisent l'usage commercial, la modification et la redistribution, à condition de redistribuer le texte de licence avec les polices.
+
+## Décompte
+
+- Source 1 (`notofonts/notofonts.github.io`) : 165 familles
+- Source 2 (`notofonts/noto-cjk`) : 5 familles
+- Source 3 (`google/fonts`) : 1 famille
+- Source 4 (`babelstone.co.uk`) : 1 famille
+- **Total** : 172 fichiers
+
+## Source 1 : `notofonts/notofonts.github.io`
+
+Patron d'URL : `https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/<Famille>/unhinted/ttf/<Famille>-Regular.ttf`
+
+Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`).
+
+| Fichier local | URL upstream |
+|---|---|
+| `noto/unhinted/TTF/NotoFangsongKSSVertical-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoFangsongKSSVertical/unhinted/ttf/NotoFangsongKSSVertical-Regular.ttf> |
+| `noto/unhinted/TTF/NotoMusic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoMusic/unhinted/ttf/NotoMusic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoNastaliqUrdu-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoNastaliqUrdu/unhinted/ttf/NotoNastaliqUrdu-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSans-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSans/unhinted/ttf/NotoSans-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansAdlam-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansAdlam/unhinted/ttf/NotoSansAdlam-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansAnatolianHieroglyphs-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansAnatolianHieroglyphs/unhinted/ttf/NotoSansAnatolianHieroglyphs-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansArabic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansArabic/unhinted/ttf/NotoSansArabic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansArmenian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansArmenian/unhinted/ttf/NotoSansArmenian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansAvestan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansAvestan/unhinted/ttf/NotoSansAvestan-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBalinese-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBalinese/unhinted/ttf/NotoSansBalinese-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBamum-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBamum/unhinted/ttf/NotoSansBamum-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBassaVah-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBassaVah/unhinted/ttf/NotoSansBassaVah-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBatak-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBatak/unhinted/ttf/NotoSansBatak-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBengali-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBengali/unhinted/ttf/NotoSansBengali-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBhaiksuki-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBhaiksuki/unhinted/ttf/NotoSansBhaiksuki-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBrahmi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBrahmi/unhinted/ttf/NotoSansBrahmi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBuginese-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBuginese/unhinted/ttf/NotoSansBuginese-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansBuhid-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansBuhid/unhinted/ttf/NotoSansBuhid-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCanadianAboriginal-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCanadianAboriginal/unhinted/ttf/NotoSansCanadianAboriginal-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCarian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCarian/unhinted/ttf/NotoSansCarian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCaucasianAlbanian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCaucasianAlbanian/unhinted/ttf/NotoSansCaucasianAlbanian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansChakma-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansChakma/unhinted/ttf/NotoSansChakma-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCham-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCham/unhinted/ttf/NotoSansCham-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCherokee-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCherokee/unhinted/ttf/NotoSansCherokee-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansChorasmian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansChorasmian/unhinted/ttf/NotoSansChorasmian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCoptic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCoptic/unhinted/ttf/NotoSansCoptic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCuneiform-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCuneiform/unhinted/ttf/NotoSansCuneiform-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCypriot-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCypriot/unhinted/ttf/NotoSansCypriot-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansCyproMinoan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansCyproMinoan/unhinted/ttf/NotoSansCyproMinoan-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansDeseret-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDeseret/unhinted/ttf/NotoSansDeseret-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansDevanagari-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDevanagari/unhinted/ttf/NotoSansDevanagari-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansDuployan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansDuployan/unhinted/ttf/NotoSansDuployan-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansEgyptianHieroglyphs-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansEgyptianHieroglyphs/unhinted/ttf/NotoSansEgyptianHieroglyphs-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansElbasan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansElbasan/unhinted/ttf/NotoSansElbasan-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansElymaic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansElymaic/unhinted/ttf/NotoSansElymaic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansEthiopic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansEthiopic/unhinted/ttf/NotoSansEthiopic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGeorgian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGeorgian/unhinted/ttf/NotoSansGeorgian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGlagolitic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGlagolitic/unhinted/ttf/NotoSansGlagolitic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGothic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGothic/unhinted/ttf/NotoSansGothic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGrantha-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGrantha/unhinted/ttf/NotoSansGrantha-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGujarati-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGujarati/unhinted/ttf/NotoSansGujarati-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGunjalaGondi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGunjalaGondi/unhinted/ttf/NotoSansGunjalaGondi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansGurmukhi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansGurmukhi/unhinted/ttf/NotoSansGurmukhi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansHanifiRohingya-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansHanifiRohingya/unhinted/ttf/NotoSansHanifiRohingya-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansHanunoo-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansHanunoo/unhinted/ttf/NotoSansHanunoo-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansHatran-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansHatran/unhinted/ttf/NotoSansHatran-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansHebrew-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansHebrew/unhinted/ttf/NotoSansHebrew-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansImperialAramaic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansImperialAramaic/unhinted/ttf/NotoSansImperialAramaic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansIndicSiyaqNumbers-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansIndicSiyaqNumbers/unhinted/ttf/NotoSansIndicSiyaqNumbers-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansInscriptionalPahlavi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansInscriptionalPahlavi/unhinted/ttf/NotoSansInscriptionalPahlavi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansInscriptionalParthian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansInscriptionalParthian/unhinted/ttf/NotoSansInscriptionalParthian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansJavanese-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansJavanese/unhinted/ttf/NotoSansJavanese-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKaithi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKaithi/unhinted/ttf/NotoSansKaithi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKannada-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKannada/unhinted/ttf/NotoSansKannada-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKawi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKawi/unhinted/ttf/NotoSansKawi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKayahLi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKayahLi/unhinted/ttf/NotoSansKayahLi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKharoshthi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKharoshthi/unhinted/ttf/NotoSansKharoshthi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKhmer-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKhmer/unhinted/ttf/NotoSansKhmer-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKhojki-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKhojki/unhinted/ttf/NotoSansKhojki-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansKhudawadi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansKhudawadi/unhinted/ttf/NotoSansKhudawadi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLao-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLao/unhinted/ttf/NotoSansLao-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLepcha-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLepcha/unhinted/ttf/NotoSansLepcha-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLimbu-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLimbu/unhinted/ttf/NotoSansLimbu-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLinearA-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLinearA/unhinted/ttf/NotoSansLinearA-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLinearB-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLinearB/unhinted/ttf/NotoSansLinearB-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLisu-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLisu/unhinted/ttf/NotoSansLisu-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLycian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLycian/unhinted/ttf/NotoSansLycian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansLydian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansLydian/unhinted/ttf/NotoSansLydian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMahajani-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMahajani/unhinted/ttf/NotoSansMahajani-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMalayalam-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMalayalam/unhinted/ttf/NotoSansMalayalam-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMandaic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMandaic/unhinted/ttf/NotoSansMandaic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansManichaean-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansManichaean/unhinted/ttf/NotoSansManichaean-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMarchen-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMarchen/unhinted/ttf/NotoSansMarchen-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMasaramGondi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMasaramGondi/unhinted/ttf/NotoSansMasaramGondi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMath-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMath/unhinted/ttf/NotoSansMath-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMayanNumerals-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMayanNumerals/unhinted/ttf/NotoSansMayanNumerals-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMedefaidrin-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMedefaidrin/unhinted/ttf/NotoSansMedefaidrin-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMeeteiMayek-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMeeteiMayek/unhinted/ttf/NotoSansMeeteiMayek-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMendeKikakui-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMendeKikakui/unhinted/ttf/NotoSansMendeKikakui-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMeroitic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMeroitic/unhinted/ttf/NotoSansMeroitic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMiao-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMiao/unhinted/ttf/NotoSansMiao-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansModi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansModi/unhinted/ttf/NotoSansModi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMongolian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMongolian/unhinted/ttf/NotoSansMongolian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMro-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMro/unhinted/ttf/NotoSansMro-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMultani-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMultani/unhinted/ttf/NotoSansMultani-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansMyanmar-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMyanmar/unhinted/ttf/NotoSansMyanmar-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNKo-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNKo/unhinted/ttf/NotoSansNKo-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNabataean-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNabataean/unhinted/ttf/NotoSansNabataean-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNagMundari-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNagMundari/unhinted/ttf/NotoSansNagMundari-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNandinagari-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNandinagari/unhinted/ttf/NotoSansNandinagari-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNewTaiLue-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNewTaiLue/unhinted/ttf/NotoSansNewTaiLue-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNewa-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNewa/unhinted/ttf/NotoSansNewa-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansNushu-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansNushu/unhinted/ttf/NotoSansNushu-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOgham-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOgham/unhinted/ttf/NotoSansOgham-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOlChiki-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOlChiki/unhinted/ttf/NotoSansOlChiki-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldHungarian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldHungarian/unhinted/ttf/NotoSansOldHungarian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldItalic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldItalic/unhinted/ttf/NotoSansOldItalic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldNorthArabian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldNorthArabian/unhinted/ttf/NotoSansOldNorthArabian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldPermic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldPermic/unhinted/ttf/NotoSansOldPermic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldPersian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldPersian/unhinted/ttf/NotoSansOldPersian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldSogdian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldSogdian/unhinted/ttf/NotoSansOldSogdian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldSouthArabian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldSouthArabian/unhinted/ttf/NotoSansOldSouthArabian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOldTurkic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOldTurkic/unhinted/ttf/NotoSansOldTurkic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOriya-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOriya/unhinted/ttf/NotoSansOriya-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOsage-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOsage/unhinted/ttf/NotoSansOsage-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansOsmanya-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansOsmanya/unhinted/ttf/NotoSansOsmanya-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPahawhHmong-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPahawhHmong/unhinted/ttf/NotoSansPahawhHmong-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPalmyrene-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPalmyrene/unhinted/ttf/NotoSansPalmyrene-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPauCinHau-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPauCinHau/unhinted/ttf/NotoSansPauCinHau-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPhagsPa-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPhagsPa/unhinted/ttf/NotoSansPhagsPa-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPhoenician-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPhoenician/unhinted/ttf/NotoSansPhoenician-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansPsalterPahlavi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansPsalterPahlavi/unhinted/ttf/NotoSansPsalterPahlavi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansRejang-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansRejang/unhinted/ttf/NotoSansRejang-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansRunic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansRunic/unhinted/ttf/NotoSansRunic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSamaritan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSamaritan/unhinted/ttf/NotoSansSamaritan-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSaurashtra-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSaurashtra/unhinted/ttf/NotoSansSaurashtra-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSharada-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSharada/unhinted/ttf/NotoSansSharada-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansShavian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansShavian/unhinted/ttf/NotoSansShavian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSiddham-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSiddham/unhinted/ttf/NotoSansSiddham-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSignWriting-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSignWriting/unhinted/ttf/NotoSansSignWriting-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSinhala-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSinhala/unhinted/ttf/NotoSansSinhala-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSogdian-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSogdian/unhinted/ttf/NotoSansSogdian-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSoraSompeng-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSoraSompeng/unhinted/ttf/NotoSansSoraSompeng-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSoyombo-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSoyombo/unhinted/ttf/NotoSansSoyombo-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSundanese-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSundanese/unhinted/ttf/NotoSansSundanese-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSylotiNagri-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSylotiNagri/unhinted/ttf/NotoSansSylotiNagri-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSymbols-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSymbols/unhinted/ttf/NotoSansSymbols-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSymbols2-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSymbols2/unhinted/ttf/NotoSansSymbols2-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSyriac-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriac/unhinted/ttf/NotoSansSyriac-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSyriacEastern-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriacEastern/unhinted/ttf/NotoSansSyriacEastern-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSyriacWestern-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriacWestern/unhinted/ttf/NotoSansSyriacWestern-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTagalog-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTagalog/unhinted/ttf/NotoSansTagalog-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTagbanwa-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTagbanwa/unhinted/ttf/NotoSansTagbanwa-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTaiLe-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTaiLe/unhinted/ttf/NotoSansTaiLe-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTaiTham-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTaiTham/unhinted/ttf/NotoSansTaiTham-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTaiViet-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTaiViet/unhinted/ttf/NotoSansTaiViet-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTakri-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTakri/unhinted/ttf/NotoSansTakri-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTamil-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTamil/unhinted/ttf/NotoSansTamil-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTamilSupplement-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTamilSupplement/unhinted/ttf/NotoSansTamilSupplement-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTangsa-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTangsa/unhinted/ttf/NotoSansTangsa-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTelugu-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTelugu/unhinted/ttf/NotoSansTelugu-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTest-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTest/unhinted/ttf/NotoSansTest-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansThaana-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansThaana/unhinted/ttf/NotoSansThaana-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansThaiLooped-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansThaiLooped/unhinted/ttf/NotoSansThaiLooped-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTifinagh-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTifinagh/unhinted/ttf/NotoSansTifinagh-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansTirhuta-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansTirhuta/unhinted/ttf/NotoSansTirhuta-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansUgaritic-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansUgaritic/unhinted/ttf/NotoSansUgaritic-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansVai-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansVai/unhinted/ttf/NotoSansVai-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansVithkuqi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansVithkuqi/unhinted/ttf/NotoSansVithkuqi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansWancho-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansWancho/unhinted/ttf/NotoSansWancho-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansWarangCiti-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansWarangCiti/unhinted/ttf/NotoSansWarangCiti-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansYi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansYi/unhinted/ttf/NotoSansYi-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansZanabazarSquare-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansZanabazarSquare/unhinted/ttf/NotoSansZanabazarSquare-Regular.ttf> |
+| `noto/unhinted/TTF/NotoZnamennyMusicalNotation-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoZnamennyMusicalNotation/unhinted/ttf/NotoZnamennyMusicalNotation-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifAhom-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifAhom/unhinted/ttf/NotoSerifAhom-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifDogra-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifDogra/unhinted/ttf/NotoSerifDogra-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifMakasar-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifMakasar/unhinted/ttf/NotoSerifMakasar-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifNPHmong-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifNPHmong/unhinted/ttf/NotoSerifNPHmong-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifOldUyghur/unhinted/ttf/NotoSerifOldUyghur-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifOttomanSiyaq-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifOttomanSiyaq/unhinted/ttf/NotoSerifOttomanSiyaq-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifTangut/unhinted/ttf/NotoSerifTangut-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifTibetan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifTibetan/unhinted/ttf/NotoSerifTibetan-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifToto/unhinted/ttf/NotoSerifToto-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifYezidi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifYezidi/unhinted/ttf/NotoSerifYezidi-Regular.ttf> |
+| `noto-mono/unhinted/TTF/NotoSansMono-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMono/unhinted/ttf/NotoSansMono-Regular.ttf> |
+
+## Source 2 : `notofonts/noto-cjk` (variable fonts CJK)
+
+Patron d'URL : `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/<Famille>-VF.ttf`
+
+Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`).
+
+Ces fichiers sont des variable fonts dont l'axe `wght` couvre 100-900 (Bold = 700). Pas d'axe italique : la synthèse italique reste nécessaire si demandée.
+
+| Fichier local | URL upstream |
+|---|---|
+| `noto/unhinted/TTF/NotoSansHK-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansHK-VF.ttf> |
+| `noto/unhinted/TTF/NotoSansJP-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansJP-VF.ttf> |
+| `noto/unhinted/TTF/NotoSansKR-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansKR-VF.ttf> |
+| `noto/unhinted/TTF/NotoSansSC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf> |
+| `noto/unhinted/TTF/NotoSansTC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansTC-VF.ttf> |
+
+## Source 3 : `google/fonts` (NotoEmoji monochrome)
+
+Le repo `googlefonts/noto-emoji` ne contient que la version **couleur** (NotoColorEmoji.ttf). La version monochrome utilisée par videre est répliquée dans le repo `google/fonts` qui sert de catalogue Google Fonts.
+
+Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`). Texte spécifique aussi disponible à <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/OFL.txt>.
+
+| Fichier local | URL upstream |
+|---|---|
+| `noto/unhinted/TTF/NotoEmoji-Regular.ttf` | <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/static/NotoEmoji-Regular.ttf> |
+
+Note : le fichier statique Regular peut être absent du sous-dossier `static/` selon les versions du repo. Le variable font équivalent est à <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf> (axe `wght` 300-900). Vérifier au moment du re-téléchargement.
+
+## Source 4 : `babelstone.co.uk`
+
+Licence : Arphic Public License (`videre/fonts/other-ttf/LICENSE_APL.txt`).
+
+Page d'accueil de la fonte : <https://www.babelstone.co.uk/Fonts/Han.html>.
+
+| Fichier local | URL upstream |
+|---|---|
+| `other-ttf/BabelStoneHan.ttf` | <https://www.babelstone.co.uk/Download/BabelStoneHan.ttf> |
+
+## Versions
+
+Pas de tracking de version actuel. Le metadata `name` table de chaque TTF contient une chaîne version, lisible via `fontTools.ttLib.TTFont(path)['name'].getDebugName(5)`. À ajouter au catalogue ci-dessus si un pinning précis devient nécessaire.
+
+## Mise à jour
+
+Pour rafraîchir une police, télécharger l'URL upstream correspondante et écraser le fichier local. Vérifier ensuite que les variantes disponibles upstream listées dans `docs/font-bold-italic-availability.md` sont toujours cohérentes.
