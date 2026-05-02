@@ -3,6 +3,8 @@ from videre.fonts.unicode_utils import Unicode
 
 
 class FontUtils:
+    __slots__ = ("_path", "_font", "_unicode_map", "_name")
+
     def __init__(self, path: str, font_index=-1, allow_vid=NotImplemented):
         self._path = path
         self._font = TTFont(path, fontNumber=font_index, allowVID=allow_vid)
@@ -13,17 +15,12 @@ class FontUtils:
         unicode_map = self._font.getBestCmap()
         if unicode_map is None:
             raise ValueError(f"Cannot find best unicode table in font: {debug_name}")
-        self.name: str = debug_name
         self._unicode_map: dict = unicode_map
+        self._name: str = debug_name
 
-    def supported(self):
-        return [
-            (chr(char_int), char_name)
-            for char_int, char_name in self._unicode_map.items()
-        ]
-
-    def supports(self, character):
-        return self._unicode_map.get(ord(character), None)
+    @property
+    def name(self) -> str:
+        return self._name
 
     def coverage(self) -> dict[str, list[str]]:
         blocks = {}

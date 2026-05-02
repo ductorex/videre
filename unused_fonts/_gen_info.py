@@ -3,7 +3,7 @@ import os.path
 from collections import Counter
 
 from videre.fonts._gen_char_cov import _load_fonts
-from videre.fonts.font_utils import FontUtils
+from videre.fonts.font_utils import FontUtils as BaseFontUtils
 from videre.fonts.provider import (
     FOLDER_FONT,
     FONT_BABEL_STONE,
@@ -13,6 +13,17 @@ from videre.fonts.provider import (
 from videre.fonts.unicode_utils import Unicode
 
 LEAST_FONT = FONT_BABEL_STONE.name
+
+
+class FontUtils(BaseFontUtils):
+    def supported(self):
+        return [
+            (chr(char_int), char_name)
+            for char_int, char_name in self._unicode_map.items()
+        ]
+
+    def supports(self, character):
+        return self._unicode_map.get(ord(character), None)
 
 
 def get_percent(a, b, decimals=2):

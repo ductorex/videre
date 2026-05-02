@@ -26,23 +26,6 @@ class Unicode:
                 yield c
 
     @classmethod
-    def _printable(cls, c: str) -> bool:
-        """
-        2024/06/09
-        https://stackoverflow.com/a/68992289
-        """
-        cat = category(c)
-        if cat == "Cc":  # control characters
-            return False
-        if cat == "Co":  # private use
-            return False
-        if cat == "Cs":  # surrogates
-            return False
-        if cat == "Cn":  # non-character or reserved
-            return False
-        return True
-
-    @classmethod
     def printable(cls, c: str) -> bool:
         """
         2024/06/09
@@ -56,6 +39,7 @@ class Unicode:
 
     @classmethod
     def blocks(cls) -> dict[str, Sequence[str]]:
+        # NB: Currently unused in module videre, only in unit tests and unused_fonts
         blocks = {}
         for c in cls.characters():
             blocks.setdefault(cls.block(c), []).append(c)
