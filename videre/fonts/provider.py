@@ -10,7 +10,8 @@ https://www.babelstone.co.uk/Fonts/Han.html
 import json
 import os
 
-from fontTools.ttLib import TTFont
+
+from videre.fonts.font_utils import FontUtils
 
 
 def _file_path(base, *path_pieces) -> str:
@@ -19,16 +20,22 @@ def _file_path(base, *path_pieces) -> str:
     return path
 
 
+def _dir_path(base, *path_pieces) -> str:
+    path = os.path.join(base, *path_pieces)
+    assert os.path.isdir(path)
+    return path
+
+
 def _font_paths(folder: str) -> list[str]:
     return [_file_path(folder, name) for name in os.listdir(folder)]
 
 
-FOLDER_FONT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
+FOLDER_FONT = os.path.abspath(os.path.dirname(__file__))
 
-_FOLDER_NOTO = os.path.join(FOLDER_FONT, "noto", "unhinted", "TTF")
-_FOLDER_NOTO_SERIF = os.path.join(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
-_FOLDER_NOTO_MONO = os.path.join(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
+_PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
+_FOLDER_NOTO = _dir_path(FOLDER_FONT, "noto", "unhinted", "TTF")
+_FOLDER_NOTO_SERIF = _dir_path(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
+_FOLDER_NOTO_MONO = _dir_path(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
 
 _NOTO_FONTS = _font_paths(_FOLDER_NOTO)
 _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
@@ -36,35 +43,14 @@ _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
 # TODO: NB: Mono font is not yet used. User should be able to use it if he wants.
 PATH_NOTO_MONO = _file_path(_FOLDER_NOTO_MONO, "NotoSansMono-Regular.ttf")
 
-PATH_NOTO_REGULAR = _file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf")
-
-
-class _FontInfo:
-    __slots__ = ("name", "path")
-
-    def __init__(self, path: str):
-        with TTFont(path) as font:
-            name = font["name"].getDebugName(4)
-            assert name is not None
-        self.name: str = name
-        self.path: str = path
-
-    def __repr__(self):
-        return f"({self.name})[{self.path}]"
-
-    def to_dict(self):
-        return {self.name: self.path}
-
-
-FONT_BABEL_STONE = _FontInfo(PATH_BABEL_STONE_HAN)
-FONT_NOTO_REGULAR = _FontInfo(PATH_NOTO_REGULAR)
+FONT_BABEL_STONE = FontUtils(_PATH_BABEL_STONE_HAN)
+FONT_NOTO_REGULAR = FontUtils(_file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf"))
 
 
 def _get_fonts(paths: list[str]) -> dict[str, str]:
     output = {}
     for path in paths:
-        with TTFont(path) as font:
-            output[font["name"].getDebugName(4)] = path
+        output.update(FontUtils(path).to_dict())
     assert len(output) == len(paths)
     return output
 

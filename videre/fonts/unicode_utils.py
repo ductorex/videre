@@ -39,7 +39,7 @@ class Unicode:
 
     @classmethod
     def blocks(cls) -> dict[str, Sequence[str]]:
-        # NB: Currently unused in module videre, only in unit tests and unused_fonts
+        # NB: Currently unused in module videre, only in unit tests
         blocks = {}
         for c in cls.characters():
             blocks.setdefault(cls.block(c), []).append(c)
