@@ -1,6 +1,7 @@
 import functools
 
 import pytest
+
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 
@@ -23,7 +24,7 @@ def test_render_text(wrap_words):
     _function = functools.partial(tr.render_text, wrap_words=wrap_words)
 
     def function(*a, **k):
-        return _function(*a, **k).surface
+        return _function(*a, **k)[1].surface
 
     ff_render_text = functools.partial(function, compact=True)
 

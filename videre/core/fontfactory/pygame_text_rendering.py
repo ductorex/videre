@@ -6,19 +6,20 @@ import pygame
 import pygame.freetype
 import pygame.gfxdraw
 import pygame.transform
+
 from videre.colors import Colors
+from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
 from videre.core.fontfactory.font_factory_utils import (
+    AbstractTextElement,
     CharTask,
     Line,
     WordsLine,
     WordTask,
     align_words,
-    AbstractTextElement,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_utils import Color, Surface
-from videre.core.caret_position import CaretPosition
+from videre.core.pygame_utils import Color, PygameRendered, Surface
 
 
 class FontSizes:
@@ -47,14 +48,6 @@ class FontSizes:
 class RenderedText:
     _rendered_lines: list[Line[WordTask]]
     _rendered_font_sizes: FontSizes
-    surface: Surface
-
-    def first_x(self) -> int | float:
-        if self._rendered_lines:
-            line = self._rendered_lines[0]
-            if line.elements:
-                return line.elements[0].x
-        return 0
 
     def pos_to_pixel(self, pos: int) -> CaretPosition:
         """Caret position for a logical source character position.
@@ -168,7 +161,7 @@ class PygameTextRendering:
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> RenderedText:
+    ) -> tuple[RenderedText, PygameRendered]:
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
             lines = WordsLine.from_chars(char_lines, keep_spaces=align is None)
@@ -177,7 +170,7 @@ class PygameTextRendering:
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return RenderedText(lines, self._font_sizes, surface)
+        return RenderedText(lines, self._font_sizes), PygameRendered(surface)
 
     def _render_word_lines(
         self,
