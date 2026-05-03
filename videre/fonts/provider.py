@@ -5,6 +5,7 @@ https://github.com/notofonts/notofonts.github.io
 https://github.com/notofonts/noto-cjk
 https://github.com/googlefonts/noto-emoji
 https://www.babelstone.co.uk/Fonts/Han.html
+https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project
 """
 
 import json
@@ -33,18 +34,26 @@ def _font_paths(folder: str) -> list[str]:
 FOLDER_FONT = os.path.abspath(os.path.dirname(__file__))
 
 _PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
+_PATH_PLANGOTHIC_P1 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP1-Regular.ttf")
+_PATH_PLANGOTHIC_P2 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP2-Regular.ttf")
 _FOLDER_NOTO = _dir_path(FOLDER_FONT, "noto", "unhinted", "TTF")
 _FOLDER_NOTO_SERIF = _dir_path(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
 _FOLDER_NOTO_MONO = _dir_path(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
+_FOLDER_NOTO_CJK_LIGHT = _dir_path(FOLDER_FONT, "noto-cjk-static", "light")
 
 _NOTO_FONTS = _font_paths(_FOLDER_NOTO)
 _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
+_NOTO_CJK_LIGHT_FONTS = _font_paths(_FOLDER_NOTO_CJK_LIGHT)
 
-# TODO: NB: Mono font is not yet used. User should be able to use it if he wants.
+# TODO: NB: User should be able to use a specific font (ncluding mono) if he wants.
+
 PATH_NOTO_MONO = _file_path(_FOLDER_NOTO_MONO, "NotoSansMono-Regular.ttf")
 
 FONT_BABEL_STONE = FontUtils(_PATH_BABEL_STONE_HAN)
+FONT_PLANGOTHIC_P1 = FontUtils(_PATH_PLANGOTHIC_P1)
+FONT_PLANGOTHIC_P2 = FontUtils(_PATH_PLANGOTHIC_P2)
 FONT_NOTO_REGULAR = FontUtils(_file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf"))
+FONT_NOTO_MONO = FontUtils(PATH_NOTO_MONO)
 
 
 def _get_fonts(paths: list[str]) -> dict[str, str]:
@@ -58,15 +67,23 @@ def _get_fonts(paths: list[str]) -> dict[str, str]:
 def _get_noto_fonts() -> dict[str, str]:
     sans_fonts = _get_fonts(_NOTO_FONTS)
     serif_fonts = _get_fonts(_NOTO_SERIF_FONTS)
-    fonts = {**sans_fonts, **serif_fonts}
-    assert len(fonts) == len(sans_fonts) + len(serif_fonts)
+    cjk_light_fonts = _get_fonts(_NOTO_CJK_LIGHT_FONTS)
+    fonts = {**sans_fonts, **serif_fonts, **cjk_light_fonts}
+    assert len(fonts) == len(sans_fonts) + len(serif_fonts) + len(cjk_light_fonts)
     return fonts
 
 
 def get_fonts() -> dict[str, str]:
     noto_fonts = _get_noto_fonts()
-    fonts = {**noto_fonts, **FONT_BABEL_STONE.to_dict()}
-    assert len(fonts) == len(noto_fonts) + 1
+    extras = {
+        **FONT_BABEL_STONE.to_dict(),
+        **FONT_PLANGOTHIC_P1.to_dict(),
+        **FONT_PLANGOTHIC_P2.to_dict(),
+        **FONT_NOTO_MONO.to_dict(),
+    }
+    assert len(extras) == 4
+    fonts = {**noto_fonts, **extras}
+    assert len(fonts) == len(noto_fonts) + len(extras)
     return fonts
 
 
@@ -104,6 +121,9 @@ class FontProvider:
     def __init__(self):
         self._font_name_to_path: dict[str, str] = get_fonts()
         self._fonts, self._characters = self._load_font_to_characters()
+
+    def has_font_info(self, character: str) -> bool:
+        return character in self._characters
 
     def get_font_info(self, character: str) -> tuple[str, str]:
         if character in self._characters:

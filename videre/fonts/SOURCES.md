@@ -8,16 +8,19 @@ Pour les variantes Bold/Italic/BoldItalic disponibles upstream et non encore té
 
 - `videre/fonts/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre **toutes** les polices Noto, indépendamment du sous-dossier (`noto/`, `noto-serif/`, `noto-mono/`).
 - `videre/fonts/other-ttf/LICENSE_APL.txt` — Arphic Public License. Couvre `BabelStoneHan.ttf` exclusivement.
+- `videre/fonts/plangothic/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre les fichiers `PlangothicP1-Regular.ttf` et `PlangothicP2-Regular.ttf`. Ce LICENSE upstream ne contient pas de ligne de copyright explicite ; le copyright se trouve dans la table `name` du TTF (NameID 0) : `Copyright (c) 2024 by Fitzgerald P. Köeingsegg. All rights reserved.`
 
-Les deux licences autorisent l'usage commercial, la modification et la redistribution, à condition de redistribuer le texte de licence avec les polices.
+Toutes ces licences autorisent l'usage commercial, la modification et la redistribution, à condition de redistribuer le texte de licence avec les polices.
 
 ## Décompte
 
 - Source 1 (`notofonts/notofonts.github.io`) : 165 familles
-- Source 2 (`notofonts/noto-cjk`) : 5 familles
+- Source 2 (`notofonts/noto-cjk`) : 5 familles (Variable TTF)
+- Source 2bis (`notofonts/noto-cjk` SubsetOTF) : 10 familles (Light + Regular static OTF)
 - Source 3 (`google/fonts`) : 1 famille
 - Source 4 (`babelstone.co.uk`) : 1 famille
-- **Total** : 172 fichiers
+- Source 5 (`Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project`) : 2 familles
+- **Total** : 184 fichiers
 
 ## Source 1 : `notofonts/notofonts.github.io`
 
@@ -201,13 +204,38 @@ Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`).
 
 Ces fichiers sont des variable fonts dont l'axe `wght` couvre 100-900 (Bold = 700). Pas d'axe italique : la synthèse italique reste nécessaire si demandée.
 
+**Limite connue** : `pygame.freetype` ne supporte pas les axes de variation OpenType. Ces VF sont donc rendues à leur valeur par défaut (`wght=100`, soit Thin), trop fin pour un usage normal. Les fichiers static OTF de la Source 2bis sont chargés à la place pour le rendu réel.
+
 | Fichier local | URL upstream |
 |---|---|
-| `noto/unhinted/TTF/NotoSansHK-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansHK-VF.ttf> |
-| `noto/unhinted/TTF/NotoSansJP-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansJP-VF.ttf> |
-| `noto/unhinted/TTF/NotoSansKR-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansKR-VF.ttf> |
-| `noto/unhinted/TTF/NotoSansSC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf> |
-| `noto/unhinted/TTF/NotoSansTC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansTC-VF.ttf> |
+| `noto-cjk-static/variable-fonts/NotoSansHK-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansHK-VF.ttf> |
+| `noto-cjk-static/variable-fonts/NotoSansJP-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansJP-VF.ttf> |
+| `noto-cjk-static/variable-fonts/NotoSansKR-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansKR-VF.ttf> |
+| `noto-cjk-static/variable-fonts/NotoSansSC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf> |
+| `noto-cjk-static/variable-fonts/NotoSansTC-VF.ttf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSansTC-VF.ttf> |
+
+## Source 2bis : `notofonts/noto-cjk` (static OTF CJK)
+
+Patron d'URL : `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/<LANG>/NotoSans<LANG>-<Weight>.otf`
+
+Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`). Identique au texte de la Source 2 (le LICENSE upstream `Sans/LICENSE` couvre toutes les variantes).
+
+Les variantes Light (`wght=300`) sont **chargées et prioritaires** dans le mapping char→font (rangs 3 à 7 dans `_gen_char_cov.py:generate_char_to_font`), pour donner aux blocs CJK courants (URO, Hiragana, Katakana, Hangul) un rendu sans-serif aéré proche de Yu Gothic UI Regular sur Windows 11. Mesure de référence : NotoSansJP-Light rend à ~5,07 % de pixels noirs vs Yu Gothic UI Regular à 5,91 % (`pygame.freetype`, taille 64).
+
+Les variantes Regular (`wght=400`) sont **conservées sur disque mais pas chargées** : leur `full name` entre en collision avec celui des VF (Source 2), et leur rendu est ~1,5× plus gras que la cible Yu Gothic UI Regular.
+
+| Fichier local | URL upstream |
+|---|---|
+| `noto-cjk-static/light/NotoSansJP-Light.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Light.otf> |
+| `noto-cjk-static/light/NotoSansHK-Light.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/HK/NotoSansHK-Light.otf> |
+| `noto-cjk-static/light/NotoSansSC-Light.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/SC/NotoSansSC-Light.otf> |
+| `noto-cjk-static/light/NotoSansTC-Light.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/TC/NotoSansTC-Light.otf> |
+| `noto-cjk-static/light/NotoSansKR-Light.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/KR/NotoSansKR-Light.otf> |
+| `noto-cjk-static/regular/NotoSansJP-Regular.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf> |
+| `noto-cjk-static/regular/NotoSansHK-Regular.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/HK/NotoSansHK-Regular.otf> |
+| `noto-cjk-static/regular/NotoSansSC-Regular.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf> |
+| `noto-cjk-static/regular/NotoSansTC-Regular.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/TC/NotoSansTC-Regular.otf> |
+| `noto-cjk-static/regular/NotoSansKR-Regular.otf` | <https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/KR/NotoSansKR-Regular.otf> |
 
 ## Source 3 : `google/fonts` (NotoEmoji monochrome)
 
@@ -230,6 +258,21 @@ Page d'accueil de la fonte : <https://www.babelstone.co.uk/Fonts/Han.html>.
 | Fichier local | URL upstream |
 |---|---|
 | `other-ttf/BabelStoneHan.ttf` | <https://www.babelstone.co.uk/Download/BabelStoneHan.ttf> |
+
+## Source 5 : `Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project`
+
+Famille pan-CJK conçue pour couvrir tous les blocs CJK Unified Ideographs Extensions ainsi que les caractères Unicode rares non couverts par Noto Sans CJK. Distribuée en deux fichiers (P1 et P2) à cause de la limite de 65 535 glyphes par font OpenType.
+
+Licence : SIL Open Font License 1.1 (`videre/fonts/plangothic/LICENSE_OFL.txt`). Le code de build du projet upstream est sous MIT, mais ce code n'est pas redistribué ici — seuls les binaires TTF le sont, donc seule la licence OFL s'applique au contenu de `videre/fonts/plangothic/`.
+
+Page de releases : <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project/releases>.
+
+| Fichier local | URL upstream |
+|---|---|
+| `plangothic/PlangothicP1-Regular.ttf` | <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project/releases/download/V2.9.5792/PlangothicP1-Regular.ttf> |
+| `plangothic/PlangothicP2-Regular.ttf` | <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project/releases/download/V2.9.5792/PlangothicP2-Regular.ttf> |
+
+Note : l'URL upstream est versionnée (V2.9.5792 = release du 2026-01-01). Pour rafraîchir, récupérer la dernière release et adapter le tag dans l'URL.
 
 ## Versions
 

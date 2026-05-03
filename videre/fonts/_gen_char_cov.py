@@ -52,7 +52,23 @@ def generate_char_cov():
 
 
 def generate_char_to_font(
-    priority_fonts: Sequence[str] = (FONT_NOTO_REGULAR.name,),
+    priority_fonts: Sequence[str] = (
+        FONT_NOTO_REGULAR.name,
+        # Math and Symbols 2 ranked above the CJK fonts so widget icons
+        # (geometric shapes, dingbats) stay rendered as compact symbols
+        # rather than being pulled into the CJK fonts' fullwidth style.
+        "Noto Sans Math Regular",
+        "Noto Sans Symbols 2 Regular",
+        # CJK Light: aerated sans-serif rendering close to Yu Gothic UI Regular,
+        # avoids both BabelStone (Mincho/serif) and Plangothic (too bold).
+        # JP first matches the project's "modern Japanese" reference rendering;
+        # the others fill in script-specific glyphs.
+        "Noto Sans JP Light",
+        "Noto Sans HK Light",
+        "Noto Sans SC Light",
+        "Noto Sans TC Light",
+        "Noto Sans KR Light",
+    ),
 ) -> dict[str, str]:
     font_to_rank = {name: order for order, name in enumerate(priority_fonts)}
     font_to_block_to_cov: dict[str, dict[str, list[str]]] = {}
@@ -86,7 +102,7 @@ def generate_char_to_font(
     logger.info(
         f"fonts: {len(set(char_to_font.values()))} / {len(fonts)}, "
         f"characters: {nb_covered} / {nb_unicode} "
-        f"({round(nb_covered * 100 / nb_unicode, 2)} %)"
+        f"({nb_covered * 100 / nb_unicode} %)"
     )
     return char_to_font
 
@@ -119,4 +135,5 @@ def _gen_font_to_characters(char_to_font: dict[str, str], save=True) -> dict[str
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, force=True)
     generate_char_cov()
