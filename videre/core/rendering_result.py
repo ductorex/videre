@@ -11,7 +11,8 @@ class RenderingResult(Protocol):
 class CursorState(Protocol):
     """Backend-owned navigation state for a TextInput cursor. Carries
     whatever internal info the backend needs to keep arrow-key
-    movement unambiguous in mixed bidi.
+    movement unambiguous in mixed bidi (typically a glyph cursor on
+    the shaped backend, a plain source position on the legacy one).
 
     Three properties are exposed to consumers:
 
@@ -19,8 +20,8 @@ class CursorState(Protocol):
       the source string for insertion, selection, etc.
     - `visual_pos`: the position in the *visual* codepoint sequence
       (= the sequence of clusters in left-to-right pixel order). For
-      the legacy backend, `visual_pos == pos` (no bidi). For a
-      shaped backend, may be a globally-counted index across lines.
+      the legacy backend, `visual_pos == pos` (no bidi). For the
+      shaped backend, it's a globally-counted index across lines.
       Used by `TextInput` to express selections in visual order so
       the highlighted region is always a contiguous ribbon on screen,
       even when the underlying source positions are not contiguous in
@@ -43,13 +44,16 @@ class CursorState(Protocol):
 
 
 class TextRenderingResult(Protocol):
-    """Common surface that the cursor / hit-test code in `TextInput` relies on.
+    """Common surface that the cursor / hit-test code in `TextInput`
+    relies on. Both the legacy `RenderedText` (source-only) and the
+    shaped `ShapedRenderedText` (bidi-aware) implement it so consumers
+    never branch on the backend.
 
     Visual navigation uses a `CursorState` object each backend owns.
     TextInput stores it next to the source-position cursor and feeds
     it back unchanged to `next_visual` / `prev_visual` etc. Direct
     source-position queries (`pos_to_pixel`, `pixel_to_pos`) don't
-    take a state and may be ambiguous at LTR/RTL boundaries on a
+    take a state and may be ambiguous at LTR/RTL boundaries on the
     shaped backend; the state-based path is the reliable one for
     arrow / mouse navigation.
     """

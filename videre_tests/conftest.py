@@ -26,11 +26,40 @@ class FakeWindow(StepWindow):
 
 
 @pytest.fixture
-def _image_testing(image_regression) -> ImageCheck:
-    def check(image: io.BytesIO, **kwargs):
-        image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)
+def _image_testing(image_regression) -> Iterator[ImageCheck]:
+    """Per-call image-regression check.
 
-    return check
+    In normal mode, each `check()` raises immediately on a mismatch
+    (the test stops at the first failing snapshot — standard
+    pytest-regressions behavior).
+
+    In `VIDERE_USE_SHAPED_RENDERING` mode, failures are collected silently and re-raised
+    at teardown. This lets a single test that calls `check()` several
+    times — for example `test_cursor` taking snapshots after each
+    keypress — produce one `*.obtained.png` per snapshot, instead of
+    stopping at the first one and leaving later snapshots unrendered.
+    """
+
+    errors: list[AssertionError] = []
+
+    def check(image: io.BytesIO, **kwargs):
+        from videre.core.shaping.legacy_adapter import use_shaped_rendering
+
+        if not use_shaped_rendering():
+            image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)
+            return
+        try:
+            image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)
+        except AssertionError as e:
+            errors.append(e)
+
+    yield check
+
+    if errors:
+        raise AssertionError(
+            f"{len(errors)} snapshot(s) diverged in this test:\n"
+            + "\n".join(str(e) for e in errors)
+        )
 
 
 @pytest.fixture

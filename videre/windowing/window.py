@@ -163,6 +163,37 @@ class Window:
         underline: bool = False,
         height_delta: int | None = None,
     ):
+        # When `VIDERE_USE_SHAPED_RENDERING` is set, swap in the
+        # shaped pipeline behind the legacy `PygameTextRendering`
+        # interface. Used to compare the new renderer to the legacy
+        # one against existing image-regression baselines without
+        # modifying any consumer. Return type is intentionally
+        # untyped: the legacy `PygameTextRendering` and the shaped
+        # adapter share enough surface (`render_text` returning
+        # `(text_result, rendered_result)` with caret helpers on the
+        # first item and `.surface` on the second, plus `render_char`
+        # returning a Surface)
+        # to be interchangeable for current consumers, but they don't
+        # share a base class.
+        from videre.core.shaping.legacy_adapter import (
+            ShapedTextRenderingLegacyAdapter,
+            use_shaped_rendering,
+            use_shaped_subpixel,
+        )
+
+        if use_shaped_rendering():
+            subpixel = (
+                use_shaped_subpixel() if self._subpixel is None else self._subpixel
+            )
+            return ShapedTextRenderingLegacyAdapter(
+                self.fonts,
+                size=size or 0,
+                strong=strong,
+                italic=italic,
+                underline=underline,
+                height_delta=height_delta,
+                subpixel=subpixel,
+            )
         return PygameTextRendering(
             self._fonts,
             size=size,
