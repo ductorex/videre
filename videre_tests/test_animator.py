@@ -1,12 +1,16 @@
 import time
 from types import SimpleNamespace
+from typing import cast
 
 import videre
+from videre.core.framing import FPR, FPS
+from videre.core.pygame_backend import Pygame
+from videre.widgets.abstractanimation import AbstractAnimation
 
 
 def test_animator_display(snap_win):
     text = videre.Text("Frame 0")
-    animator = videre.Animator(text, fps=60)
+    animator = videre.Animator(text, framing=FPS(60))
     snap_win.controls = [animator]
 
 
@@ -18,7 +22,7 @@ def test_animator_frame_callback(fake_win):
         data.control_refs.append(control)
 
     text = videre.Text("Test")
-    animator = videre.Animator(text, on_frame=on_frame, fps=60)
+    animator = videre.Animator(text, on_frame=on_frame, framing=FPS(60))
     fake_win.controls = [animator]
 
     assert animator.frame_rank == 0
@@ -43,7 +47,7 @@ def test_animator_control_property(fake_win):
     text1 = videre.Text("Control 1")
     text2 = videre.Text("Control 2")
 
-    animator = videre.Animator(text1, fps=30)
+    animator = videre.Animator(text1, framing=FPS(30))
     fake_win.controls = [animator]
     fake_win.render()
 
@@ -60,17 +64,17 @@ def test_animator_fps_bounds(fake_win):
     text = videre.Text("Test")
 
     # Test negative fps
-    animator1 = videre.Animator(text, fps=-10)
-    assert animator1._fps == 0
+    animator1 = videre.Animator(text, framing=FPS(-10))
+    assert cast(FPS, animator1._framing)._fps == 0
 
     # Test very high fps (should be clamped to WINDOW_FPS)
-    animator2 = videre.Animator(text, fps=1000)
+    animator2 = videre.Animator(text, framing=FPS(1000))
     # Should be clamped to WINDOW_FPS (typically 60)
-    assert animator2._fps <= 60
+    assert cast(FPS, animator2._framing)._fps <= 60
 
     # Test normal fps
-    animator3 = videre.Animator(text, fps=30)
-    assert animator3._fps == 30
+    animator3 = videre.Animator(text, framing=FPS(30))
+    assert cast(FPS, animator3._framing)._fps == 30
 
 
 def test_animator_on_frame_change(fake_win):
@@ -83,7 +87,7 @@ def test_animator_on_frame_change(fake_win):
         data.callback2_calls += 1
 
     text = videre.Text("Test")
-    animator = videre.Animator(text, on_frame=callback1, fps=60)
+    animator = videre.Animator(text, on_frame=callback1, framing=FPS(60))
     fake_win.controls = [animator]
     fake_win.render()
 
@@ -108,7 +112,7 @@ def test_animator_on_frame_change(fake_win):
 
 def test_animator_no_callback(fake_win):
     text = videre.Text("Test")
-    animator = videre.Animator(text, on_frame=None, fps=60)
+    animator = videre.Animator(text, on_frame=None, framing=FPS(60))
     fake_win.controls = [animator]
 
     # Should not crash without callback
@@ -123,7 +127,6 @@ class TestAbstractAnimation:
 
     def test_fps_framing_zero_fps(self):
         """Test FPS framing with zero fps"""
-        from videre.widgets.abstractanimation import FPS
 
         fps_framing = FPS(0)
         assert fps_framing._fps == 0
@@ -131,35 +134,30 @@ class TestAbstractAnimation:
 
     def test_fps_framing_negative_fps(self):
         """Test FPS framing with negative fps"""
-        from videre.widgets.abstractanimation import FPS
 
         fps_framing = FPS(-10)
         assert fps_framing._fps == 0  # Should be clamped to 0
 
     def test_fps_framing_very_high_fps(self):
         """Test FPS framing with fps higher than WINDOW_FPS"""
-        from videre.widgets.abstractanimation import FPS
 
         fps_framing = FPS(1000)
         assert fps_framing._fps <= videre.WINDOW_FPS  # Should be clamped
 
     def test_fpr_framing_zero_frames(self):
         """Test FPR framing with zero frames"""
-        from videre.widgets.abstractanimation import FPR
 
         fpr_framing = FPR(0)
         assert fpr_framing._nb_frames == 1  # Should be clamped to minimum 1
 
     def test_fpr_framing_negative_frames(self):
         """Test FPR framing with negative frames"""
-        from videre.widgets.abstractanimation import FPR
 
         fpr_framing = FPR(-5)
         assert fpr_framing._nb_frames == 1  # Should be clamped to minimum 1
 
     def test_fpr_framing_needs_frame_logic(self):
         """Test FPR framing needs_frame logic"""
-        from videre.widgets.abstractanimation import FPR
 
         fpr_framing = FPR(3)
 
@@ -177,7 +175,6 @@ class TestAbstractAnimation:
 
     def test_fpr_framing_sequence(self):
         """Test FPR framing sequence over multiple frames"""
-        from videre.widgets.abstractanimation import FPR
 
         fpr_framing = FPR(4)  # Every 4 frames
 
@@ -188,7 +185,6 @@ class TestAbstractAnimation:
 
     def test_fps_framing_needs_frame_timing(self):
         """Test FPS framing timing behavior"""
-        from videre.widgets.abstractanimation import FPS
 
         # Very low fps should rarely need frames
         fps_framing = FPS(1)  # 1 frame per second
@@ -204,7 +200,6 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_frame_counting(self, fake_win):
         """Test AbstractAnimation frame counting"""
-        from videre.widgets.abstractanimation import FPS, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def __init__(self, **kwargs):
@@ -216,9 +211,8 @@ class TestAbstractAnimation:
 
             def draw(self, window, width: int | None = None, height: int | None = None):
                 # Simple implementation for testing
-                import pygame
 
-                surface = pygame.Surface((100, 50))
+                surface = Pygame.new_surface(100, 50)
                 surface.fill((255, 255, 255))
                 return surface
 
@@ -244,16 +238,14 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_default_framing(self, fake_win):
         """Test AbstractAnimation with default FPS framing"""
-        from videre.widgets.abstractanimation import FPS, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def _on_frame(self):
                 pass
 
             def draw(self, window, width=None, height=None):
-                import pygame
 
-                return pygame.Surface((50, 50))
+                return Pygame.new_surface(50, 50)
 
         # No framing specified should use default FPS
         animation = TestAnimation()
@@ -264,7 +256,6 @@ class TestAbstractAnimation:
 
     def test_abstract_animation_custom_framing(self, fake_win):
         """Test AbstractAnimation with custom FPR framing"""
-        from videre.widgets.abstractanimation import FPR, AbstractAnimation
 
         class TestAnimation(AbstractAnimation):
             def __init__(self, **kwargs):
@@ -275,9 +266,8 @@ class TestAbstractAnimation:
                 self.frame_calls += 1
 
             def draw(self, window, width=None, height=None):
-                import pygame
 
-                return pygame.Surface((50, 50))
+                return Pygame.new_surface(50, 50)
 
         # Use FPR framing - every 2 window frames
         animation = TestAnimation(framing=FPR(2))

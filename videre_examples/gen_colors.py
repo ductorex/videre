@@ -825,7 +825,7 @@ json = [
 
 
 def load_colors():
-    print("import pygame")
+    print("from videre.colors import Color")
     for desc in sorted(json, key=lambda d: d["name"].lower()):
         name_val = desc["name"]
         rgb_val = desc["rgb"]
@@ -836,4 +836,4 @@ def load_colors():
         r = int(str_r.strip())
         g = int(str_g.strip())
         b = int(str_b.strip())
-        print(f"{name} = pygame.Color({r}, {g}, {b})")
+        print(f"{name} = Color({r}, {g}, {b})")

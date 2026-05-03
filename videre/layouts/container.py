@@ -1,7 +1,5 @@
-import pygame
-import pygame.gfxdraw
 from videre.core.constants import Alignment
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.gradient import ColoringDefinition, Gradient
@@ -30,7 +28,7 @@ class Container(AbstractLayout):
         *,
         border: Border | None = None,
         padding: Padding | None = None,
-        background_color: ColoringDefinition = None,
+        background_color: ColoringDefinition | None = None,
         vertical_alignment: Alignment = Alignment.START,
         horizontal_alignment: Alignment = Alignment.START,
         width: int | None = None,
@@ -78,7 +76,7 @@ class Container(AbstractLayout):
         return self._get_wprop("background_color")
 
     @background_color.setter
-    def background_color(self, coloring: ColoringDefinition):
+    def background_color(self, coloring: ColoringDefinition | None):
         self._set_wprop("background_color", Gradient.parse(coloring))
 
     @property
@@ -189,7 +187,7 @@ class Container(AbstractLayout):
         y = self._align_dim(
             inner_height, inner_surface.get_height(), self.vertical_alignment
         )
-        # inner_box = pygame.Rect(0, 0, inner_width - x, inner_height - y)
+        # inner_box = Rect(0, 0, inner_width - x, inner_height - y)
         surface = self.background_color.generate(outer_width, outer_height)
         for border_color, border_points in border.describe_borders(
             outer_width, outer_height
@@ -197,13 +195,13 @@ class Container(AbstractLayout):
             if border_points:
                 if border_points[0] == border_points[-1]:
                     # Certainly a line
-                    pygame.gfxdraw.line(
-                        surface, *border_points[0], *border_points[1], border_color
+                    Pygame.line(
+                        surface, border_color, border_points[0], border_points[1]
                     )
                 else:
-                    pygame.gfxdraw.filled_polygon(surface, border_points, border_color)
+                    Pygame.filled_polygon(surface, border_points, border_color)
         inner_x, inner_y = margin.left + x, margin.top + y
-        surface.blit(inner_surface, (inner_x, inner_y), area=None)
+        Pygame.blit(surface, inner_surface, (inner_x, inner_y))
         self._set_child_position(control, inner_x, inner_y)
         return surface
 

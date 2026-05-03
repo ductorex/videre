@@ -1,5 +1,6 @@
 import pygame.mouse
 import pytest
+
 import videre
 from videre.core.clipboard import Clipboard
 
@@ -61,13 +62,9 @@ def test_cursor_move_by_keyboard(fake_win, fake_user):
     # We have only 1 line, without wrap,
     # so line contains only 1 word embedding full string.
     assert ti._text._rendered is not None
-    word = ti._text._rendered._rendered_lines[0].elements[0]
-    char = word.tasks[5]
-    assert char.el == ","
 
-    x = ti.global_x + word.x + char.x
-    y = ti.global_y + 1
-    fake_user.click_at(x, y)
+    caret_pos = ti._text._rendered.pos_to_pixel(5)
+    fake_user.click_at(ti.global_x + caret_pos.x, ti.global_y + 1)
     fake_win.check("cursor_5")
     assert ti._get_cursor() == 5
 
@@ -174,17 +171,14 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     # Also check mouse cursor
     assert pygame.mouse.get_cursor() == fake_win._default_cursor
 
-    # Get character elements in rendered text
-    # We have only 1 line, without wrap,
-    # so line contains only 1 word embedding full string.
     rendered = ti._text._rendered
     assert rendered is not None
-    word = rendered._rendered_lines[0].elements[0]
-    h, e, l1, l2, o1, comma, space, w, o2, r, l3, d, exclamation = word.tasks
-    assert comma.el == ","
+
+    def x_for_pos(pos: int) -> int:
+        return ti.global_x + rendered.pos_to_pixel(pos).x
 
     # Click
-    x = ti.global_x + word.x + comma.x
+    x = x_for_pos(5)
     y = ti.global_y + 5
     fake_user.click_at(x, y)
     fake_win.check("cursor_5")
@@ -195,7 +189,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     assert ti._get_selection() == (5, 5)
 
     # Another click
-    x = ti.global_x + word.x + o1.x
+    x = x_for_pos(4)
     fake_user.click_at(x, y)
     fake_win.check("cursor_4")
     assert ti._get_cursor() == 4
@@ -208,7 +202,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     assert ti._get_selection() == (4, 4)
 
     # Mouse down move left
-    x = ti.global_x + word.x + l1.x
+    x = x_for_pos(2)
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_select_2")
     assert ti._get_cursor() == 2
@@ -221,35 +215,35 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     assert text_cursor != fake_win._default_cursor
 
     # Mouse down move left again
-    x = ti.global_x + word.x + e.x
+    x = x_for_pos(1)
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_select_1")
     assert ti._get_cursor() == 1
     assert ti._get_selection() == (1, 4)
 
     # Mouse down move left
-    x = ti.global_x + word.x + h.x
+    x = x_for_pos(0)
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_select_0")
     assert ti._get_cursor() == 0
     assert ti._get_selection() == (0, 4)
 
     # Mouse down right
-    x = ti.global_x + word.x + space.x
+    x = x_for_pos(6)
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_select_6")
     assert ti._get_cursor() == 6
     assert ti._get_selection() == (4, 6)
 
     # Mouse down right again
-    x = ti.global_x + word.x + word.width + 5
+    x = x_for_pos(len(string)) + 5
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_select_13")
     assert ti._get_cursor() == 13
     assert ti._get_selection() == (4, 13)
 
     # Mouse down left again to empty selection
-    x = ti.global_x + word.x + o1.x
+    x = x_for_pos(4)
     fake_user.mouse_motion(x, y, button_left=True)
     fake_win.check("cursor_4")
     assert ti._get_cursor() == 4

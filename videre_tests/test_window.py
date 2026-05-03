@@ -3,6 +3,7 @@ import time
 from types import SimpleNamespace
 
 import pytest
+
 import videre
 
 
@@ -35,11 +36,7 @@ def test_window_notify(fake_win, fake_user):
     assert len(data.notifications) == 0
 
     fake_user.click(button)
-    # First render will handle click
-    fake_win.render()
-    assert data.send_called == 1
-    assert data.cb_called == 0
-    # Then second render will process the notification
+    # Next render will handle click and process the notification
     fake_win.render()
     assert data.send_called == 1
     assert data.cb_called == 1

@@ -1,7 +1,9 @@
 import pygame.event
+
 from videre.core.constants import MouseButton
 from videre.core.events import MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
+from videre.core.pygame_backend import Event
 from videre.layouts.container import Container
 from videre.widgets.widget import Widget
 from videre.windowing.event_propagator import EventPropagator
@@ -10,7 +12,7 @@ from videre.windowing.event_propagator import EventPropagator
 def _pygame_mouse_motion_event(
     x, y, rel=(0, 0), button_left=False, button_middle=False, button_right=False
 ):
-    return pygame.event.Event(
+    return Event(
         pygame.MOUSEMOTION,
         pos=(x, y),
         rel=rel,

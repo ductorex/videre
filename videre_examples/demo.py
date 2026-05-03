@@ -2,6 +2,8 @@ import logging
 from typing import Any
 
 import videre
+from videre.core.clipboard import Clipboard
+from videre.core.framing import FPS
 from videre.layouts.div.div import Div
 from videre.testing.utils import LOREM_IPSUM
 from videre.windowing.windowutils import OnEvent
@@ -64,10 +66,10 @@ class Demo:
         text = videre.Text(sentence)
 
         def to_clipboard(*args):
-            self.window.set_clipboard(sentence)
+            Clipboard.set_clipboard(sentence)
 
         def from_clipboard(*args):
-            text.text = self.window.get_clipboard()
+            text.text = Clipboard.get_clipboard()
 
         return videre.Column(
             [
@@ -219,7 +221,7 @@ class Demo:
             pb.value = (f % 31) / 30
 
         aw = videre.Animator(label, on_frame=on_label_frame)
-        ap = videre.Animator(pb, on_frame=on_pb_frame, fps=30)
+        ap = videre.Animator(pb, on_frame=on_pb_frame, framing=FPS(30))
         return videre.Column(
             [
                 aw,

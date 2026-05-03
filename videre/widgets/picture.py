@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 from typing import BinaryIO
 
-import pygame
 from PIL import Image
-from videre.core.pygame_utils import Surface
+
+from videre.core.pygame_backend import Pygame, Surface
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
 
@@ -47,7 +47,7 @@ class Picture(Widget):
                 src = io.BytesIO(src)
             assert isinstance(src, (str, Path, io.BytesIO))
             image = Image.open(src).convert("RGBA")
-            surface = pygame.image.frombytes(image.tobytes(), image.size, "RGBA")
+            surface = Pygame.image(image)
             return surface.convert_alpha()
 
         except Exception as exc:

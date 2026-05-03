@@ -1,6 +1,5 @@
-import functools
-
 import pytest
+
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 
@@ -18,14 +17,14 @@ def test_render_text(wrap_words):
     assert ascender == 27
     assert descender == 8
 
-    tr = PygameTextRendering(ff, height_delta=height_delta)
+    tr_compact = PygameTextRendering(ff, height_delta=height_delta, compact=True)
+    tr_full = PygameTextRendering(ff, height_delta=height_delta, compact=False)
 
-    _function = functools.partial(tr.render_text, wrap_words=wrap_words)
+    def ff_render_text(text):
+        return tr_compact.render_text(text, wrap_words=wrap_words)[1].surface
 
-    def function(*a, **k):
-        return _function(*a, **k).surface
-
-    ff_render_text = functools.partial(function, compact=True)
+    def ff_render_text_full(text):
+        return tr_full.render_text(text, wrap_words=wrap_words)[1].surface
 
     s = ff_render_text("")
     assert s.get_width() == 0
@@ -43,23 +42,23 @@ def test_render_text(wrap_words):
     assert s.get_width() == 0
     assert s.get_height() == 4 * line_height + descender
 
-    s = function("a", compact=False)
+    s = ff_render_text_full("a")
     assert s.get_width() == 12
     assert s.get_height() == line_height + descender
 
-    s = function("a\na", compact=False)
+    s = ff_render_text_full("a\na")
     assert s.get_width() == 12
     assert s.get_height() == 2 * line_height + descender
 
-    s = function("a\na\na", compact=False)
+    s = ff_render_text_full("a\na\na")
     assert s.get_width() == 12
     assert s.get_height() == 3 * line_height + descender
 
-    s = function("a\n\na", compact=False)
+    s = ff_render_text_full("a\n\na")
     assert s.get_width() == 12
     assert s.get_height() == 3 * line_height + descender
 
-    s = function("a\n\na\n\n", compact=False)
+    s = ff_render_text_full("a\n\na\n\n")
     assert s.get_width() == 12
     assert s.get_height() == 5 * line_height + descender
 

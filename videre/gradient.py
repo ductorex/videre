@@ -1,13 +1,12 @@
 from typing import Self
 
-import pygame
-from videre.colors import ColorDef, Colors, parse_color
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.colors import Color, ColorDef, Colors, parse_color
+from videre.core.pygame_backend import Pygame, Surface
 
 
-class Gradient(PygameUtils):
+class Gradient:
     """
-    Optimized gradient implementation using direct drawing with pygame.draw.
+    Optimized gradient implementation using direct drawing.
     This approach is more efficient than using smoothscale for gradients.
 
     New implementation was generated with Cursor AI Assistant.
@@ -16,8 +15,6 @@ class Gradient(PygameUtils):
     __slots__ = ("_colors", "_vertical")
 
     def __init__(self, *colors: Color, vertical=False):
-        super().__init__()
-
         self._colors = colors or [Colors.transparent]
         self._vertical: bool = vertical
 
@@ -30,10 +27,10 @@ class Gradient(PygameUtils):
         return Color(r, g, b, a)
 
     def generate(self, width: int, height: int) -> Surface:
-        surface = self.new_surface(width, height)
+        surface = Pygame.new_surface(width, height)
 
         if len(self._colors) == 1:
-            surface.fill(self._colors[0])
+            surface.fill(Pygame.new_color(self._colors[0]))
             return surface
 
         if self._vertical:
@@ -56,7 +53,7 @@ class Gradient(PygameUtils):
                 )
 
                 # Draw a horizontal line
-                pygame.draw.line(surface, color, (0, i), (width - 1, i))
+                Pygame.line(surface, color, (0, i), (width - 1, i))
         else:
             # Horizontal gradient
             for i in range(width):
@@ -77,12 +74,12 @@ class Gradient(PygameUtils):
                 )
 
                 # Draw a vertical line
-                pygame.draw.line(surface, color, (i, 0), (i, height - 1))
+                Pygame.line(surface, color, (i, 0), (i, height - 1))
 
         return surface
 
     @classmethod
-    def parse(cls, coloring: ColorDef | Self) -> "Gradient":
+    def parse(cls, coloring: Self | ColorDef | None) -> "Gradient":
         if isinstance(coloring, Gradient):
             return coloring
         return Gradient(parse_color(coloring))

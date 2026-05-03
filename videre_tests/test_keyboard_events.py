@@ -1,6 +1,8 @@
 import pygame
+
 from videre.core.constants import MouseButton
 from videre.core.events import KeyboardEntry, MouseEvent
+from videre.core.pygame_backend import Event
 
 
 class TestKeyboardEntry:
@@ -8,7 +10,7 @@ class TestKeyboardEntry:
 
     def test_modifier_properties_lshift_rctrl_lalt(self):
         """Test keyboard modifier properties with left shift, right ctrl, left alt"""
-        mock_event = pygame.event.Event(
+        mock_event = Event(
             pygame.KEYDOWN,
             {
                 "mod": pygame.KMOD_LSHIFT | pygame.KMOD_RCTRL | pygame.KMOD_LALT,

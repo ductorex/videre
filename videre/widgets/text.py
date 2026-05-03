@@ -1,9 +1,9 @@
 from typing import Any
 
-from videre.colors import ColorDef, parse_color
+from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.fontfactory.pygame_text_rendering import RenderedText
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_backend import Surface
+from videre.core.rendering_result import TextRenderingResult
 from videre.widgets.widget import Widget
 
 
@@ -33,7 +33,7 @@ class Text(Widget):
         height_delta=2,
         wrap: TextWrap | None = None,
         align: TextAlign | None = None,
-        color: ColorDef = None,
+        color: ColorDef | None = None,
         strong: bool = False,
         italic: bool = False,
         underline: bool = False,
@@ -41,7 +41,7 @@ class Text(Widget):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self._rendered: RenderedText | None = None
+        self._rendered: TextRenderingResult | None = None
         self._set_wprops(size=size, height_delta=height_delta)
         self.text = text
         self.wrap = wrap
@@ -95,7 +95,7 @@ class Text(Widget):
         return self._get_wprop("color")
 
     @color.setter
-    def color(self, color: ColorDef):
+    def color(self, color: ColorDef | None):
         self._set_wprop("color", None if color is None else parse_color(color))
 
     @property
@@ -154,7 +154,7 @@ class Text(Widget):
         self, window, width: int | None = None, height: int | None = None
     ) -> Surface:
         wrap = self.wrap
-        self._rendered = self._text_rendering(window).render_text(
+        text_ret, surface_ret = self._text_rendering(window).render_text(
             text=self.text,
             color=self.color,
             wrap_words=(wrap == TextWrap.WORD),
@@ -162,4 +162,5 @@ class Text(Widget):
             align=(None if wrap is None else self.align),
             selection=self.selection,
         )
-        return self._rendered.surface
+        self._rendered = text_ret
+        return surface_ret.surface

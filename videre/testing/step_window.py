@@ -1,6 +1,7 @@
 import io
 
 import pygame
+
 from videre.windowing.window import Window
 
 
@@ -17,7 +18,7 @@ class StepWindow(Window):
         return super().run()
 
     def __enter__(self):
-        if not self._running:
+        if not self._is_running():
             raise RuntimeError("Window has already run. Cannot run again.")
         self._step_mode = True
         self._init_display()
@@ -26,6 +27,8 @@ class StepWindow(Window):
     def render(self):
         if not self._step_mode:
             raise RuntimeError("render() requires step-mode (`with window`)")
+        if not self._is_running():
+            raise RuntimeError("Window has already run. Cannot render again.")
         self._render()
 
     def screenshot(self) -> io.BytesIO:
@@ -43,7 +46,7 @@ class StepWindow(Window):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._step_mode:
             self._step_mode = False
-            self._running = False
+            self._stop_running()
             pygame.quit()
 
     def find(self, widget_cls, **wprops):

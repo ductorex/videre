@@ -4,9 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pygame
-from pygame.event import Event
+
 from videre.core.constants import MouseButton
-from videre.core.events import CustomEvents, KeyboardEntry
+from videre.core.events import CustomTasks, KeyboardEntry
+from videre.core.pygame_backend import Event, Pygame
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
 
@@ -21,7 +22,7 @@ class TrackerWidget(Widget):
         self.events = []
 
     def draw(self, window, width=None, height=None):
-        surface = pygame.Surface((width or 50, height or 50))
+        surface = Pygame.new_surface(width or 50, height or 50)
         surface.fill((200, 200, 200))
         return surface
 
@@ -81,10 +82,10 @@ class TrackerWidget(Widget):
 
 
 def test_on_quit(fake_win, fake_user):
-    assert fake_win._running is True
+    assert fake_win._is_running()
     fake_user.quit()
     fake_win.render()
-    assert fake_win._running is False
+    assert not fake_win._is_running()
 
 
 # --- Mouse wheel ---
@@ -130,8 +131,8 @@ def test_on_mouse_button_down(fake_win, fake_user):
 
     assert ("mouse_down",) in tracker.events
     assert ("focus_in",) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._focus is tracker
 
 
 def test_on_mouse_button_down_focus_change(fake_win, fake_user):
@@ -143,21 +144,21 @@ def test_on_mouse_button_down_focus_change(fake_win, fake_user):
     # Click first widget to give it focus
     fake_user.click(tracker1)
     fake_win.render()
-    assert fake_win._focus is tracker1
+    assert fake_win._event_manager._focus is tracker1
 
     # Click second widget
     fake_user.click(tracker2)
     fake_win.render()
 
     assert ("focus_out",) in tracker1.events
-    assert fake_win._focus is tracker2
+    assert fake_win._event_manager._focus is tracker2
 
 
 def test_on_mouse_button_down_no_owner(fake_win, fake_user):
     fake_win.render()
     fake_user.mouse_down(5000, 5000)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 # --- Mouse button up ---
@@ -172,7 +173,7 @@ def test_on_mouse_button_up_with_click(fake_win, fake_user):
     fake_win.render()
 
     assert ("click", MouseButton.BUTTON_LEFT) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 def test_on_mouse_button_up_different_widget(fake_win, fake_user):
@@ -184,7 +185,7 @@ def test_on_mouse_button_up_different_widget(fake_win, fake_user):
     # Mouse down on tracker1
     fake_user.mouse_down(tracker1.global_x + 5, tracker1.global_y + 5)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker1
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker1
 
     # Mouse up on tracker2
     fake_user.mouse_up(tracker2.global_x + 5, tracker2.global_y + 5)
@@ -193,7 +194,7 @@ def test_on_mouse_button_up_different_widget(fake_win, fake_user):
     assert ("click", MouseButton.BUTTON_LEFT) not in tracker1.events
     assert ("click", MouseButton.BUTTON_LEFT) not in tracker2.events
     assert ("mouse_down_canceled", MouseButton.BUTTON_LEFT) in tracker1.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 def test_on_mouse_button_up_no_owner(fake_win, fake_user):
@@ -204,14 +205,14 @@ def test_on_mouse_button_up_no_owner(fake_win, fake_user):
     # Mouse down on tracker
     fake_user.mouse_down(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
 
     # Mouse up outside window
     fake_user.mouse_up(5000, 5000)
     fake_win.render()
 
     assert ("mouse_down_canceled", MouseButton.BUTTON_LEFT) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 # --- Mouse motion ---
@@ -221,13 +222,13 @@ def test_on_mouse_motion_first_enter(fake_win, fake_user):
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
 
     assert ("mouse_enter",) in tracker.events
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 def test_on_mouse_motion_same_widget(fake_win, fake_user):
@@ -241,14 +242,14 @@ def test_on_mouse_motion_same_widget(fake_win, fake_user):
     # First motion - enter
     fake_user.mouse_motion(x, y)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Second motion on same widget - over
     fake_user.mouse_motion(x + 1, y + 1)
     fake_win.render()
 
     assert ("mouse_over",) in tracker.events
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 def test_on_mouse_motion_different_widget(fake_win, fake_user):
@@ -260,7 +261,7 @@ def test_on_mouse_motion_different_widget(fake_win, fake_user):
     # Motion to tracker1
     fake_user.mouse_motion(tracker1.global_x + 5, tracker1.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker1
+    assert fake_win._event_manager._motion is tracker1
 
     # Motion to tracker2
     fake_user.mouse_motion(tracker2.global_x + 5, tracker2.global_y + 5)
@@ -268,7 +269,7 @@ def test_on_mouse_motion_different_widget(fake_win, fake_user):
 
     assert ("mouse_enter",) in tracker2.events
     assert ("mouse_exit",) in tracker1.events
-    assert fake_win._motion is tracker2
+    assert fake_win._event_manager._motion is tracker2
 
 
 def test_on_mouse_motion_no_owner(fake_win, fake_user):
@@ -279,14 +280,14 @@ def test_on_mouse_motion_no_owner(fake_win, fake_user):
     # Enter the widget
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Motion outside window bounds
     fake_user.mouse_motion(5000, 5000)
     fake_win.render()
 
     assert ("mouse_exit",) in tracker.events
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_on_mouse_motion_with_button_down(fake_win, fake_user):
@@ -302,7 +303,7 @@ def test_on_mouse_motion_with_button_down(fake_win, fake_user):
     fake_win.render()
     fake_user.mouse_down(x, y)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
 
     # Motion with button pressed
     fake_user.mouse_motion(x + 2, y + 2, button_left=True)
@@ -322,22 +323,22 @@ def test_on_window_leave(fake_win, fake_user):
     # Enter the widget
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Window leave
     pygame.event.post(Event(pygame.WINDOWLEAVE))
     fake_win.render()
 
     assert ("mouse_exit",) in tracker.events
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_on_window_leave_no_motion(fake_win):
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
     pygame.event.post(Event(pygame.WINDOWLEAVE))
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 # --- Window resized ---
@@ -362,7 +363,7 @@ def test_on_text_input_with_focus(fake_win, fake_user):
 
     fake_user.click(tracker)
     fake_win.render()
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._focus is tracker
 
     fake_user.text_input("Hello")
     fake_win.render()
@@ -372,7 +373,7 @@ def test_on_text_input_with_focus(fake_win, fake_user):
 
 def test_on_text_input_no_focus(fake_win, fake_user):
     fake_win.render()
-    assert fake_win._focus is None
+    assert fake_win._event_manager._focus is None
     fake_user.text_input("Hello")
     fake_win.render()  # should not raise
 
@@ -387,7 +388,7 @@ def test_on_keydown_with_focus(fake_win, fake_user):
 
     fake_user.click(tracker)
     fake_win.render()
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._focus is tracker
 
     fake_user.key_down(pygame.K_SPACE, unicode=" ")
     fake_win.render()
@@ -399,7 +400,7 @@ def test_on_keydown_with_focus(fake_win, fake_user):
 
 def test_on_keydown_no_focus(fake_win, fake_user):
     fake_win.render()
-    assert fake_win._focus is None
+    assert fake_win._event_manager._focus is None
     fake_user.key_down(pygame.K_SPACE, unicode=" ")
     fake_win.render()  # should not raise
 
@@ -415,10 +416,10 @@ def test_on_custom_callback(fake_win):
         callback_data.args = args
         callback_data.kwargs = kwargs
 
-    callback_event = CustomEvents.callback_event(
+    callback_event = CustomTasks.callback_task(
         test_callback, "arg1", "arg2", key="value"
     )
-    pygame.event.post(callback_event)
+    fake_win._post_event(callback_event)
     fake_win.render()
 
     assert callback_data.called is True
@@ -436,8 +437,8 @@ def test_on_notification(fake_win):
         notification_data.received = notification
 
     fake_win.set_notification_callback(notification_callback)
-    notification_event = CustomEvents.notification_event("Test notification")
-    pygame.event.post(notification_event)
+    notification_event = CustomTasks.notification_task("Test notification")
+    fake_win._post_event(notification_event)
     fake_win.render()
 
     assert notification_data.received == "Test notification"
@@ -445,20 +446,12 @@ def test_on_notification(fake_win):
 
 def test_on_notification_no_callback(fake_win):
     assert not fake_win._notif_cbks
-    notification_event = CustomEvents.notification_event("Test notification")
-    pygame.event.post(notification_event)
+    notification_event = CustomTasks.notification_task("Test notification")
+    fake_win._post_event(notification_event)
     fake_win.render()  # should not raise
 
 
 # --- Post event & thread safety ---
-
-
-def test_post_event(fake_win):
-    test_event = pygame.event.Event(pygame.USEREVENT, data="test")
-    fake_win._post_event(test_event)
-    with fake_win._lock:
-        assert len(fake_win._manual_events_after) == 1
-        assert fake_win._manual_events_after[0] is test_event
 
 
 def test_run_later_method(fake_win):
@@ -481,29 +474,26 @@ def test_run_later_method(fake_win):
 
 
 def test_thread_safety_of_post_event(fake_win):
-    events_posted = []
+    """Posts from multiple threads must all land in `_pending_tasks`
+    without loss or corruption (the buffer is protected by `_lock`)."""
+    tasks_posted = []
 
-    def post_events():
-        for i in range(10):
-            event = pygame.event.Event(
-                pygame.USEREVENT, data=f"event_{threading.current_thread().ident}_{i}"
-            )
-            fake_win._post_event(event)
-            events_posted.append(event)
+    def post_tasks():
+        for _ in range(10):
+            task = CustomTasks.callback_task(lambda: None)
+            fake_win._post_event(task)
+            tasks_posted.append(task)
             time.sleep(0.001)
 
-    threads = []
-    for _ in range(3):
-        thread = threading.Thread(target=post_events)
-        threads.append(thread)
+    threads = [threading.Thread(target=post_tasks) for _ in range(3)]
+    for thread in threads:
         thread.start()
-
     for thread in threads:
         thread.join()
 
     with fake_win._lock:
-        assert len(fake_win._manual_events_after) == 30
-    assert len(events_posted) == 30
+        assert len(fake_win._pending_tasks) == 30
+    assert len(tasks_posted) == 30
 
 
 # --- Default mouse over (synthetic MOUSEMOTION) ---
@@ -514,7 +504,7 @@ def test_window_default_mouse_over_no(fake_win):
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_window_default_mouse_over(fake_win):
@@ -526,7 +516,7 @@ def test_window_default_mouse_over(fake_win):
     with patch("pygame.mouse.get_focused", return_value=True):
         fake_win.render()
 
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 # --- Async ---
@@ -559,13 +549,22 @@ def test_run_async_with_error(fake_win):
         raise Exception("function error")
         data.value += a * b
 
+    assert fake_win._exit_code == 0
+    assert fake_win._exit_exception is None
+    # Call task will be pushed in window tasks queue
     fake_win.call_async(function, 6, 7)
-    # This render() will push call event into manual events queue
+    # This render() will handle window tasks queue and launch the thread
     fake_win.render()
-    # This render() will handle manual events queue
-    fake_win.render()
-    # Let's wait a little, to let thread run.
-    time.sleep(0.25)
+    # Let's wait a little, to let thread run and post its ExitTask.
+    time.sleep(0.5)
     assert data.called == 1
     assert data.value == 1
-    assert fake_win._exit_code == -1
+
+    # This render() drains the ExitTask posted by the failing thread,
+    # which sets _exit_exception.
+    fake_win.render()
+
+    assert fake_win._exit_code == 0
+    assert fake_win._exit_exception is not None
+    assert isinstance(fake_win._exit_exception, Exception)
+    assert fake_win._exit_exception.args == ("function error",)

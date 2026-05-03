@@ -8,12 +8,16 @@ dependencies = [
     "cursword>=0.1.1",
     "filedial>=0.1.0",
     "fonttools>=4.59.1",
+    "freetype-py>=2.5.1",
     "numpy>=2.3.2",
     "pillow>=11.3.0",
     "pygame>=2.6.1",
     "pyperclip>=1.9.0",
+    "python-bidi>=0.6.10",
     "tqdm>=4.67.1",
+    "uharfbuzz>=0.54.1",
     "unicodedataplus>=16.0.0.post1",
+    "uniseg>=0.10.1",
 ]
 
 [project.urls]
@@ -50,6 +54,12 @@ markers = ["win_params: arguments for fake_win.__init__"]
 [tool.ruff.format]
 # Collapse lines even if they contain commas
 skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
 
 [tool.poe.tasks]
 format = "ruff format"

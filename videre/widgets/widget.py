@@ -1,13 +1,17 @@
 import logging
 import sys
 from abc import abstractmethod
-from typing import Any, Callable, Self
+from typing import TYPE_CHECKING, Any, Callable, Self
 
 from videre.core.constants import MouseButton
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.position_mapping import Position, PositionMapping
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +40,6 @@ class Widget:
         name: str | None = None,
         data: Any = None,
     ):
-        from videre.windowing.window import Window
-
         super().__init__()
 
         new: dict = {"weight": weight}
@@ -213,12 +215,9 @@ class Widget:
             level_name = logging.getLevelName(debuglevel)
             print(f"{level_name}:", self, *args, **kwargs, file=sys.stderr)
 
-    def get_window(self):
-        from videre.windowing.window import Window
-
+    def get_window(self) -> "Window":
         assert self._old_update is not None
-        window: Window = self._old_update[0]
-        return window
+        return self._old_update[0]
 
     def _prev_scope_width(self) -> int:
         assert self._old_update is not None

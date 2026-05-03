@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from videre.core.pygame_backend import Pygame
 from videre.layouts.scroll.scrollview import ScrollView
 from videre.testing.utils import IMAGE_EXAMPLE
 from videre.tools import _build_image_window
@@ -32,9 +33,8 @@ def test_printimg_with_non_path_source():
 
     # Test with a non-path source (integer as a placeholder)
     # This tests the else branch: title = "image"
-    import pygame
 
-    surface = pygame.Surface((10, 10))
+    surface = Pygame.new_surface(10, 10)
     w = _build_image_window(surface)  # ty: ignore[invalid-argument-type]
     assert w._title == "image"
 

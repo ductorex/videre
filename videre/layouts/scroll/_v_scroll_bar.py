@@ -1,7 +1,7 @@
 from videre.core.constants import MouseButton
 from videre.core.events import MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 
 
@@ -66,7 +66,7 @@ class _VScrollBar(_HScrollBar):
             self.content_pos,
             scrollbar_length=(max(0, view_height - thickness) if self.both else None),
         )
-        v_scroll = window.new_surface(thickness, v_scroll_height)
-        v_scroll.fill(self.color)
+        v_scroll = Pygame.new_surface(thickness, v_scroll_height)
+        v_scroll.fill(Pygame.new_color(self.color))
         pos = (view_width - thickness, v_scroll_y)
         return v_scroll, pos

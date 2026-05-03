@@ -91,6 +91,7 @@ class Div(ControlLayout):
         return style
 
     def _set_style(self):
-        (container,) = self._controls()
-        for key, value in self._get_style().container_styles().items():
-            setattr(container, key, value)
+        container = self._container()
+        for key, value in self._get_style():
+            if key in container.__wprops__:
+                setattr(container, key, value)

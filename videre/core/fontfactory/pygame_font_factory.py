@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pygame
 import pygame.freetype
 
-from videre.core.pygame_utils import PygameUtils
+from videre.core.pygame_backend import Pygame, Rect
 from videre.fonts.provider import FontProvider
 from videre.fonts.unicode_utils import Unicode
 
@@ -12,11 +12,11 @@ from videre.fonts.unicode_utils import Unicode
 @dataclass(slots=True)
 class CharMeasures:
     font: pygame.freetype.Font
-    rect: pygame.Rect
+    rect: Rect
     metrics: tuple[int, int, int, int, float, float]
 
 
-class PygameFontFactory(PygameUtils):
+class PygameFontFactory:
     __slots__ = (
         "_prov",
         "_key_to_font",
@@ -27,7 +27,7 @@ class PygameFontFactory(PygameUtils):
     )
 
     def __init__(self, size=14):
-        super().__init__()
+        Pygame.init()
         self._prov = FontProvider()
         self._key_to_font: dict[tuple[str, bool, bool], pygame.freetype.Font] = {}
         self._size = size
@@ -52,12 +52,6 @@ class PygameFontFactory(PygameUtils):
 
     @property
     def symbol_size(self) -> int:
-        # Round to the nearest pixel rather than truncating: the legacy
-        # pipeline accepts the float directly and pygame.freetype's grid-fit
-        # lands on the nearest pixel, while the shaped pipeline can only
-        # consume integer pixel sizes. `int()` would always round down by
-        # up to 0.999 px, shrinking the symbol bitmap by a row at common
-        # base sizes (e.g. 14 → 22.75 truncates to 22, losing 1 row).
         return int(round(self._size * 1.625))
 
     def get_font(

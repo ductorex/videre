@@ -22,7 +22,10 @@ def test_generate_char_cov():
     char_support = _gen_char_support(char_to_font)
     font_to_characters = _gen_font_to_characters(char_to_font, save=False)
 
-    assert len(char_to_font) == 149813
+    # 149804 = 149813 (previous total) minus 9 explicit bidi formatters
+    # (LRE/RLE/PDF/LRO/RLO/LRI/RLI/FSI/PDI) now treated as non-printable
+    # by `Unicode.printable` since they have no visual representation.
+    assert len(char_to_font) == 149804
     assert len(set(char_to_font.values())) == 167
 
     fonts, char_to_indice = FontProvider._parse_font_to_characters(font_to_characters)

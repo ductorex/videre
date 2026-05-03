@@ -4,21 +4,29 @@ import threading
 from typing import Any, Callable, Sequence
 
 import pygame
-from pygame.event import Event
-from videre.colors import ColorDef, Colors, parse_color
-from videre.core.clipboard import Clipboard
-from videre.core.constants import WINDOW_FPS, Alignment, MouseButton
-from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
+
+from videre.colors import Color, ColorDef, Colors, parse_color
+from videre.core.constants import WINDOW_FPS, Alignment
+from videre.core.events import (
+    CallbackTask,
+    CustomTasks,
+    EscapeTask,
+    ExitTask,
+    NotificationCallback,
+    NotificationTask,
+    SizeTask,
+    VidereTask,
+)
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.core.pygame_backend import Event, Pygame, Surface
 from videre.core.utils import Procedure, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
 from videre.windowing.context import Context
-from videre.windowing.event_propagator import EventPropagator
+from videre.windowing.event_manager import WindowEventManager
 from videre.windowing.fancybox import Fancybox
 from videre.windowing.fancyclosebutton import FancyCloseButton
 from videre.windowing.windowlayout import WindowLayout
@@ -27,33 +35,15 @@ from videre.windowing.windowutils import OnEvent, WidgetByKeyGetter
 logger = logging.getLogger(__name__)
 
 
-NotificationCallback = Callable[[Any], None]
-
-
-def _handle_exception(on_except, function):
-    @functools.wraps(function)
-    def wrapper(*args, **kwargs):
-        try:
-            return function(*args, **kwargs)
-        except Exception as e:
-            if not on_except(e):
-                raise e
-
-    return wrapper
-
-
-class Window(PygameUtils, Clipboard):
+class Window:
     __slots__ = (
         "_exit_code",
+        "_exit_exception",
         "_title",
         "_width",
         "_height",
         "_running",
         "_screen",
-        "_down",
-        "_motion",
-        "_focus",
-        "_manual_events_after",
         "_layout",
         "_controls",
         "_fancybox",
@@ -67,6 +57,9 @@ class Window(PygameUtils, Clipboard):
         "_default_cursor",
         "data",
         "_handled_exceptions",
+        "_subpixel",
+        "_pending_tasks",
+        "_event_manager",
     )
 
     def __init__(
@@ -74,31 +67,30 @@ class Window(PygameUtils, Clipboard):
         title="Window",
         width=1280,
         height=720,
-        background: ColorDef = None,
+        background: ColorDef | None = None,
         font_size=14,
         hide=False,
         alert_on_exceptions: Sequence[type[Exception]] = (),
+        handle_text_sub_pixels: bool | None = None,
     ):
-        super().__init__()
-        self._exit_code = 0
+        Pygame.init()
 
+        self._screen: Surface | None = None
+        self._exit_code = 0
+        self._exit_exception: Exception | None = None
         self._lock = threading.Lock()
 
         self._title = str(title) or "Window"
-        self._width = width
-        self._height = height
         self._hide = bool(hide)
 
-        self._running = True
-        self._screen: Surface | None = None
-
-        self._down: dict[MouseButton, Widget | None] = {
-            button: None for button in MouseButton
-        }
-        self._motion: Widget | None = None
-        self._focus: Widget | None = None
-        self._manual_events_after: list[Event] = []
+        self._width = width
+        self._height = height
         self._layout = WindowLayout(parse_color(background or Colors.white))
+
+        # Videre-specific events
+        self._running = True
+        self._pending_tasks: list[VidereTask] = []
+        self._notif_cbks: list[NotificationCallback] = []
 
         self._controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
@@ -106,15 +98,22 @@ class Window(PygameUtils, Clipboard):
 
         self._fonts = PygameFontFactory(size=font_size)
 
-        self._notif_cbks: list[NotificationCallback] = []
         self._nb_frames = 0
 
         self._default_cursor = pygame.mouse.get_cursor()
         self._text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
 
         self._handled_exceptions = tuple(alert_on_exceptions)
+        self._subpixel: bool | None = handle_text_sub_pixels
 
         self.data = None
+        self._event_manager = WindowEventManager(self._layout)
+
+    def _is_running(self) -> bool:
+        return self._running
+
+    def _stop_running(self):
+        self._running = False
 
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
@@ -130,7 +129,7 @@ class Window(PygameUtils, Clipboard):
         return self._layout.background
 
     @background.setter
-    def background(self, value: ColorDef):
+    def background(self, value: ColorDef | None):
         self._layout.background = parse_color(value or Colors.white)
 
     @property
@@ -169,7 +168,7 @@ class Window(PygameUtils, Clipboard):
         italic: bool = False,
         underline: bool = False,
         height_delta: int | None = None,
-    ) -> PygameTextRendering:
+    ):
         return PygameTextRendering(
             self.fonts,
             size=size,
@@ -190,6 +189,9 @@ class Window(PygameUtils, Clipboard):
             self._render()
             clock.tick(WINDOW_FPS)
         pygame.quit()
+
+        if self._exit_exception:
+            raise self._exit_exception
         return self._exit_code
 
     def _init_display(self):
@@ -218,10 +220,10 @@ class Window(PygameUtils, Clipboard):
         # If we haven't already handled a mouse motion event but mouse if over screen,
         # then we process a custom mouse motion event.
         # TODO We might need to process a custom mouse motion event anyway,
-        # event if there was a mouse motion event above, for example
-        # if supplementary events changed the interface between
-        # the mouse motion event found above and
-        # the end of loop above.
+        #   event if there was a mouse motion event above, for example
+        #   if supplementary events changed the interface between
+        #   the mouse motion event found above and
+        #   the end of loop above.
         if not has_mouse_motion and pygame.mouse.get_focused():
             self.__on_event(
                 Event(
@@ -240,10 +242,12 @@ class Window(PygameUtils, Clipboard):
 
         # Post manual events.
         with self._lock:
-            if self._manual_events_after:
-                for event in self._manual_events_after:
-                    pygame.event.post(event)
-                self._manual_events_after.clear()
+            tasks = self._pending_tasks
+            self._pending_tasks = []
+        for task in tasks:
+            task_callback = self.on_task.get(type(task))
+            assert task_callback is not None
+            task_callback(self, task)
 
     def __refresh_controls(self):
         self._layout.controls = (
@@ -253,39 +257,46 @@ class Window(PygameUtils, Clipboard):
         )
 
     def notify(self, notification: Any):
-        self._post_event(CustomEvents.notification_event(notification))
+        self._post_event(CustomTasks.notification_task(notification))
 
     def call_later(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
-        self._post_event(CustomEvents.callback_event(wrapper, *args, **kwargs))
+        wrapper = self._with_exc_handled(function)
+        self._post_event(CustomTasks.callback_task(wrapper, *args, **kwargs))
 
     def call_async(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
+        wrapper = self._with_exc_handled(function)
         self._post_event(
-            CustomEvents.callback_event(launch_thread, wrapper, *args, **kwargs)
+            CustomTasks.callback_task(launch_thread, wrapper, *args, **kwargs)
         )
 
     def call_now(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
+        wrapper = self._with_exc_handled(function)
         return wrapper(*args, **kwargs)
+
+    def _with_exc_handled(self, function: Callable) -> Callable:
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except Exception as e:
+                self._force_quit(e)
+
+        return wrapper
 
     def _force_quit(self, exc: Exception):
         if self._handled_exceptions and isinstance(exc, self._handled_exceptions):
             self._force_alert(exc)
-            return True
         else:
-            self._exit_code = -int(exc is not None)
-            self._post_event(pygame.event.Event(pygame.QUIT))
-            return False
+            self._post_event(CustomTasks.exit_task(exc))
 
     def _force_alert(self, exception: Exception):
         self.clear_context()
         self.clear_fancybox()
-        self._post_event(CustomEvents.callback_event(self.error, exception))
+        self._post_event(CustomTasks.callback_task(self.error, exception))
 
-    def _post_event(self, event: Event):
+    def _post_event(self, task: VidereTask):
         with self._lock:
-            self._manual_events_after.append(event)
+            self._pending_tasks.append(task)
 
     def set_fancybox(
         self,
@@ -295,8 +306,7 @@ class Window(PygameUtils, Clipboard):
         expand_buttons=True,
     ):
         assert not self._fancybox
-        if self._focus:
-            self.focus_out(self._focus)
+        self._event_manager.focus_out()
         self._fancybox = Fancybox(content, title, buttons, expand_buttons)
         self.__refresh_controls()
 
@@ -401,143 +411,40 @@ class Window(PygameUtils, Clipboard):
     def __on_event(self, event: Event):
         """
         Handle a pygame event.
-
-        :param event: event to handle
-        :return: `skip_render`: tell whether the screen update must be skipped
-            after this event handling.
-
-            By default, callbacks return None (=> False),
-            so the screen is immediately updated.
-            Some callbacks may return True to prevent this.
-
-            NB: Returned value is not yet used.
         """
-        callback = self.on_event.get(event.type)
-        if callback:
-            return callback(self, event)
-        else:
-            logger.debug(
-                f"Unhandled pygame event: {pygame.event.event_name(event.type)}"
-            )
-            return True
+        ret = self._event_manager.manage(event)
+        if ret is not None:
+            task_callback = self.on_task.get(type(ret))
+            if task_callback:
+                task_callback(self, ret)
 
-    on_event = OnEvent[int]()
+    def focus_out(self, widget: Widget | None = None) -> None:
+        self._event_manager.focus_out(widget)
 
-    @on_event(pygame.QUIT)
-    def _on_quit(self, event: Event):
-        logger.warning("Quit pygame.")
-        self._running = False
+    on_task = OnEvent[type[VidereTask]]()
 
-    @on_event(pygame.MOUSEWHEEL)
-    def _on_mouse_wheel(self, event: Event):
-        owner = self._layout.get_mouse_wheel_owner(*pygame.mouse.get_pos())
-        if owner:
-            shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
-            owner.widget.handle_mouse_wheel(event.x, event.y, shift)
+    @on_task(ExitTask)
+    def _task_exit(self, task: ExitTask):
+        logger.warning("Quit.")
+        self._exit_exception = task.exception
+        self._stop_running()
 
-    @on_event(pygame.MOUSEBUTTONDOWN)
-    def _on_mouse_button_down(self, event: Event):
-        owner = self._layout.get_mouse_owner(*event.pos)
-        if owner:
-            # Handle mouse down
-            button = MouseButton(event.button)
-            self._down[button] = owner.widget
-            EventPropagator.handle_mouse_down(
-                owner.widget,
-                MouseEvent(x=owner.x_in_parent, y=owner.y_in_parent, buttons=[button]),
-            )
-            # Handle focus
-            focus = EventPropagator.handle_focus_in(owner.widget)
-            if self._focus and self._focus != focus:
-                self._focus.handle_focus_out()
-            self._focus = focus
+    @on_task(SizeTask)
+    def _task_size(self, task: SizeTask):
+        logger.debug(f"Window resized: {task}")
+        self._width, self._height = task.width, task.height
 
-    def focus_out(self, widget: Widget):
-        if self._focus is widget:
-            self._focus.handle_focus_out()
-            self._focus = None
+    @on_task(EscapeTask)
+    def _task_escape(self, task: EscapeTask):
+        if self.has_context():
+            self.clear_context()
+        elif self.has_fancybox():
+            self.clear_fancybox()
 
-    @on_event(pygame.MOUSEBUTTONUP)
-    def _on_mouse_button_up(self, event: Event):
-        button = MouseButton(event.button)
-        owner = self._layout.get_mouse_owner(*event.pos)
-        down_widget = self._down[button]
-        if owner:
-            EventPropagator.handle_mouse_up(
-                owner.widget,
-                MouseEvent(x=owner.x_in_parent, y=owner.y_in_parent, buttons=[button]),
-            )
-            if down_widget == owner.widget:
-                EventPropagator.handle_click(owner.widget, button)
-            elif down_widget is not None:
-                EventPropagator.handle_mouse_down_canceled(down_widget, button)
-        elif down_widget is not None:
-            EventPropagator.handle_mouse_down_canceled(down_widget, button)
-        self._down[button] = None
+    @on_task(NotificationTask)
+    def _task_notification(self, task: NotificationTask):
+        task.dispatch(self._notif_cbks)
 
-    @on_event(pygame.MOUSEMOTION)
-    def _on_mouse_motion(self, event: Event):
-        m_event = MouseEvent.from_mouse_motion(event)
-        owner = self._layout.get_mouse_owner(*event.pos)
-        if owner:
-            m_event = MouseEvent.from_mouse_motion(
-                event, owner.x_in_parent, owner.y_in_parent
-            )
-            if not self._motion:
-                EventPropagator.handle_mouse_enter(owner.widget, m_event)
-            elif self._motion is owner.widget:
-                EventPropagator.handle_mouse_over(owner.widget, m_event)
-            else:
-                EventPropagator.manage_mouse_motion(event, owner, self._motion)
-            self._motion = owner.widget
-        elif self._motion:
-            EventPropagator.handle_mouse_exit(self._motion)
-            self._motion = None
-        for button in m_event.buttons:
-            if self._down[button]:
-                down = self._down[button]
-                assert down is not None
-                parent_x = 0 if down.parent is None else down.parent.global_x
-                parent_y = 0 if down.parent is None else down.parent.global_y
-                EventPropagator.handle_mouse_down_move(
-                    down,
-                    MouseEvent.from_mouse_motion(
-                        event, event.pos[0] - parent_x, event.pos[1] - parent_y
-                    ),
-                )
-
-    @on_event(pygame.WINDOWLEAVE)
-    def _on_window_leave(self, event: Event):
-        if self._motion:
-            EventPropagator.handle_mouse_exit(self._motion)
-            self._motion = None
-
-    @on_event(pygame.WINDOWRESIZED)
-    def _on_window_resized(self, event: Event):
-        logger.debug(f"Window resized: {event}")
-        self._width, self._height = event.x, event.y
-
-    @on_event(pygame.TEXTINPUT)
-    def _on_text_input(self, event: Event):
-        if self._focus:
-            self._focus.handle_text_input(event.text)
-
-    @on_event(pygame.KEYDOWN)
-    def _on_keydown(self, event: Event):
-        keyboard_entry = KeyboardEntry(event)
-        if self._focus:
-            self._focus.handle_keydown(keyboard_entry)
-        elif keyboard_entry.escape:
-            if self._context:
-                self.clear_context()
-            elif self.has_fancybox():
-                self.clear_fancybox()
-
-    @on_event(CustomEvents.CALLBACK_EVENT)
-    def _on_custom_callback(self, event: Event):
-        event.function(*event.args, **event.kwargs)
-
-    @on_event(CustomEvents.NOTIFICATION_EVENT)
-    def _on_notification(self, event: Event):
-        for callback in list(self._notif_cbks):
-            callback(event.notification)
+    @on_task(CallbackTask)
+    def _task_callback(self, task: CallbackTask):
+        task.run()

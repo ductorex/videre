@@ -2,23 +2,27 @@ import bisect
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
-import pygame
-import pygame.freetype
-import pygame.gfxdraw
-import pygame.transform
-from videre.colors import Colors
+from cursword import get_next_word_end_position, get_previous_word_start_position
+
+from videre.colors import Color
+from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
 from videre.core.fontfactory.font_factory_utils import (
+    AbstractTextElement,
     CharTask,
     Line,
     WordsLine,
     WordTask,
     align_words,
-    AbstractTextElement,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_utils import Color, Surface
-from videre.core.caret_position import CaretPosition
+from videre.core.pygame_backend import (
+    Pygame,
+    PygameColor,
+    PygameRendered,
+    Rect,
+    Surface,
+)
 
 
 class FontSizes:
@@ -43,25 +47,31 @@ class FontSizes:
         self.space_shift: int | float = metric[4] if metric else self.space_width
 
 
+@dataclass(slots=True, frozen=True)
+class _LegacyCursorState:
+    """`CursorState` implementation for the legacy renderer. The
+    backend has no bidi awareness, so `pos == visual_pos`: the source
+    sequence and the visual sequence are the same. `pixel` is the
+    matching pixel caret, cached so consumers don't need to call
+    `pos_to_pixel` again to paint."""
+
+    pos: int
+    pixel: CaretPosition
+
+    @property
+    def visual_pos(self) -> int:
+        return self.pos
+
+
 @dataclass(slots=True)
 class RenderedText:
     _rendered_lines: list[Line[WordTask]]
     _rendered_font_sizes: FontSizes
-    surface: Surface
-
-    def first_x(self) -> int | float:
-        if self._rendered_lines:
-            line = self._rendered_lines[0]
-            if line.elements:
-                return line.elements[0].x
-        return 0
 
     def pos_to_pixel(self, pos: int) -> CaretPosition:
         """Caret position for a logical source character position.
 
-        Mirrors the helper exposed by `ShapedRenderedText` so consumers
-        like `TextInput` can target the same API regardless of which
-        renderer is in use. The legacy pipeline lays out characters
+        The Pygame text renderer lays out characters
         with absolute x coordinates inside a single `WordTask` per
         line (TextInput uses Text with `keep_spaces=True`, which
         triggers `WordsLine._chars_to_word`); we leverage that
@@ -91,8 +101,7 @@ class RenderedText:
     def pixel_to_pos(self, x: int, y: int) -> int:
         """Source character position closest to a pixel coordinate.
 
-        Mirrors the helper exposed by `ShapedRenderedText`. Snaps to
-        the nearer of `char.x` (start) and `char.x +
+        Snaps to the nearer of `char.x` (start) and `char.x +
         char.horizontal_shift` (end). `y` clamps to the line whose
         baseline is just above; out-of-range x snaps to the nearest
         edge of the line's content.
@@ -126,6 +135,125 @@ class RenderedText:
             x=0, y_top=int(height_delta), y_bottom=int(height_delta + asc + desc)
         )
 
+    # ------------------------------------------------------------------
+    # `TextRenderingResult` protocol — visual navigation
+    # ------------------------------------------------------------------
+    #
+    # The Pygame text renderer has no bidi awareness: visual order equals
+    # source order. The opaque state is simply the source position
+    # itself; navigation reduces to `pos ± 1` and cursword's word
+    # rules..
+
+    def _make_legacy_state(self, pos: int) -> _LegacyCursorState:
+        """Build the (pos, pixel) pair. Centralizes the pixel
+        derivation so every `visual_*` / `next_visual` / `prev_visual`
+        exit caches both together."""
+        return _LegacyCursorState(pos=pos, pixel=self.pos_to_pixel(pos))
+
+    def visual_state(self, pos: int) -> _LegacyCursorState:
+        return self._make_legacy_state(pos)
+
+    def visual_state_at(self, visual_pos: int) -> _LegacyCursorState:
+        # Legacy backend: visual_pos == source pos. Clamp.
+        return self._make_legacy_state(min(max(0, visual_pos), self._text_length()))
+
+    def total_visual_count(self) -> int:
+        return self._text_length()
+
+    def visual_state_at_pixel(self, x: int, y: int) -> _LegacyCursorState:
+        return self._make_legacy_state(self.pixel_to_pos(x, y))
+
+    def next_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+        return self._make_legacy_state(min(state.pos + 1, self._text_length()))
+
+    def prev_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+        return self._make_legacy_state(max(state.pos - 1, 0))
+
+    def next_visual_word(
+        self, state: _LegacyCursorState, text: str
+    ) -> _LegacyCursorState:
+        return self._make_legacy_state(get_next_word_end_position(text, state.pos))
+
+    def prev_visual_word(
+        self, state: _LegacyCursorState, text: str
+    ) -> _LegacyCursorState:
+        return self._make_legacy_state(
+            get_previous_word_start_position(text, state.pos)
+        )
+
+    def _text_length(self) -> int:
+        """Highest source-character position rendered + 1. Used by
+        `next_visual` to clamp at end-of-document. Computed from the
+        rendered lines; single-line TextInput content is tiny so the
+        scan is cheap and the result is recomputed on demand."""
+        last = 0
+        for ln in self._rendered_lines:
+            for el in ln.elements:
+                for ch in el.tasks:
+                    if ch.pos + 1 > last:
+                        last = ch.pos + 1
+        return last
+
+    def visual_range_to_source_set(self, start: int, end: int) -> frozenset[int]:
+        """Identity: the legacy backend has no bidi reordering, so the
+        visual position sequence equals the source position sequence."""
+        if start >= end:
+            return frozenset()
+        return frozenset(range(start, end))
+
+    def visual_selection_rects(self, start: int, end: int) -> list[Rect]:
+        """Pixel rectangles for a contiguous selection. Same algorithm
+        as `PygameTextRendering._get_selection_rects` but driven by the
+        rendered lines we already hold — accessible after rendering so
+        `TextInput` can rebuild the highlight when the selection
+        changes without forcing a full re-render."""
+        if start >= end:
+            return []
+        rects: list[Rect] = []
+        for line in self._rendered_lines:
+            if not line.elements:
+                continue
+            line_start = line.elements[0].tasks[0].pos
+            line_end = line.elements[-1].tasks[-1].pos + 1
+            if line_end <= start or line_start >= end:
+                continue
+            if line_start < start:
+                start_x: int | None = None
+                for word in line.elements:
+                    for char in word.tasks:
+                        if char.pos >= start:
+                            start_x = int(word.x + char.x)
+                            break
+                    if start_x is not None:
+                        break
+                assert start_x is not None
+            else:
+                start_x = int(line.elements[0].x)
+            if line_end > end:
+                end_x: int | None = None
+                for word in line.elements:
+                    for char in word.tasks:
+                        if char.pos >= end:
+                            end_x = int(word.x + char.x)
+                            break
+                    if end_x is not None:
+                        break
+                assert end_x is not None
+            else:
+                end_x = int(line.elements[-1].x + line.elements[-1].width)
+            rects.append(
+                Rect(
+                    start_x,
+                    int(line.y - self._rendered_font_sizes.ascender),
+                    end_x - start_x,
+                    int(
+                        self._rendered_font_sizes.ascender
+                        + self._rendered_font_sizes.descender
+                    ),
+                )
+            )
+        return rects
+
 
 class PygameTextRendering:
     def __init__(
@@ -136,6 +264,7 @@ class PygameTextRendering:
         italic=False,
         underline=False,
         height_delta=2,
+        compact: bool = True,
     ):
         size = size or fonts.size
         height_delta = 2 if height_delta is None else height_delta
@@ -152,10 +281,13 @@ class PygameTextRendering:
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
 
+        self._compact = compact
+
     def render_char(self, c: str, color: Color | None = None) -> Surface:
+        fgcolor = None if color is None else Pygame.new_color(color)
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
-        ).render(c, size=self._size, fgcolor=color)
+        ).render(c, size=self._size, fgcolor=fgcolor)
         return surface
 
     def render_text(
@@ -163,12 +295,12 @@ class PygameTextRendering:
         text: str,
         width: int | None = None,
         *,
-        compact=True,
         color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> RenderedText:
+    ) -> tuple[RenderedText, PygameRendered]:
+        compact = self._compact
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
             lines = WordsLine.from_chars(char_lines, keep_spaces=align is None)
@@ -177,7 +309,7 @@ class PygameTextRendering:
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return RenderedText(lines, self._font_sizes, surface)
+        return RenderedText(lines, self._font_sizes), PygameRendered(surface)
 
     def _render_word_lines(
         self,
@@ -190,18 +322,19 @@ class PygameTextRendering:
     ) -> Surface:
         align_words(lines, width, align)
         size = self._size
-        out = self._fonts.new_surface(width, height)
+        out = Pygame.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
-            pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
+            Pygame.box(out, rect, Color(100, 100, 255, 100))
+        pygame_color = None if color is None else Pygame.new_color(color)
         for line in lines:
-            self._draw_underline(line, out, color)
+            self._draw_underline(line, out, pygame_color)
             ly = line.y
             lx = line.x
             for word in line.elements:
                 wx = lx + word.x
                 for ch in word.tasks:
                     ch.font.render_to(
-                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=color
+                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=pygame_color
                     )
         return out
 
@@ -226,7 +359,7 @@ class PygameTextRendering:
 
     def _get_selection_rects(
         self, lines: list[Line[WordTask]], selection: tuple[int, int] | None
-    ) -> list[pygame.Rect]:
+    ) -> list[Rect]:
         if selection is None:
             return []
 
@@ -274,7 +407,7 @@ class PygameTextRendering:
                 end_x = line.elements[-1].x + line.elements[-1].width
 
             # Create selection rectangle for this line
-            rect = pygame.Rect(
+            rect = Rect(
                 start_x,
                 line.y - self._font_sizes.ascender,
                 end_x - start_x,
@@ -284,22 +417,22 @@ class PygameTextRendering:
 
         return rects
 
-    def _draw_underline(self, line: Line[WordTask], out: Surface, color):
+    def _draw_underline(
+        self, line: Line[WordTask], out: Surface, color: PygameColor | None
+    ):
         if self._underline and line:
             c = "_"
             x1 = line.elements[0].x + line.elements[0].tasks[0].bounds.x
             x2 = line.limit()
             font = self._fonts.get_font(c, strong=self._strong, italic=self._italic)
             font.antialiased = False
-            surface, box = font.render(
-                c, size=self._size, fgcolor=color or Colors.black
-            )
+            surface, box = font.render(c, size=self._size, fgcolor=color)
             font.antialiased = True
             us = surface.convert_alpha()
             width = x2 - x1
             height = box.height
-            underline = pygame.transform.smoothscale(us, (width, height))
-            out.blit(underline, (x1, line.y - box.y))
+            underline = Pygame.smoothscale(us, width, height)
+            Pygame.blit(out, underline, (x1, line.y - box.y))
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool

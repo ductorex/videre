@@ -1,9 +1,7 @@
-import math
 from collections.abc import Callable
 
-import pygame
-from videre import WINDOW_FPS
-from videre.core.pygame_utils import Surface
+from videre.core.framing import FPS, AbstractFraming
+from videre.core.pygame_backend import Surface
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.widgets.widget import Widget
 
@@ -13,18 +11,19 @@ OnFrame = Callable[[Widget, int], None]
 
 class Animator(AbstractLayout):
     __wprops__ = {"on_frame"}
-    __slots__ = ("_clock", "_fps", "_delay_ms", "_spent_ms", "_nb_frames")
+    __slots__ = ("_nb_frames", "_framing")
     __size__ = 1
 
     def __init__(
-        self, control: Widget, on_frame: OnFrame | None = None, fps: int = 60, **kwargs
+        self,
+        control: Widget,
+        on_frame: OnFrame | None = None,
+        framing: AbstractFraming | None = None,
+        **kwargs,
     ):
         super().__init__([control], **kwargs)
-        self._clock = pygame.time.Clock()
-        self._fps = min(max(0, int(fps)), WINDOW_FPS)
-        self._delay_ms = 1000 / self._fps if self._fps > 0 else math.inf
-        self._spent_ms = 0
         self._nb_frames = 0
+        self._framing = framing or FPS()
         self.on_frame = on_frame
 
     @property
@@ -53,9 +52,7 @@ class Animator(AbstractLayout):
         return super().has_changed()
 
     def _check_fps(self):
-        self._spent_ms += self._clock.tick()
-        if self._spent_ms >= self._delay_ms:
-            self._spent_ms = 0
+        if self._framing.needs_frame(self.get_window().nb_frames):
             self._nb_frames += 1
             self.update()
 
