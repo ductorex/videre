@@ -2,6 +2,7 @@ import sys
 from typing import Sequence
 
 import unicodedataplus  # ty: ignore
+from fontTools.unicodedata import script as get_script
 from unicodedata import category, unidata_version
 
 Cc = "Cc"  # control characters
@@ -43,3 +44,16 @@ class Unicode:
         for c in cls.characters():
             blocks.setdefault(cls.block(c), []).append(c)
         return blocks
+
+
+_COMMON_SCRIPT = "Zyyy"
+_INHERITED_SCRIPT = "Zinh"
+
+
+def _get_characters_for_script(*scripts: str) -> frozenset[str]:
+    return frozenset(c for c in Unicode.characters() if get_script(c) in scripts)
+
+
+NEUTRAL_CHARACTERS: frozenset[str] = _get_characters_for_script(
+    _COMMON_SCRIPT, _INHERITED_SCRIPT
+)
