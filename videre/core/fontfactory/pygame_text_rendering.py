@@ -79,7 +79,6 @@ class PygameTextRendering:
 
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
-        self._render_word_lines = self._render_word_lines_old
 
     def render_char(self, c: str, color: Color | None = None) -> Surface:
         surface, box = self._fonts.get_font(
@@ -108,7 +107,7 @@ class PygameTextRendering:
         )
         return RenderedText(lines, surface, self._font_sizes)
 
-    def _render_word_lines_old(
+    def _render_word_lines(
         self,
         width: int | float,
         height: int | float,
@@ -132,32 +131,6 @@ class PygameTextRendering:
                     ch.font.render_to(
                         out, (wx + ch.x, ly), ch.el, size=size, fgcolor=color
                     )
-        return out
-
-    def _render_word_lines_new(
-        self,
-        width: int,
-        height: int,
-        lines: list[Line[WordTask]],
-        align: TextAlign | None,
-        color: Color | None,
-        selection: tuple[int, int] | None = None,
-    ) -> Surface:
-        align_words(lines, width, align)
-        size = self._size
-        out = self._fonts.new_surface(width, height)
-        if selection:
-            for rect in self._get_selection_rects(lines, selection):
-                pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
-        for ly, lx, wx, chars in self._get_rendering_blocks(lines):
-            first = chars[0]
-            s = "".join(ch.el for ch in chars)
-            first.font.render_to(
-                out, (lx + wx + first.x, ly), s, size=size, fgcolor=color
-            )
-        if self._underline:
-            for line in lines:
-                self._draw_underline(line, out, color)
         return out
 
     @classmethod
