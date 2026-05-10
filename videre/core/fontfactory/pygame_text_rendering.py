@@ -1,3 +1,4 @@
+import bisect
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
@@ -17,6 +18,7 @@ from videre.core.fontfactory.font_factory_utils import (
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_utils import Color, Surface
+from videre.core.caret_position import CaretPosition
 
 
 class FontSizes:
@@ -43,16 +45,86 @@ class FontSizes:
 
 @dataclass(slots=True)
 class RenderedText:
-    lines: list[Line[WordTask]]
+    _rendered_lines: list[Line[WordTask]]
+    _rendered_font_sizes: FontSizes
     surface: Surface
-    font_sizes: FontSizes
 
     def first_x(self) -> int | float:
-        if self.lines:
-            line = self.lines[0]
+        if self._rendered_lines:
+            line = self._rendered_lines[0]
             if line.elements:
                 return line.elements[0].x
         return 0
+
+    def pos_to_pixel(self, pos: int) -> CaretPosition:
+        """Caret position for a logical source character position.
+
+        Mirrors the helper exposed by `ShapedRenderedText` so consumers
+        like `TextInput` can target the same API regardless of which
+        renderer is in use. The legacy pipeline lays out characters
+        with absolute x coordinates inside a single `WordTask` per
+        line (TextInput uses Text with `keep_spaces=True`, which
+        triggers `WordsLine._chars_to_word`); we leverage that
+        invariant to return `char.x` directly as the caret x.
+        """
+        nonempty = [ln for ln in self._rendered_lines if ln.elements]
+        if not nonempty:
+            return self._null_caret()
+        keys = [ln.elements[0].tasks[0].pos for ln in nonempty]
+        line_idx = max(0, bisect.bisect_right(keys, pos) - 1)
+        line = nonempty[line_idx]
+        word_idx = max(
+            0, bisect.bisect_right(line.elements, pos, key=lambda w: w.tasks[0].pos) - 1
+        )
+        word = line.elements[word_idx]
+        char_idx = max(
+            0, bisect.bisect_right(word.tasks, pos, key=lambda chr: chr.pos) - 1
+        )
+        char = word.tasks[char_idx]
+        cursor_x = char.x + (char.horizontal_shift if pos > char.pos else 0)
+        asc = self._rendered_font_sizes.ascender
+        desc = self._rendered_font_sizes.descender
+        return CaretPosition(
+            x=int(cursor_x), y_top=int(line.y - asc), y_bottom=int(line.y + desc)
+        )
+
+    def pixel_to_pos(self, x: int, y: int) -> int:
+        """Source character position closest to a pixel coordinate.
+
+        Mirrors the helper exposed by `ShapedRenderedText`. Snaps to
+        the nearer of `char.x` (start) and `char.x +
+        char.horizontal_shift` (end). `y` clamps to the line whose
+        baseline is just above; out-of-range x snaps to the nearest
+        edge of the line's content.
+        """
+        if not self._rendered_lines:
+            return 0
+        ys = [line.y for line in self._rendered_lines]
+        line_pos = max(0, bisect.bisect_right(ys, y) - 1)
+        line = self._rendered_lines[line_pos]
+        if not line.elements:
+            return 0
+        xs = [el.x for el in line.elements]
+        word_pos = max(0, bisect.bisect_right(xs, x) - 1)
+        word = line.elements[word_pos]
+        char_xs = [word.x + ch.x for ch in word.tasks]
+        char_pos = max(0, bisect.bisect_right(char_xs, x) - 1)
+        char = word.tasks[char_pos]
+        left = char.x
+        right = char.x + char.horizontal_shift
+        if abs(x - left) <= abs(x - right):
+            return char.pos
+        return char.pos + 1
+
+    def _null_caret(self) -> CaretPosition:
+        """Caret for the degenerate empty-text case. Lands at the
+        line's left edge, height = ascender + descender."""
+        asc = self._rendered_font_sizes.ascender
+        desc = self._rendered_font_sizes.descender
+        height_delta = self._rendered_font_sizes.height_delta
+        return CaretPosition(
+            x=0, y_top=int(height_delta), y_bottom=int(height_delta + asc + desc)
+        )
 
 
 class PygameTextRendering:
@@ -105,7 +177,7 @@ class PygameTextRendering:
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return RenderedText(lines, surface, self._font_sizes)
+        return RenderedText(lines, self._font_sizes, surface)
 
     def _render_word_lines(
         self,

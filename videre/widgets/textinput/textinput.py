@@ -3,25 +3,20 @@ import pygame.gfxdraw
 from cursword import get_next_word_end_position, get_previous_word_start_position
 from videre.colors import Colors
 from videre.core.events import KeyboardEntry, MouseEvent
-from videre.core.fontfactory.pygame_text_rendering import RenderedText
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_utils import Surface
+from videre.core.caret_position import CaretPosition
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div
 from videre.widgets.text import Text
-from videre.widgets.textinput.cursor_event import (
-    CursorCharPosEvent,
-    CursorDefinition,
-    CursorMouseEvent,
-)
 from videre.widgets.textinput.keyboard_handling import compute_key_x
 from videre.widgets.widget import Widget
 
 
 class TextInput(AbstractLayout):
     __wprops__ = {"has_focus", "name"}
-    __slots__ = ("_text", "_container", "_cursor_event", "_selecting_pivot")
+    __slots__ = ("_text", "_container", "_cursor_pos", "_selecting_pivot")
     __size__ = 1
     __capture_mouse__ = True
     __padding__ = Div.__style__.default.padding
@@ -39,7 +34,7 @@ class TextInput(AbstractLayout):
             padding=container_padding,
         )
         super().__init__([self._container], **kwargs)
-        self._cursor_event: CursorCharPosEvent | None = None
+        self._cursor_pos: int | None = None
         self._selecting_pivot: int | None = None
 
         self._set_focus(False)
@@ -111,22 +106,16 @@ class TextInput(AbstractLayout):
     def _mouse_to_pos(self, x: int, y: int) -> int:
         rendered = self._text._rendered
         assert rendered is not None
-        return CursorMouseEvent(x, y).to_pos(rendered)
+        return rendered.pixel_to_pos(x, y)
 
     def _set_cursor(self, pos: int):
-        event = CursorCharPosEvent(pos)
-        if self._cursor_event:
-            assert type(self._cursor_event) is type(event), (
-                f"Unexpected different consecutive cursor event types: "
-                f"{self._cursor_event}, {event}"
-            )
-        if self._cursor_event != event:
-            self._cursor_event = event
+        if self._cursor_pos != pos:
+            self._cursor_pos = pos
             self.update()
 
     def _get_cursor(self) -> int:
-        assert self._cursor_event is not None
-        return self._cursor_event.pos
+        assert self._cursor_pos is not None
+        return self._cursor_pos
 
     def handle_mouse_enter(self, event: MouseEvent):
         self.get_window().set_text_cursor()
@@ -170,7 +159,7 @@ class TextInput(AbstractLayout):
     def handle_focus_in(self) -> bool:
         self._debug("focus_in")
         self._set_focus(True)
-        if not self._cursor_event:
+        if self._cursor_pos is None:
             self._set_cursor(0)
         return True
 
@@ -281,13 +270,13 @@ class TextInput(AbstractLayout):
                         self._text.text = out_text
                         self._set_cursor(in_pos + len(inserted))
 
-    def _get_cursor_rect(self, cursor: CursorDefinition, rendered: RenderedText):
+    def _get_cursor_rect(self, caret: CaretPosition):
         container = self._container
         margin = container.padding + container.border.margin()
         cursor_width = 2
-        cursor_height = rendered.font_sizes.ascender + rendered.font_sizes.descender
+        cursor_height = caret.y_bottom - caret.y_top
         return pygame.Rect(
-            margin.left + cursor.x, margin.top + cursor.y, cursor_width, cursor_height
+            margin.left + caret.x, margin.top + caret.y_top, cursor_width, cursor_height
         )
 
     def draw(
@@ -298,10 +287,10 @@ class TextInput(AbstractLayout):
         surface = text_surface.copy()
 
         # Draw cursor if focused
-        if self._has_focus() and self._cursor_event:
+        if self._has_focus() and self._cursor_pos is not None:
             assert rendered is not None
-            cursor_def = self._cursor_event.handle(rendered)
-            cursor = self._get_cursor_rect(cursor_def, rendered)
-            pygame.gfxdraw.box(surface, cursor, Colors.black)
+            caret = rendered.pos_to_pixel(self._cursor_pos)
+            cursor_rect = self._get_cursor_rect(caret)
+            pygame.gfxdraw.box(surface, cursor_rect, Colors.black)
 
         return surface

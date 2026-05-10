@@ -61,7 +61,7 @@ def test_cursor_move_by_keyboard(fake_win, fake_user):
     # We have only 1 line, without wrap,
     # so line contains only 1 word embedding full string.
     assert ti._text._rendered is not None
-    word = ti._text._rendered.lines[0].elements[0]
+    word = ti._text._rendered._rendered_lines[0].elements[0]
     char = word.tasks[5]
     assert char.el == ","
 
@@ -179,7 +179,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     # so line contains only 1 word embedding full string.
     rendered = ti._text._rendered
     assert rendered is not None
-    word = rendered.lines[0].elements[0]
+    word = rendered._rendered_lines[0].elements[0]
     h, e, l1, l2, o1, comma, space, w, o2, r, l3, d, exclamation = word.tasks
     assert comma.el == ","
 
