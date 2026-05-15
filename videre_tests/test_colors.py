@@ -1,5 +1,6 @@
 import pygame
 import pytest
+
 from videre.colors import Colors, parse_color, stringify_color
 
 

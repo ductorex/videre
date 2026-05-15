@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import videre
 from videre.windowing.fancyclosebutton import FancyCloseButton
 
-
 # --- repr and background ---
 
 

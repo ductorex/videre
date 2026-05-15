@@ -11,7 +11,6 @@ https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project
 import json
 import os
 
-
 from videre.fonts.font_utils import FontUtils
 
 

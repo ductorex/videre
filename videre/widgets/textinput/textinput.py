@@ -1,11 +1,12 @@
 import pygame
 import pygame.gfxdraw
 from cursword import get_next_word_end_position, get_previous_word_start_position
+
 from videre.colors import Colors
+from videre.core.caret_position import CaretPosition
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_utils import Surface
-from videre.core.caret_position import CaretPosition
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div

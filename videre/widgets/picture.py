@@ -6,6 +6,7 @@ from typing import BinaryIO
 
 import pygame
 from PIL import Image
+
 from videre.core.pygame_utils import Surface
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget

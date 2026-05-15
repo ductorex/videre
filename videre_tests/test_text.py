@@ -1,6 +1,7 @@
 import itertools
 
 import pytest
+
 import videre
 from videre.testing.utils import LOREM_IPSUM
 

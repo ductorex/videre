@@ -1,22 +1,22 @@
 from .colors import Colors, parse_color
 from .core.constants import (
-    MouseButton,
+    WINDOW_FPS,
     Alignment,
+    MouseButton,
+    Side,
     TextAlign,
     TextWrap,
-    Side,
-    WINDOW_FPS,
 )
-from .core.utils import Procedure
 from .core.sides.border import Border
 from .core.sides.padding import Padding
+from .core.utils import Procedure
 from .dialog import Dialog
 from .gradient import Gradient
 from .layouts.animator import Animator
 from .layouts.column import Column
 from .layouts.container import Container
-from videre.layouts.div.div import Div
-from videre.layouts.div.styling import Style, StyleDef
+from .layouts.div.div import Div
+from .layouts.div.styling import Style, StyleDef
 from .layouts.form import Form
 from .layouts.radiogroup import RadioGroup
 from .layouts.row import Row
@@ -31,8 +31,8 @@ from .widgets.picture import Picture
 from .widgets.progressbar import ProgressBar
 from .widgets.progressing import Progressing
 from .widgets.radio import Radio
+from .widgets.submit_button import SubmitButton
 from .widgets.text import Text
 from .widgets.textinput.textinput import TextInput
-from .windowing.window import Window
 from .windowing.fancyclosebutton import FancyCloseButton
-from .widgets.submit_button import SubmitButton
+from .windowing.window import Window

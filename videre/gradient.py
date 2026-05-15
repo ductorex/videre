@@ -1,6 +1,7 @@
 from typing import Self
 
 import pygame
+
 from videre.colors import ColorDef, Colors, parse_color
 from videre.core.pygame_utils import Color, PygameUtils, Surface
 

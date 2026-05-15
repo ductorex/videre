@@ -2,6 +2,7 @@ import math
 from collections.abc import Callable
 
 import pygame
+
 from videre import WINDOW_FPS
 from videre.core.pygame_utils import Surface
 from videre.layouts.abstractlayout import AbstractLayout

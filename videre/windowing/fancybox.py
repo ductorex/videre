@@ -1,6 +1,7 @@
 from typing import Sequence
 
 import pygame
+
 from videre.colors import Colors
 from videre.core.constants import Alignment
 from videre.core.mouse_ownership import MouseOwnership

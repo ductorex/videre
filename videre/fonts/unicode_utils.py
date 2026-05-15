@@ -1,9 +1,9 @@
 import sys
 from typing import Sequence
+from unicodedata import category, unidata_version
 
 import unicodedataplus  # ty: ignore
 from fontTools.unicodedata import script as get_script
-from unicodedata import category, unidata_version
 
 Cc = "Cc"  # control characters
 Co = "Co"  # private use

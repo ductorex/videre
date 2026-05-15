@@ -2,6 +2,7 @@ import math
 from abc import ABC, abstractmethod
 
 import pygame
+
 from videre import WINDOW_FPS
 from videre.widgets.widget import Widget
 

@@ -2,6 +2,7 @@ import io
 import pathlib
 
 import pytest
+
 from videre import Picture
 from videre.testing.utils import IMAGE_EXAMPLE
 

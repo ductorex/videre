@@ -54,6 +54,16 @@ markers = ["win_params: arguments for fake_win.__init__"]
 # Collapse lines even if they contain commas
 skip-magic-trailing-comma = true
 
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[[tool.ty.overrides]]
+include = ["videre/core/shaping/shaper.py"]
+rules = { "unresolved-import" = "ignore" }
+
 [tool.poe.tasks]
 format = "ruff format"
 lint = "ruff check --fix"

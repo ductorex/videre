@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Self
 
 import pygame
+
 from videre import TextAlign
 from videre.fonts.unicode_utils import Unicode
 

@@ -51,7 +51,6 @@ import videre
 from videre import Border, Column, Container, Padding, ProgressBar, Row, Text, TextWrap
 from videre.testing.step_window import StepWindow
 
-
 # -----------------------------------------------------------------------------
 # Scenario builders
 # -----------------------------------------------------------------------------

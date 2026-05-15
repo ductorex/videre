@@ -1,5 +1,6 @@
 import pygame
 import pytest
+
 from videre.colors import Colors
 from videre.gradient import Gradient
 
