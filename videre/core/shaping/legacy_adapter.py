@@ -35,6 +35,7 @@ class ShapedTextRenderingLegacyAdapter:
         italic: bool = False,
         underline: bool = False,
         height_delta: int | None = None,
+        compact: bool = True,
         subpixel: bool = False,
     ) -> None:
         # Mirror legacy default-resolution: `size=0` falls back to the
@@ -50,6 +51,7 @@ class ShapedTextRenderingLegacyAdapter:
             italic=bool(italic),
             underline=bool(underline),
             height_delta=int(height_delta),
+            compact=bool(compact),
             subpixel=subpixel,
         )
 
@@ -61,19 +63,11 @@ class ShapedTextRenderingLegacyAdapter:
         text: str,
         width: int | None = None,
         *,
-        compact: bool = True,
         color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[ShapedRenderedText, PygameRendered]:
-        # `compact` in legacy was per-call; in the shaped pipeline
-        # it lives on the constructor (default True). The widgets
-        # never pass `compact=False`, so we silently use the
-        # constructor's value. If a future caller relies on a
-        # per-call override, the adapter will need to rebuild
-        # `_inner` here.
-        del compact
         return self._inner.render_text(
             text,
             color or Colors.black,
