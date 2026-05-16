@@ -13,28 +13,11 @@ import os
 
 import pygame
 
+from videre.colors import Color, Colors
 from videre.core.constants import TextAlign
 from videre.core.pygame_utils import PygameRendered
 from videre.core.shaping.layout import ShapedRenderedText
 from videre.core.shaping.text_rendering import ShapedTextRendering
-
-
-def _color_to_rgb(color) -> tuple[int, ...]:
-    """Map the legacy `Color | None` into the 3- or 4-tuple shape the
-    shaped pipeline expects. `None` -> black, single ints -> grey."""
-    if color is None:
-        return (0, 0, 0)
-    if isinstance(color, (tuple, list)):
-        return tuple(int(c) for c in color)
-    if isinstance(color, int):
-        return (color, color, color)
-    # Last resort: rely on pygame's `Color` having `.r/.g/.b/.a`.
-    return (
-        int(color.r),
-        int(color.g),
-        int(color.b),
-        int(color.a) if hasattr(color, "a") else 255,
-    )
 
 
 class ShapedTextRenderingLegacyAdapter:
@@ -70,8 +53,8 @@ class ShapedTextRenderingLegacyAdapter:
             subpixel=subpixel,
         )
 
-    def render_char(self, c: str, color=None) -> pygame.Surface:
-        return self._inner.render_char(c, _color_to_rgb(color))
+    def render_char(self, c: str, color: Color | None = None) -> pygame.Surface:
+        return self._inner.render_char(c, (color or Colors.black).flatten())
 
     def render_text(
         self,
@@ -79,7 +62,7 @@ class ShapedTextRenderingLegacyAdapter:
         width: int | None = None,
         *,
         compact: bool = True,
-        color=None,
+        color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
@@ -93,7 +76,7 @@ class ShapedTextRenderingLegacyAdapter:
         del compact
         return self._inner.render_text(
             text,
-            _color_to_rgb(color),
+            (color or Colors.black).flatten(),
             width=width,
             wrap_words=wrap_words,
             align=align,

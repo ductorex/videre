@@ -9,6 +9,9 @@ class Color:
     b: int
     a: int = 255  # 0: transparent, 255: opaque
 
+    def flatten(self) -> tuple[int, int, int, int]:
+        return self.r, self.g, self.b, self.a
+
 
 class Colors:
     aliceblue = Color(240, 248, 255)
