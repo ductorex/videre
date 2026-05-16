@@ -3,7 +3,7 @@
 Pins the corner branches of glyph rasterization that the high-level
 text tests don't naturally exercise: missing glyphs (id=0), whitespace
 glyphs that produce no bitmap, color emoji bitmaps (BGRA pixel mode,
-exercised via the `_bgra_to_surface` helper directly since the bundled
+exercised via the `_bgra_to_numpy_array` helper directly since the bundled
 fonts are all monochrome), and alpha-modulated text colors.
 """
 
@@ -13,7 +13,7 @@ import pygame.surfarray as sa
 import pytest
 
 from videre.core.shaping import GlyphRasterizer, ShapedTextRendering, Shaper
-from videre.core.shaping.rasterizer import _bgra_to_surface, _normalize_color
+from videre.core.shaping.rasterizer import _bgra_to_numpy_array, _normalize_color
 from videre.core.shaping.texts.textutils import get_font_provider
 
 
@@ -68,7 +68,7 @@ def test_render_single_glyph_whitespace_yields_zero_size() -> None:
 
 def test_render_text_with_translucent_color() -> None:
     """Color = (R, G, B, alpha<255) routes through the alpha-mod
-    branch in `_gray_to_surface`. The opaque path multiplies the
+    branch in `_gray_to_numpy_array`. The opaque path multiplies the
     glyph coverage by the requested alpha; output alpha must be
     bounded by the requested alpha."""
     text = "abc"
@@ -85,7 +85,7 @@ def test_render_text_with_translucent_color() -> None:
 # -- Color emoji (BGRA pixel mode) ------------------------------------------
 
 
-# -- _bgra_to_surface (color emoji path) ------------------------------------
+# -- _bgra_to_numpy_array (color emoji path) ------------------------------------
 #
 # The bundled FontProvider routes 😀 to `Noto Emoji Regular`, which is
 # outline-based (monochrome), so the BGRA branch is not reachable from
@@ -112,46 +112,41 @@ def _make_premultiplied_bgra(
     return bytes(out)
 
 
-def test_bgra_to_surface_unpremultiplies_correctly() -> None:
+def test_bgra_to_numpy_array_unpremultiplies_correctly() -> None:
     """A 2×1 buffer with one fully-opaque red pixel and one
     half-translucent green pixel must un-premultiply back to
-    (255, 0, 0, 255) and (0, 255, 0, 128) on the resulting Surface."""
+    (255, 0, 0, 255) and (0, 255, 0, 128) in the resulting RGBA array."""
     pixels = [(255, 0, 0, 255), (0, 255, 0, 128)]
     width, rows = 2, 1
     pitch = width * 4
     buf = _make_premultiplied_bgra(pixels, width, rows)
-    s = _bgra_to_surface(buf, width, rows, pitch)
-    assert s.get_size() == (width, rows)
-    arr_r = sa.pixels_red(s)
-    arr_g = sa.pixels_green(s)
-    arr_a = sa.pixels_alpha(s)
-    # Pixel (0, 0): pure red, fully opaque.
-    assert int(arr_r[0][0]) == 255
-    assert int(arr_g[0][0]) == 0
-    assert int(arr_a[0][0]) == 255
-    # Pixel (1, 0): pure green at half alpha. Un-premultiplication
+    arr = _bgra_to_numpy_array(buf, width, rows, pitch)
+    assert arr.shape == (rows, width, 4)
+    # Pixel (y=0, x=0): pure red, fully opaque.
+    assert int(arr[0, 0, 0]) == 255  # R
+    assert int(arr[0, 0, 1]) == 0  # G
+    assert int(arr[0, 0, 3]) == 255  # A
+    # Pixel (y=0, x=1): pure green at half alpha. Un-premultiplication
     # divides green = 128 by alpha = 128 then multiplies by 255 → 255.
-    assert int(arr_g[1][0]) == 255
-    assert int(arr_a[1][0]) == 128
+    assert int(arr[0, 1, 1]) == 255  # G
+    assert int(arr[0, 1, 3]) == 128  # A
 
 
-def test_bgra_to_surface_zero_alpha_clears_rgb() -> None:
+def test_bgra_to_numpy_array_zero_alpha_clears_rgb() -> None:
     """Where alpha is 0 the un-premultiplication divides by max(alpha,
     1) but the helper post-zeros those pixels so transparent regions
     don't leak any color."""
     width, rows = 1, 1
     buf = bytes([200, 100, 50, 0])  # B G R A — alpha=0
-    s = _bgra_to_surface(buf, width, rows, width * 4)
-    arr = sa.array3d(s)
-    arr_a = sa.pixels_alpha(s)
-    # RGB and alpha must all be zero.
-    assert int(arr[0][0][0]) == 0
-    assert int(arr[0][0][1]) == 0
-    assert int(arr[0][0][2]) == 0
-    assert int(arr_a[0][0]) == 0
+    arr = _bgra_to_numpy_array(buf, width, rows, width * 4)
+    # RGBA all four channels must be zero.
+    assert int(arr[0, 0, 0]) == 0  # R
+    assert int(arr[0, 0, 1]) == 0  # G
+    assert int(arr[0, 0, 2]) == 0  # B
+    assert int(arr[0, 0, 3]) == 0  # A
 
 
-def test_bgra_to_surface_handles_pitch_padding() -> None:
+def test_bgra_to_numpy_array_handles_pitch_padding() -> None:
     """FreeType bitmaps may have `pitch > width * 4` (row padding).
     The helper must slice each row to `width * 4` bytes, ignoring the
     trailing padding."""
@@ -160,10 +155,8 @@ def test_bgra_to_surface_handles_pitch_padding() -> None:
     pixels_one_row = bytes([0, 0, 255, 255])  # B G R A — pure red opaque
     padding = bytes([0xFF] * 8)
     buf = pixels_one_row + padding + pixels_one_row + padding
-    s = _bgra_to_surface(buf, width, rows, pitch)
-    arr_r = sa.pixels_red(s)
-    arr_a = sa.pixels_alpha(s)
+    arr = _bgra_to_numpy_array(buf, width, rows, pitch)
     # Both rows must be pure red (the padding bytes mustn't bleed in).
-    assert int(arr_r[0][0]) == 255
-    assert int(arr_r[0][1]) == 255
-    assert int(arr_a[0][0]) == 255
+    assert int(arr[0, 0, 0]) == 255  # y=0, x=0, R
+    assert int(arr[1, 0, 0]) == 255  # y=1, x=0, R
+    assert int(arr[0, 0, 3]) == 255  # alpha
