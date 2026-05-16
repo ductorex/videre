@@ -1,9 +1,8 @@
 import pygame
-import pygame.gfxdraw
 
 from videre.colors import Color, Colors
 from videre.core.constants import TextAlign
-from videre.core.pygame_backend import Pygame, PygameRendered, Surface, Rect
+from videre.core.pygame_backend import Pygame, PygameRendered, Rect, Surface
 from videre.core.shaping.layout import (
     FontMetrics,
     ShapedRenderedText,
@@ -27,7 +26,7 @@ from videre.core.shaping.wrap import wrap_lines
 # `PygameTextRendering._render_word_lines_old` color
 # `(100, 100, 255, 100)`. The alpha is essential: glyphs are blitted
 # OVER the selection so a fully opaque rectangle would tint the text.
-_SELECTION_RGBA = (100, 100, 255, 100)
+_SELECTION_RGBA = Color(100, 100, 255, 100)
 
 
 class ShapedTextRendering:
@@ -343,7 +342,7 @@ class ShapedTextRendering:
         if selection is not None and selection[0] < selection[1]:
             for layout in line_layouts:
                 for rect_x, rect_w in _selection_rects_from_layout(layout, selection):
-                    pygame.gfxdraw.box(
+                    Pygame.box(
                         out,
                         Rect(
                             rect_x, layout.y_top, rect_w, layout.y_bottom - layout.y_top
@@ -355,7 +354,7 @@ class ShapedTextRendering:
         for (surface, intrinsic_baseline, _), baseline, x in zip(
             rendered, baselines, x_offsets
         ):
-            out.blit(surface, (x, baseline - intrinsic_baseline))
+            Pygame.blit(out, surface, (x, baseline - intrinsic_baseline))
         return ShapedRenderedText(
             font_metrics=self.font_metrics, line_layouts=tuple(line_layouts)
         ), PygameRendered(out)
@@ -413,7 +412,7 @@ class ShapedTextRendering:
         for s, b, has_gap in rendered:
             if has_gap:
                 x += gap
-            out.blit(s, (x, max_baseline - b))
+            Pygame.blit(out, s, (x, max_baseline - b))
             x += s.get_width()
 
         if self._underline and line_width > 0:
@@ -434,10 +433,8 @@ class ShapedTextRendering:
                 # Helvetica…), so adding `2 * strength * size_px` here gets
                 # us close to the same effective doubling for synthetic bold.
                 ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * self._size))
-            pygame.draw.rect(
-                out,
-                Pygame.new_color(color),
-                (0, max_baseline + ul_offset, line_width, ul_thickness),
+            Pygame.rectangle(
+                out, Rect(0, max_baseline + ul_offset, line_width, ul_thickness), color
             )
 
         return out, max_baseline, line_width
@@ -576,5 +573,7 @@ def _glyph_area_to_surface(area: GlyphArea) -> Surface:
     for sprite, blit_x, blit_y in area.glyphs:
         if sprite.empty():
             continue
-        surface.blit(_glyph_to_surface(sprite), (blit_x, area.baseline_y + blit_y))
+        Pygame.blit(
+            surface, _glyph_to_surface(sprite), (blit_x, area.baseline_y + blit_y)
+        )
     return surface

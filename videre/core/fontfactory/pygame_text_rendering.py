@@ -2,11 +2,6 @@ import bisect
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
-import pygame
-import pygame.freetype
-import pygame.gfxdraw
-import pygame.transform
-
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
@@ -19,7 +14,13 @@ from videre.core.fontfactory.font_factory_utils import (
     align_words,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_backend import Pygame, PygameRendered, Surface, Rect
+from videre.core.pygame_backend import (
+    Pygame,
+    PygameColor,
+    PygameRendered,
+    Rect,
+    Surface,
+)
 
 
 class FontSizes:
@@ -189,7 +190,7 @@ class PygameTextRendering:
         size = self._size
         out = self._fonts.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
-            pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
+            Pygame.box(out, rect, Color(100, 100, 255, 100))
         pygame_color = None if color is None else Pygame.new_color(color)
         for line in lines:
             self._draw_underline(line, out, pygame_color)
@@ -283,7 +284,7 @@ class PygameTextRendering:
         return rects
 
     def _draw_underline(
-        self, line: Line[WordTask], out: Surface, color: pygame.Color | None
+        self, line: Line[WordTask], out: Surface, color: PygameColor | None
     ):
         if self._underline and line:
             c = "_"
@@ -296,8 +297,8 @@ class PygameTextRendering:
             us = surface.convert_alpha()
             width = x2 - x1
             height = box.height
-            underline = pygame.transform.smoothscale(us, (width, height))
-            out.blit(underline, (x1, line.y - box.y))
+            underline = Pygame.smoothscale(us, width, height)
+            Pygame.blit(out, underline, (x1, line.y - box.y))
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool

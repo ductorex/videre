@@ -1,5 +1,5 @@
 from videre.colors import Colors
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.core.sides.border import Border
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
@@ -37,6 +37,6 @@ class Context(AbstractLayout):
 
         control_surface = container.render(window, None, None)
         surface = window.new_surface(width, height)
-        surface.blit(control_surface, (x, y))
+        Pygame.blit(surface, control_surface, (x, y))
         self._set_child_position(container, x, y)
         return surface

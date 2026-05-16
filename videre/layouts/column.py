@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 
@@ -126,7 +126,7 @@ class Column(AbstractControlsLayout):
                 size_i = sizes[i]
                 assert size_i is not None
                 x = self._align_dim(width, surface.get_width(), alignment)
-                column.blit(surface, (x, y))
+                Pygame.blit(column, surface, (x, y))
                 self._set_child_position(ctrl, x, y)
                 y += size_i + space
             else:

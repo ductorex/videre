@@ -1,8 +1,7 @@
-from pygame.event import Event
-
 from videre import MouseButton
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
+from videre.core.pygame_backend import Event
 from videre.widgets.widget import Widget
 
 

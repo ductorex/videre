@@ -36,6 +36,6 @@ class WindowLayout(AbstractControlsLayout):
         screen.fill(Pygame.new_color(self.background))
         for control in self.controls:
             surface = control.render(window, screen_width, screen_height)
-            screen.blit(surface, (control.x, control.y))
+            Pygame.blit(screen, surface, (control.x, control.y))
 
         return screen

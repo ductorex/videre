@@ -1,14 +1,12 @@
 from typing import Self
 
-import pygame
-
 from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.pygame_backend import Pygame, Surface
 
 
 class Gradient(Pygame):
     """
-    Optimized gradient implementation using direct drawing with pygame.draw.
+    Optimized gradient implementation using direct drawing.
     This approach is more efficient than using smoothscale for gradients.
 
     New implementation was generated with Cursor AI Assistant.
@@ -57,9 +55,7 @@ class Gradient(Pygame):
                 )
 
                 # Draw a horizontal line
-                pygame.draw.line(
-                    surface, Pygame.new_color(color), (0, i), (width - 1, i)
-                )
+                Pygame.line(surface, color, (0, i), (width - 1, i))
         else:
             # Horizontal gradient
             for i in range(width):
@@ -80,9 +76,7 @@ class Gradient(Pygame):
                 )
 
                 # Draw a vertical line
-                pygame.draw.line(
-                    surface, Pygame.new_color(color), (i, 0), (i, height - 1)
-                )
+                Pygame.line(surface, color, (i, 0), (i, height - 1))
 
         return surface
 

@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Self
 
-import pygame
-
 from videre import TextAlign
 from videre.core.pygame_backend import Rect
 from videre.fonts.unicode_utils import Unicode

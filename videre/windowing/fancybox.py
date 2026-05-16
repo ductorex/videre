@@ -1,11 +1,9 @@
 from typing import Sequence
 
-import pygame
-
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend import Pygame, Surface, Rect
+from videre.core.pygame_backend import Pygame, Rect, Surface
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.column import Column
 from videre.layouts.container import Container
@@ -85,6 +83,6 @@ class Fancybox(AbstractLayout):
             Pygame.new_color(Colors.white),
             Rect(dialog_x, dialog_y, dialog_width, dialog_height),
         )
-        surface.blit(dialog_surface, (dialog_x, dialog_y))
+        Pygame.blit(surface, dialog_surface, (dialog_x, dialog_y))
         self._set_child_position(dialog, dialog_x, dialog_y)
         return surface

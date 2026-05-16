@@ -4,11 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pygame
-from pygame.event import Event
 
 from videre.core.constants import MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry
-from videre.core.pygame_backend import Pygame
+from videre.core.pygame_backend import Event, Pygame
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
 
