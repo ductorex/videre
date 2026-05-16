@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import videre
+from videre.core.framing import FPS
 from videre.layouts.div.div import Div
 from videre.testing.utils import LOREM_IPSUM
 from videre.windowing.windowutils import OnEvent
@@ -219,7 +220,7 @@ class Demo:
             pb.value = (f % 31) / 30
 
         aw = videre.Animator(label, on_frame=on_label_frame)
-        ap = videre.Animator(pb, on_frame=on_pb_frame, fps=30)
+        ap = videre.Animator(pb, on_frame=on_pb_frame, framing=FPS(30))
         return videre.Column(
             [
                 aw,

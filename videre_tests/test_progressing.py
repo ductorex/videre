@@ -1,5 +1,5 @@
 import videre
-from videre.widgets.abstractanimation import FPR
+from videre.core.framing import FPR
 
 
 def test_progressing(fake_win):

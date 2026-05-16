@@ -1,6 +1,7 @@
 from videre.colors import Colors
+from videre.core.framing import FPS, AbstractFraming
 from videre.core.pygame_backend import Pygame, Rect, Surface
-from videre.widgets.abstractanimation import FPS, AbstractAnimation, AbstractFraming
+from videre.widgets.abstractanimation import AbstractAnimation
 
 
 class Progressing(AbstractAnimation):
