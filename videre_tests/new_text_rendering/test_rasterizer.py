@@ -12,27 +12,15 @@ import pygame.freetype
 import pygame.surfarray as sa
 import pytest
 
+from videre.colors import Color
 from videre.core.shaping import GlyphRasterizer, ShapedTextRendering, Shaper
-from videre.core.shaping.rasterizer import _bgra_to_numpy_array, _normalize_color
+from videre.core.shaping.rasterizer import _bgra_to_numpy_array
 from videre.core.shaping.texts.textutils import get_font_provider
 
 
 @pytest.fixture(scope="module", autouse=True)
 def _init_pygame() -> None:
     pygame.freetype.init()
-
-
-# -- _normalize_color: 3-tuple vs 4-tuple ------------------------------------
-
-
-def test_normalize_color_3tuple_appends_full_alpha() -> None:
-    assert _normalize_color((10, 20, 30)) == (10, 20, 30, 255)
-
-
-def test_normalize_color_4tuple_preserves_alpha() -> None:
-    """4-tuple input must be passed through unchanged (different code
-    branch in `_normalize_color`)."""
-    assert _normalize_color((10, 20, 30, 128)) == (10, 20, 30, 128)
 
 
 # -- render_single_glyph: missing glyph + whitespace bitmap -----------------
@@ -74,7 +62,7 @@ def test_render_text_with_translucent_color() -> None:
     glyph coverage by the requested alpha; output alpha must be
     bounded by the requested alpha."""
     text = "abc"
-    _, rendered = ShapedTextRendering(size=24).render_text(text, (255, 0, 0, 128))
+    _, rendered = ShapedTextRendering(size=24).render_text(text, Color(255, 0, 0, 128))
     arr_a = sa.pixels_alpha(rendered.surface)
     # Glyph pixels should never reach full opacity since input alpha
     # was capped at 128.

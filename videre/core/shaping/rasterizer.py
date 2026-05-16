@@ -7,6 +7,7 @@ import freetype as ft
 import numpy as np
 from freetype.raw import FT_Outline_Embolden
 
+from videre.colors import Color, Colors
 from videre.core.shaping.shaped import ShapedRun
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
@@ -108,7 +109,7 @@ class GlyphRasterizer:
         bold: bool,
         italic: bool,
         glyph_id: int,
-        color: tuple[int, ...] = (0, 0, 0),
+        color: Color = Colors.black,
     ) -> Glyph:
         """Rasterize a single glyph to a `Glyph`.
 
@@ -121,14 +122,13 @@ class GlyphRasterizer:
         """
         if glyph_id == 0:
             return _GLYPH_ZERO
-        rgba = _normalize_color(color)
-        return self._get_glyph(font_path, size_px, bold, italic, glyph_id, rgba)
+        return self._get_glyph(font_path, size_px, bold, italic, glyph_id, color)
 
     def render_run(
         self,
         run: ShapedRun,
         size_px: int,
-        color: tuple[int, ...] = (0, 0, 0),
+        color: Color = Colors.black,
         *,
         subpixel: bool = False,
     ) -> GlyphArea:
@@ -167,7 +167,6 @@ class GlyphRasterizer:
         total_advance = sum(g.x_advance for g in run.glyphs)
         # Tail glyphs may extend past their last advance (overhang); reserve
         # extra width based on max bitmap_left + width of all glyphs.
-        rgba_color = _normalize_color(color)
         rendered: list[tuple[Glyph, int, int]] = []
         pen_x = 0.0
         max_right = 0
@@ -194,7 +193,7 @@ class GlyphRasterizer:
                 run.bold,
                 run.italic,
                 g.glyph_id,
-                rgba_color,
+                color,
                 subpixel,
                 phase,
             )
@@ -220,7 +219,7 @@ class GlyphRasterizer:
         bold: bool,
         italic: bool,
         glyph_id: int,
-        rgba: tuple[int, int, int, int],
+        rgba: Color,
         subpixel: bool = False,
         phase: int = 0,
     ) -> "Glyph":
@@ -238,19 +237,13 @@ class GlyphRasterizer:
         return sprite
 
 
-def _normalize_color(color: tuple[int, ...]) -> tuple[int, int, int, int]:
-    if len(color) == 3:
-        return (color[0], color[1], color[2], 255)
-    return (color[0], color[1], color[2], color[3])
-
-
 def _rasterize_glyph(
     font_path: str,
     size_px: int,
     bold: bool,
     italic: bool,
     glyph_id: int,
-    rgba: tuple[int, int, int, int],
+    rgba: Color,
     subpixel: bool,
     phase: int,
 ) -> Glyph:
@@ -316,18 +309,18 @@ def _rasterize_glyph(
 
 
 def _gray_to_numpy_array(
-    buffer: bytes, width: int, rows: int, pitch: int, rgba: tuple[int, int, int, int]
+    buffer: bytes, width: int, rows: int, pitch: int, rgba: Color
 ) -> np.ndarray:
     raw = np.frombuffer(buffer, dtype=np.uint8)
     alpha = raw.reshape((rows, pitch))[:, :width]
     rgba_arr = np.empty((rows, width, 4), dtype=np.uint8)
-    rgba_arr[..., 0] = rgba[0]
-    rgba_arr[..., 1] = rgba[1]
-    rgba_arr[..., 2] = rgba[2]
-    if rgba[3] == 255:
+    rgba_arr[..., 0] = rgba.r
+    rgba_arr[..., 1] = rgba.g
+    rgba_arr[..., 2] = rgba.b
+    if rgba.a == 255:
         rgba_arr[..., 3] = alpha
     else:
-        rgba_arr[..., 3] = (alpha.astype(np.uint16) * rgba[3] // 255).astype(np.uint8)
+        rgba_arr[..., 3] = (alpha.astype(np.uint16) * rgba.a // 255).astype(np.uint8)
     return rgba_arr
 
 

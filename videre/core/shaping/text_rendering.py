@@ -1,8 +1,9 @@
 import pygame
 import pygame.gfxdraw
 
+from videre.colors import Color, Colors
 from videre.core.constants import TextAlign
-from videre.core.pygame_utils import PygameRendered
+from videre.core.pygame_utils import PygameRendered, PygameUtils
 from videre.core.shaping.layout import (
     FontMetrics,
     ShapedRenderedText,
@@ -119,7 +120,7 @@ class ShapedTextRendering:
         # word boundary in the layout contributes this advance.
         self._space_advance = space_advance(ref_path, size)
 
-    def render_char(self, c: str, color: tuple[int, ...] = (0, 0, 0)) -> pygame.Surface:
+    def render_char(self, c: str, color: Color = Colors.black) -> pygame.Surface:
         """Rasterize a single character to a tightly-fitted Surface.
 
         Drop-in replacement for the legacy
@@ -185,7 +186,7 @@ class ShapedTextRendering:
     def render_text(
         self,
         text: str,
-        color: tuple[int, ...] = (0, 0, 0),
+        color: Color = Colors.black,
         *,
         width: int | None = None,
         wrap_words: bool = True,
@@ -359,7 +360,7 @@ class ShapedTextRendering:
         ), PygameRendered(out)
 
     def _render_line(
-        self, line: ShapedLine, color: tuple[int, ...], *, extra_word_gap: float = 0.0
+        self, line: ShapedLine, color: Color, *, extra_word_gap: float = 0.0
     ) -> tuple[pygame.Surface, int, int]:
         """Render a single line.
 
@@ -432,9 +433,10 @@ class ShapedTextRendering:
                 # Helvetica…), so adding `2 * strength * size_px` here gets
                 # us close to the same effective doubling for synthetic bold.
                 ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * self._size))
-            ul_color = color if len(color) == 4 else (color[0], color[1], color[2], 255)
             pygame.draw.rect(
-                out, ul_color, (0, max_baseline + ul_offset, line_width, ul_thickness)
+                out,
+                PygameUtils.new_color(color),
+                (0, max_baseline + ul_offset, line_width, ul_thickness),
             )
 
         return out, max_baseline, line_width

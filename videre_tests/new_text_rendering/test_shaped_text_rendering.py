@@ -10,6 +10,7 @@ import pygame
 import pygame.freetype
 import pytest
 
+from videre.colors import Color
 from videre.core.shaping import ShapedTextRendering
 from videre.core.shaping.texts.textutils import get_font_provider
 from videre.core.shaping.utils import line_metrics, underline_metrics
@@ -30,7 +31,7 @@ def metrics_16() -> tuple[int, int, int]:
 def _surface_height(text: str, **kwargs) -> int:
     return (
         ShapedTextRendering(**kwargs)
-        .render_text(text, (0, 0, 0))[1]
+        .render_text(text, Color(0, 0, 0))[1]
         .surface.get_height()
     )
 
@@ -95,7 +96,7 @@ def test_multi_line_non_compact(metrics_16: tuple[int, int, int]) -> None:
 
 def test_empty_text_reserves_one_line_slot(metrics_16: tuple[int, int, int]) -> None:
     asc, desc, _ = metrics_16
-    s = ShapedTextRendering(size=16).render_text("", (0, 0, 0))[1].surface
+    s = ShapedTextRendering(size=16).render_text("", Color(0, 0, 0))[1].surface
     assert s.get_width() == 1
     assert s.get_height() == asc + 2 + desc
 
@@ -109,10 +110,10 @@ def test_underline_does_not_resize_line(size: int) -> None:
     underline lives inside the descender region (or is clipped if the
     font's underline_position would push it past)."""
     text = "underline test"
-    s_off = ShapedTextRendering(size=size).render_text(text, (0, 0, 0))[1].surface
+    s_off = ShapedTextRendering(size=size).render_text(text, Color(0, 0, 0))[1].surface
     s_on = (
         ShapedTextRendering(size=size, underline=True)
-        .render_text(text, (0, 0, 0))[1]
+        .render_text(text, Color(0, 0, 0))[1]
         .surface
     )
     assert s_on.get_size() == s_off.get_size()
@@ -125,10 +126,10 @@ def test_underline_pixels_below_baseline(metrics_16: tuple[int, int, int]) -> No
     text = "abc"  # short, no descenders, easy to inspect
     s_on = (
         ShapedTextRendering(size=16, underline=True)
-        .render_text(text, (0, 0, 0))[1]
+        .render_text(text, Color(0, 0, 0))[1]
         .surface
     )
-    s_off = ShapedTextRendering(size=16).render_text(text, (0, 0, 0))[1].surface
+    s_off = ShapedTextRendering(size=16).render_text(text, Color(0, 0, 0))[1].surface
 
     # Same dimensions
     assert s_on.get_size() == s_off.get_size()
@@ -145,7 +146,7 @@ def test_underline_pixels_below_baseline(metrics_16: tuple[int, int, int]) -> No
 def test_underline_color_matches_text() -> None:
     """The underline takes the same RGB color as the text."""
     text = "abc"
-    color = (255, 0, 0)  # red
+    color = Color(255, 0, 0)  # red
     s = ShapedTextRendering(size=16, underline=True).render_text(text, color)[1].surface
     arr_r = pygame.surfarray.pixels_red(s)
     arr_a = pygame.surfarray.pixels_alpha(s)
@@ -175,7 +176,7 @@ def test_underline_multiline_no_glyph_collision(
     text = "FF\nFF"  # two lines, easy ascender shape
     s_on = (
         ShapedTextRendering(size=16, underline=True)
-        .render_text(text, (0, 0, 0))[1]
+        .render_text(text, Color(0, 0, 0))[1]
         .surface
     )
     # Line 2 baseline is at (asc + h_delta) + line_spacing = asc + 2 + line_spacing.
@@ -205,19 +206,21 @@ def test_underline_multiline_no_glyph_collision(
 
 def test_bold_renders_wider_than_regular() -> None:
     text = "Hello bold"
-    s_reg = ShapedTextRendering(size=24).render_text(text, (0, 0, 0))[1].surface
+    s_reg = ShapedTextRendering(size=24).render_text(text, Color(0, 0, 0))[1].surface
     s_bold = (
-        ShapedTextRendering(size=24, bold=True).render_text(text, (0, 0, 0))[1].surface
+        ShapedTextRendering(size=24, bold=True)
+        .render_text(text, Color(0, 0, 0))[1]
+        .surface
     )
     assert s_bold.get_width() > s_reg.get_width()
 
 
 def test_italic_does_not_crash_and_is_not_identical() -> None:
     text = "Hello italic"
-    s_reg = ShapedTextRendering(size=24).render_text(text, (0, 0, 0))[1].surface
+    s_reg = ShapedTextRendering(size=24).render_text(text, Color(0, 0, 0))[1].surface
     s_it = (
         ShapedTextRendering(size=24, italic=True)
-        .render_text(text, (0, 0, 0))[1]
+        .render_text(text, Color(0, 0, 0))[1]
         .surface
     )
     assert s_it.get_width() > 0 and s_it.get_height() > 0
@@ -275,7 +278,7 @@ def test_render_char_widget_symbols_have_pixels(char: str) -> None:
 def test_render_char_color_applied() -> None:
     """The color argument must color the glyph pixels (alpha-modulated
     by the font's antialiased coverage)."""
-    s = ShapedTextRendering(size=16).render_char("A", (255, 0, 0))
+    s = ShapedTextRendering(size=16).render_char("A", Color(255, 0, 0))
     arr_r = pygame.surfarray.pixels_red(s)
     arr_a = pygame.surfarray.pixels_alpha(s)
     fully_opaque = arr_a == 255
