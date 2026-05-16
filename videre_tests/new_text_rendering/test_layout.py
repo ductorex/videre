@@ -30,14 +30,14 @@ def _init_pygame() -> None:
 
 def test_render_text_returns_shaped_rendered_text() -> None:
     r = ShapedTextRendering(size=16)
-    out, rendered = r.render_text("Hello", Color(0, 0, 0))
+    out, rendered = r.render_text("Hello", color=Color(0, 0, 0))
     assert isinstance(out, ShapedRenderedText)
     assert rendered.surface.get_width() > 0
 
 
 def test_font_metrics_match_constructor() -> None:
     r = ShapedTextRendering(size=16, height_delta=4)
-    out, _ = r.render_text("Hello", Color(0, 0, 0))
+    out, _ = r.render_text("Hello", color=Color(0, 0, 0))
     fm = out.font_metrics
     assert fm.ascender > 0
     assert fm.descender > 0
@@ -50,7 +50,7 @@ def test_empty_text_reserves_one_empty_line_layout() -> None:
     place a caret at position 0 (`pos_to_pixel(0)` would otherwise
     have nothing to anchor on)."""
     r = ShapedTextRendering(size=16)
-    out, rendered = r.render_text("", Color(0, 0, 0))
+    out, rendered = r.render_text("", color=Color(0, 0, 0))
     assert len(out.line_layouts) == 1
     assert out.line_layouts[0].source_length == 0
     assert out.line_layouts[0].items == ()
@@ -68,7 +68,7 @@ def test_empty_text_reserves_one_empty_line_layout() -> None:
 
 def test_pos_to_pixel_first_position_is_left_edge() -> None:
     r = ShapedTextRendering(size=16)
-    out, _ = r.render_text("Hello", Color(0, 0, 0))
+    out, _ = r.render_text("Hello", color=Color(0, 0, 0))
     caret = out.pos_to_pixel(0)
     assert caret.x == 0
     assert caret.y_top < caret.y_bottom
@@ -77,7 +77,7 @@ def test_pos_to_pixel_first_position_is_left_edge() -> None:
 def test_pos_to_pixel_last_position_is_right_edge() -> None:
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    out, rendered = r.render_text(text, Color(0, 0, 0))
+    out, rendered = r.render_text(text, color=Color(0, 0, 0))
     caret = out.pos_to_pixel(len(text))
     # Caret at end is at or near the surface's right edge.
     assert caret.x >= rendered.surface.get_width() - 4
@@ -87,7 +87,7 @@ def test_pos_to_pixel_middle_position_advances_monotonically() -> None:
     """Caret x must increase as pos goes from 0 to len(text)."""
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    out, _ = r.render_text(text, Color(0, 0, 0))
+    out, _ = r.render_text(text, color=Color(0, 0, 0))
     xs = [out.pos_to_pixel(i).x for i in range(len(text) + 1)]
     for a, b in zip(xs, xs[1:]):
         assert a <= b
@@ -96,7 +96,7 @@ def test_pos_to_pixel_middle_position_advances_monotonically() -> None:
 def test_pos_to_pixel_clamps_out_of_range() -> None:
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    out, _ = r.render_text(text, Color(0, 0, 0))
+    out, _ = r.render_text(text, color=Color(0, 0, 0))
     end_caret = out.pos_to_pixel(len(text))
     too_far = out.pos_to_pixel(len(text) + 100)
     too_negative = out.pos_to_pixel(-50)
@@ -109,7 +109,11 @@ def test_pos_to_pixel_aligned_center_shifts_caret() -> None:
     pos_to_pixel(0) must reflect that x_offset, not be 0."""
     r = ShapedTextRendering(size=16)
     out, _ = r.render_text(
-        "Hello", Color(0, 0, 0), width=200, wrap_words=True, align=TextAlign.CENTER
+        "Hello",
+        color=Color(0, 0, 0),
+        width=200,
+        wrap_words=True,
+        align=TextAlign.CENTER,
     )
     caret = out.pos_to_pixel(0)
     assert caret.x > 0
@@ -120,14 +124,14 @@ def test_pos_to_pixel_aligned_center_shifts_caret() -> None:
 
 def test_pixel_to_pos_at_origin_yields_first_position() -> None:
     r = ShapedTextRendering(size=16)
-    out, _ = r.render_text("Hello", Color(0, 0, 0))
+    out, _ = r.render_text("Hello", color=Color(0, 0, 0))
     assert out.pixel_to_pos(0, 0) == 0
 
 
 def test_pixel_to_pos_far_right_yields_last_position() -> None:
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    out, rendered = r.render_text(text, Color(0, 0, 0))
+    out, rendered = r.render_text(text, color=Color(0, 0, 0))
     pos = out.pixel_to_pos(rendered.surface.get_width() + 100, 0)
     assert pos == len(text)
 
@@ -136,7 +140,7 @@ def test_pixel_to_pos_below_clamps_to_last_line() -> None:
     """A click below the surface picks the last line, not nothing."""
     r = ShapedTextRendering(size=16)
     text = "alpha\nbeta"
-    out, _ = r.render_text(text, Color(0, 0, 0))
+    out, _ = r.render_text(text, color=Color(0, 0, 0))
     pos = out.pixel_to_pos(0, 1000)
     # First position of line 2 is the offset of "beta", here right
     # after "alpha\n" — i.e. position 6 in source.
@@ -145,7 +149,7 @@ def test_pixel_to_pos_below_clamps_to_last_line() -> None:
 
 def test_pixel_to_pos_above_clamps_to_first_line() -> None:
     r = ShapedTextRendering(size=16)
-    out, _ = r.render_text("alpha\nbeta", Color(0, 0, 0))
+    out, _ = r.render_text("alpha\nbeta", color=Color(0, 0, 0))
     pos = out.pixel_to_pos(0, -50)
     assert pos == 0
 
@@ -159,7 +163,7 @@ def test_round_trip_at_cluster_boundaries() -> None:
     cluster, so every source pos is a boundary)."""
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    out, _ = r.render_text(text, Color(0, 0, 0))
+    out, _ = r.render_text(text, color=Color(0, 0, 0))
     for pos in range(len(text) + 1):
         caret = out.pos_to_pixel(pos)
         recovered = out.pixel_to_pos(caret.x, caret.y_top + 1)
@@ -172,7 +176,7 @@ def test_round_trip_at_cluster_boundaries() -> None:
 def test_pos_to_pixel_wrapped_lines_stack_vertically() -> None:
     r = ShapedTextRendering(size=16)
     text = "alpha beta gamma delta"
-    out, _ = r.render_text(text, Color(0, 0, 0), width=80, wrap_words=True)
+    out, _ = r.render_text(text, color=Color(0, 0, 0), width=80, wrap_words=True)
     line0_caret = out.pos_to_pixel(0)
     last_caret = out.pos_to_pixel(len(text))
     assert last_caret.y_top > line0_caret.y_top
@@ -182,7 +186,7 @@ def test_pos_to_pixel_paragraph_break_position() -> None:
     """The position of the explicit `\\n` (between paragraphs) sits at
     the end of the previous line, not at the start of the next one."""
     r = ShapedTextRendering(size=16)
-    out, _ = r.render_text("alpha\nbeta", Color(0, 0, 0))
+    out, _ = r.render_text("alpha\nbeta", color=Color(0, 0, 0))
     # Position 5 is the \n itself (after "alpha"); we want the caret
     # at end-of-line-0, not at start-of-line-1.
     caret_at_5 = out.pos_to_pixel(5)
@@ -201,7 +205,7 @@ def test_pos_to_pixel_in_inter_word_gap() -> None:
     and the next word's start."""
     r = ShapedTextRendering(size=16)
     text = "a b"
-    out, _ = r.render_text(text, Color(0, 0, 0))
+    out, _ = r.render_text(text, color=Color(0, 0, 0))
     caret_a_end = out.pos_to_pixel(1)  # after 'a', before space
     caret_space = out.pos_to_pixel(2)  # after space, before 'b'
     # The caret should advance across the gap.

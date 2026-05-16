@@ -55,16 +55,16 @@ def _line_right_edges(surface: pygame.Surface, line_block_height: int) -> list[i
 def test_default_align_is_left() -> None:
     """`align=None` must behave like LEFT: content starts near column 0."""
     r = ShapedTextRendering(size=16)
-    s = r.render_text("Hello", Color(0, 0, 0), width=200, wrap_words=True, align=None)[
-        1
-    ].surface
+    s = r.render_text(
+        "Hello", color=Color(0, 0, 0), width=200, wrap_words=True, align=None
+    )[1].surface
     assert _first_nonzero_col(s) <= 2
 
 
 def test_align_left_explicit() -> None:
     r = ShapedTextRendering(size=16)
     s = r.render_text(
-        "Hello", Color(0, 0, 0), width=200, wrap_words=True, align=TextAlign.LEFT
+        "Hello", color=Color(0, 0, 0), width=200, wrap_words=True, align=TextAlign.LEFT
     )[1].surface
     assert _first_nonzero_col(s) <= 2
 
@@ -78,12 +78,12 @@ def test_align_center_pushes_content_to_middle() -> None:
     text = "Hello"
     width = 200
     s_left = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
+        text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1].surface
     s_center = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.CENTER
+        text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.CENTER
     )[1].surface
-    natural_width = r.render_text(text, Color(0, 0, 0))[1].surface.get_width()
+    natural_width = r.render_text(text, color=Color(0, 0, 0))[1].surface.get_width()
     expected_offset = (width - natural_width) // 2
     actual_offset = _first_nonzero_col(s_center) - _first_nonzero_col(s_left)
     # Allow ±2 px of slack for sub-pixel rounding.
@@ -95,9 +95,9 @@ def test_align_right_pushes_content_to_right_edge() -> None:
     text = "Hello"
     width = 200
     s_right = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.RIGHT
+        text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.RIGHT
     )[1].surface
-    natural_width = r.render_text(text, Color(0, 0, 0))[1].surface.get_width()
+    natural_width = r.render_text(text, color=Color(0, 0, 0))[1].surface.get_width()
     arr = sa.pixels_alpha(s_right)
     cols = (arr > 0).any(axis=1)
     last_col = int(np.flatnonzero(cols).max()) + 1
@@ -118,10 +118,14 @@ def test_align_justify_stretches_non_final_lines() -> None:
     text = "one two three four five six"
     width = 120
     s_left = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
+        text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1].surface
     s_just = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.JUSTIFY
+        text,
+        color=Color(0, 0, 0),
+        width=width,
+        wrap_words=True,
+        align=TextAlign.JUSTIFY,
     )[1].surface
     edges_left = _line_right_edges(s_left, 24)
     edges_just = _line_right_edges(s_just, 24)
@@ -143,10 +147,14 @@ def test_align_justify_single_line_unchanged() -> None:
     text = "one two"
     width = 200
     s_left = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
+        text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1].surface
     s_just = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.JUSTIFY
+        text,
+        color=Color(0, 0, 0),
+        width=width,
+        wrap_words=True,
+        align=TextAlign.JUSTIFY,
     )[1].surface
     a = sa.pixels_alpha(s_left)
     b = sa.pixels_alpha(s_just)
@@ -160,7 +168,11 @@ def test_align_justify_respects_paragraph_breaks() -> None:
     text = "one two three four\nshort"
     width = 120
     s = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.JUSTIFY
+        text,
+        color=Color(0, 0, 0),
+        width=width,
+        wrap_words=True,
+        align=TextAlign.JUSTIFY,
     )[1].surface
     edges = _line_right_edges(s, 24)
     # Last line of each paragraph stays at natural width; here paragraph
@@ -178,8 +190,10 @@ def test_align_no_width_is_noop() -> None:
     and CENTER produce the exact same pixels."""
     r = ShapedTextRendering(size=16)
     text = "Hello world"
-    s_left = r.render_text(text, Color(0, 0, 0), align=TextAlign.LEFT)[1].surface
-    s_center = r.render_text(text, Color(0, 0, 0), align=TextAlign.CENTER)[1].surface
+    s_left = r.render_text(text, color=Color(0, 0, 0), align=TextAlign.LEFT)[1].surface
+    s_center = r.render_text(text, color=Color(0, 0, 0), align=TextAlign.CENTER)[
+        1
+    ].surface
     assert s_left.get_size() == s_center.get_size()
     a = sa.pixels_alpha(s_left)
     b = sa.pixels_alpha(s_center)

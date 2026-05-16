@@ -49,8 +49,8 @@ def test_selection_none_is_unchanged() -> None:
     no-selection render (no phantom blue tint anywhere)."""
     r = ShapedTextRendering(size=16)
     text = "Hello world"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_none = r.render_text(text, Color(0, 0, 0), selection=None)[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_none = r.render_text(text, color=Color(0, 0, 0), selection=None)[1].surface
     assert sa.pixels_alpha(s_no).shape == sa.pixels_alpha(s_none).shape
     assert (sa.pixels_alpha(s_no) == sa.pixels_alpha(s_none)).all()
     assert (sa.pixels_blue(s_no) == sa.pixels_blue(s_none)).all()
@@ -60,8 +60,8 @@ def test_selection_empty_range_is_noop() -> None:
     """A degenerate range `[k, k)` selects nothing."""
     r = ShapedTextRendering(size=16)
     text = "Hello world"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_empty = r.render_text(text, Color(0, 0, 0), selection=(3, 3))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_empty = r.render_text(text, color=Color(0, 0, 0), selection=(3, 3))[1].surface
     assert (sa.pixels_blue(s_no) == sa.pixels_blue(s_empty)).all()
 
 
@@ -69,8 +69,8 @@ def test_selection_introduces_blue_band() -> None:
     """A non-empty selection must paint a translucent blue band."""
     r = ShapedTextRendering(size=16)
     text = "Hello world"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(1, 5))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1].surface
     lo, hi = _highlight_x_range(s_sel, s_no)
     assert lo > 0 and hi > lo
 
@@ -82,8 +82,8 @@ def test_selection_keeps_glyph_color() -> None:
     but the dominant black ink must remain visible."""
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(0, 5))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(0, 5))[1].surface
     a_no = sa.pixels_alpha(s_no)
     # On fully-opaque glyph pixels (alpha=255), the post-selection
     # render must still have alpha=255 (no transparency injected).
@@ -109,8 +109,8 @@ def test_selection_starts_after_first_char() -> None:
     must start at `H`'s right edge, not at column 0."""
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(1, 5))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1].surface
     lo, _ = _highlight_x_range(s_sel, s_no)
     # Width of 'H' at size 16 is around 9-12 px; lo must be at least 4
     # so we're definitely past the leftmost stroke of H.
@@ -122,9 +122,9 @@ def test_selection_full_text_covers_everything() -> None:
     the last."""
     r = ShapedTextRendering(size=16)
     text = "Hello"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
     n = len(text)
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(0, n))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1].surface
     lo, hi = _highlight_x_range(s_sel, s_no)
     # Should reach close to the right edge.
     natural_w = s_no.get_width()
@@ -137,8 +137,10 @@ def test_selection_spans_inter_word_space() -> None:
     source whitespace) so the highlight is contiguous."""
     r = ShapedTextRendering(size=16)
     text = "Hello world"
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(0, len(text)))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(0, len(text)))[
+        1
+    ].surface
     diff = sa.pixels_blue(s_sel).astype(int) - sa.pixels_blue(s_no).astype(int)
     cols = (diff > 20).any(axis=1)
     # No "hole": the highlighted column run must be contiguous (no col
@@ -157,9 +159,15 @@ def test_selection_across_wrapped_lines() -> None:
     r = ShapedTextRendering(size=16)
     text = "alpha beta gamma delta"
     width = 80
-    s_no = r.render_text(text, Color(0, 0, 0), width=width, wrap_words=True)[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0), width=width, wrap_words=True)[
+        1
+    ].surface
     s_sel = r.render_text(
-        text, Color(0, 0, 0), width=width, wrap_words=True, selection=(0, len(text))
+        text,
+        color=Color(0, 0, 0),
+        width=width,
+        wrap_words=True,
+        selection=(0, len(text)),
     )[1].surface
     diff = sa.pixels_blue(s_sel).astype(int) - sa.pixels_blue(s_no).astype(int)
     rows = (diff > 20).any(axis=0)
@@ -183,8 +191,8 @@ def test_selection_across_paragraph_break() -> None:
     r = ShapedTextRendering(size=16)
     text = "alpha\nbeta"
     n = len(text)
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_sel = r.render_text(text, Color(0, 0, 0), selection=(0, n))[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1].surface
     diff = sa.pixels_blue(s_sel).astype(int) - sa.pixels_blue(s_no).astype(int)
     rows = (diff > 20).any(axis=0)
     nz_rows = np.flatnonzero(rows)
