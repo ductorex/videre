@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 
 import freetype as ft
 import numpy as np
@@ -218,22 +219,13 @@ class GlyphRasterizer:
         return sprite
 
 
+@dataclass(slots=True, frozen=True)
 class _Glyph:
-    __slots__ = ("surface", "width", "height", "bitmap_left", "bitmap_top")
-
-    def __init__(
-        self,
-        surface: pygame.Surface | None,
-        width: int,
-        height: int,
-        bitmap_left: int,
-        bitmap_top: int,
-    ) -> None:
-        self.surface = surface
-        self.width = width
-        self.height = height
-        self.bitmap_left = bitmap_left
-        self.bitmap_top = bitmap_top
+    surface: pygame.Surface | None
+    width: int
+    height: int
+    bitmap_left: int
+    bitmap_top: int
 
 
 def _normalize_color(color: tuple[int, ...]) -> tuple[int, int, int, int]:
@@ -300,19 +292,20 @@ def _rasterize_glyph(
 
     pixel_mode = bitmap.pixel_mode
     if pixel_mode == _FT_PIXEL_MODE_BGRA:
-        surface = _bgra_to_surface(bytes(bitmap.buffer), width, rows, pitch)
+        image = _bgra_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch)
     elif pixel_mode == _FT_PIXEL_MODE_GRAY:
-        surface = _gray_to_surface(bytes(bitmap.buffer), width, rows, pitch, rgba)
+        image = _gray_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch, rgba)
     else:
         # Other formats (FT_PIXEL_MODE_MONO, _LCD, etc.) are rare for our
         # use case; skip them rather than risk a wrong conversion.
         return _Glyph(None, 0, 0, bitmap_left, bitmap_top)
+    surface = pygame.image.frombuffer(image.tobytes(), (width, rows), "RGBA")
     return _Glyph(surface, width, rows, bitmap_left, bitmap_top)
 
 
-def _gray_to_surface(
+def _gray_to_numpy_array(
     buffer: bytes, width: int, rows: int, pitch: int, rgba: tuple[int, int, int, int]
-) -> pygame.Surface:
+) -> np.ndarray:
     raw = np.frombuffer(buffer, dtype=np.uint8)
     alpha = raw.reshape((rows, pitch))[:, :width]
     rgba_arr = np.empty((rows, width, 4), dtype=np.uint8)
@@ -323,14 +316,14 @@ def _gray_to_surface(
         rgba_arr[..., 3] = alpha
     else:
         rgba_arr[..., 3] = (alpha.astype(np.uint16) * rgba[3] // 255).astype(np.uint8)
-    return pygame.image.frombuffer(rgba_arr.tobytes(), (width, rows), "RGBA")
+    return rgba_arr
 
 
-def _bgra_to_surface(
+def _bgra_to_numpy_array(
     buffer: bytes, width: int, rows: int, pitch: int
-) -> pygame.Surface:
-    """Convert a FreeType BGRA bitmap (premultiplied alpha) to a pygame
-    RGBA surface with non-premultiplied alpha. The user-supplied color is
+) -> np.ndarray:
+    """Convert a FreeType BGRA bitmap (premultiplied alpha) to a numpy
+    RGBA image with non-premultiplied alpha. The user-supplied color is
     ignored for color glyphs - the bitmap carries its own colors.
     """
     raw = np.frombuffer(buffer, dtype=np.uint8)
@@ -351,4 +344,4 @@ def _bgra_to_surface(
     ).astype(np.uint8)
     rgba_arr[..., 3] = alpha
     rgba_arr[alpha == 0] = 0
-    return pygame.image.frombuffer(rgba_arr.tobytes(), (width, rows), "RGBA")
+    return rgba_arr
