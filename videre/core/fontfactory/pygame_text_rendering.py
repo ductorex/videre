@@ -129,6 +129,7 @@ class PygameTextRendering:
         italic=False,
         underline=False,
         height_delta=2,
+        compact: bool = True,
     ):
         size = size or fonts.size
         height_delta = 2 if height_delta is None else height_delta
@@ -145,6 +146,8 @@ class PygameTextRendering:
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
 
+        self._compact = compact
+
     def render_char(self, c: str, color: Color | None = None) -> Surface:
         fgcolor = None if color is None else PygameUtils.new_color(color)
         surface, box = self._fonts.get_font(
@@ -157,12 +160,12 @@ class PygameTextRendering:
         text: str,
         width: int | None = None,
         *,
-        compact=True,
         color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, PygameRendered]:
+        compact = self._compact
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
             lines = WordsLine.from_chars(char_lines, keep_spaces=align is None)
