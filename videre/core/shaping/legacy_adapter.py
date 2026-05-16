@@ -54,7 +54,7 @@ class ShapedTextRenderingLegacyAdapter:
         )
 
     def render_char(self, c: str, color: Color | None = None) -> pygame.Surface:
-        return self._inner.render_char(c, (color or Colors.black).flatten())
+        return self._inner.render_char(c, color or Colors.black)
 
     def render_text(
         self,
@@ -76,7 +76,7 @@ class ShapedTextRenderingLegacyAdapter:
         del compact
         return self._inner.render_text(
             text,
-            (color or Colors.black).flatten(),
+            color or Colors.black,
             width=width,
             wrap_words=wrap_words,
             align=align,
