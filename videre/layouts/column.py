@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 

@@ -12,7 +12,7 @@ from videre.core.constants import WINDOW_FPS, Alignment, MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-from videre.core.pygame_utils import PygameUtils, Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.core.utils import Procedure, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
@@ -43,7 +43,7 @@ def _handle_exception(on_except, function):
     return wrapper
 
 
-class Window(PygameUtils, Clipboard):
+class Window(Pygame, Clipboard):
     __slots__ = (
         "_exit_code",
         "_title",

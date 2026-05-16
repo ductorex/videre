@@ -19,7 +19,7 @@ from videre.core.fontfactory.font_factory_utils import (
     align_words,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_utils import PygameRendered, PygameUtils, Surface
+from videre.core.pygame_backend import Pygame, PygameRendered, Surface
 
 
 class FontSizes:
@@ -149,7 +149,7 @@ class PygameTextRendering:
         self._compact = compact
 
     def render_char(self, c: str, color: Color | None = None) -> Surface:
-        fgcolor = None if color is None else PygameUtils.new_color(color)
+        fgcolor = None if color is None else Pygame.new_color(color)
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
         ).render(c, size=self._size, fgcolor=fgcolor)
@@ -190,7 +190,7 @@ class PygameTextRendering:
         out = self._fonts.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
             pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
-        pygame_color = None if color is None else PygameUtils.new_color(color)
+        pygame_color = None if color is None else Pygame.new_color(color)
         for line in lines:
             self._draw_underline(line, out, pygame_color)
             ly = line.y

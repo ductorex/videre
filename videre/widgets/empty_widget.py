@@ -1,4 +1,4 @@
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 from videre.widgets.widget import Widget
 
 

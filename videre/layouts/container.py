@@ -2,7 +2,7 @@ import pygame
 import pygame.gfxdraw
 
 from videre.core.constants import Alignment
-from videre.core.pygame_utils import PygameUtils, Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.gradient import ColoringDefinition, Gradient
@@ -202,11 +202,11 @@ class Container(AbstractLayout):
                         surface,
                         *border_points[0],
                         *border_points[1],
-                        PygameUtils.new_color(border_color),
+                        Pygame.new_color(border_color),
                     )
                 else:
                     pygame.gfxdraw.filled_polygon(
-                        surface, border_points, PygameUtils.new_color(border_color)
+                        surface, border_points, Pygame.new_color(border_color)
                     )
         inner_x, inner_y = margin.left + x, margin.top + y
         surface.blit(inner_surface, (inner_x, inner_y), area=None)

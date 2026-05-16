@@ -5,7 +5,7 @@ import pygame
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_utils import PygameUtils, Surface
+from videre.core.pygame_backend import Pygame, Surface
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.column import Column
 from videre.layouts.container import Container
@@ -80,9 +80,9 @@ class Fancybox(AbstractLayout):
         dialog_x = (width - dialog_width) // 2
         dialog_y = (height - dialog_height) // 2
         surface = window.new_surface(width, height)
-        surface.fill(PygameUtils.new_color(Color(0, 0, 0, 64)))
+        surface.fill(Pygame.new_color(Color(0, 0, 0, 64)))
         surface.fill(
-            PygameUtils.new_color(Colors.white),
+            Pygame.new_color(Colors.white),
             pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height),
         )
         surface.blit(dialog_surface, (dialog_x, dialog_y))

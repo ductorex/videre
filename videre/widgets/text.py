@@ -2,7 +2,7 @@ from typing import Any
 
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 from videre.core.rendering_result import TextRenderingResult
 from videre.widgets.widget import Widget
 

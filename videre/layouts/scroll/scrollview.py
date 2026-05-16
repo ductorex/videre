@@ -1,7 +1,7 @@
 import logging
 
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 from videre.layouts.abstractlayout import AbstractLayout, get_top_mouse_wheel_owner
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 from videre.layouts.scroll._v_scroll_bar import _VScrollBar

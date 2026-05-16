@@ -1,5 +1,5 @@
 from videre.colors import Colors
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 from videre.core.sides.border import Border
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container

@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from videre.core.caret_position import CaretPosition
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_backend import Surface
 
 
 class RenderingResult(Protocol):

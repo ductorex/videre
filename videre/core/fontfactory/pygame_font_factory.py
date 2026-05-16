@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pygame
 import pygame.freetype
 
-from videre.core.pygame_utils import PygameUtils
+from videre.core.pygame_backend import Pygame
 from videre.fonts.provider import FontProvider
 from videre.fonts.unicode_utils import Unicode
 
@@ -16,7 +16,7 @@ class CharMeasures:
     metrics: tuple[int, int, int, int, float, float]
 
 
-class PygameFontFactory(PygameUtils):
+class PygameFontFactory(Pygame):
     __slots__ = (
         "_prov",
         "_key_to_font",
