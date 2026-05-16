@@ -186,20 +186,18 @@ class Window(PygameUtils, Clipboard):
         # returning a Surface)
         # to be interchangeable for current consumers, but they don't
         # share a base class.
-        from videre.core.shaping.legacy_adapter import (
-            ShapedTextRenderingLegacyAdapter,
-            use_shaped_rendering,
-            use_shaped_subpixel,
-        )
+        from videre.core.shaping.env import use_shaped_rendering, use_shaped_subpixel
+        from videre.core.shaping.text_rendering import ShapedTextRendering
 
         if use_shaped_rendering():
+            size = size or self.fonts.size
+            height_delta = 2 if height_delta is None else height_delta
             subpixel = (
                 use_shaped_subpixel() if self._subpixel is None else self._subpixel
             )
-            return ShapedTextRenderingLegacyAdapter(
-                self.fonts,
+            return ShapedTextRendering(
                 size=size or 0,
-                strong=strong,
+                bold=strong,
                 italic=italic,
                 underline=underline,
                 height_delta=height_delta,

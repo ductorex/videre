@@ -62,8 +62,10 @@ def test_word_wrap_splits_into_multiple_lines() -> None:
     """A long sentence with a small width yields several lines, each ≤ width."""
     text = "The quick brown fox jumps over the lazy dog"
     r = ShapedTextRendering(size=16)
-    s_full = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_wrap = r.render_text(text, Color(0, 0, 0), width=120, wrap_words=True)[1].surface
+    s_full = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_wrap = r.render_text(text, color=Color(0, 0, 0), width=120, wrap_words=True)[
+        1
+    ].surface
     assert s_wrap.get_height() > s_full.get_height()
     assert s_wrap.get_width() <= 120
 
@@ -92,7 +94,7 @@ def test_cluster_wrap_can_split_inside_a_word() -> None:
     boundary, so a single English word can end up split across lines."""
     text = "supercalifragilisticexpialidocious"
     r = ShapedTextRendering(size=16)
-    s = r.render_text(text, Color(0, 0, 0), width=80, wrap_words=False)[1].surface
+    s = r.render_text(text, color=Color(0, 0, 0), width=80, wrap_words=False)[1].surface
     # The word is much wider than 80 px at size 16; it must wrap.
     assert s.get_height() > 25  # one line would be ~25 high
 
@@ -100,7 +102,9 @@ def test_cluster_wrap_can_split_inside_a_word() -> None:
 def test_cluster_wrap_each_line_within_width() -> None:
     text = "The quick brown fox jumps over the lazy dog"
     r = ShapedTextRendering(size=16)
-    s = r.render_text(text, Color(0, 0, 0), width=100, wrap_words=False)[1].surface
+    s = r.render_text(text, color=Color(0, 0, 0), width=100, wrap_words=False)[
+        1
+    ].surface
     assert s.get_width() <= 100
 
 
@@ -114,10 +118,10 @@ def test_atomic_word_too_long_overflows_under_word_wrap() -> None:
     as pygame for a fixed-width text box)."""
     text = "supercalifragilisticexpialidocious"
     r = ShapedTextRendering(size=16)
-    s_constrained = r.render_text(text, Color(0, 0, 0), width=80, wrap_words=True)[
-        1
-    ].surface
-    s_natural = r.render_text(text, Color(0, 0, 0))[
+    s_constrained = r.render_text(
+        text, color=Color(0, 0, 0), width=80, wrap_words=True
+    )[1].surface
+    s_natural = r.render_text(text, color=Color(0, 0, 0))[
         1
     ].surface  # no width: natural width
     # Single line in both cases
@@ -133,8 +137,10 @@ def test_non_atomic_word_splits_under_word_wrap() -> None:
     is allowed to break at a cluster boundary even under word wrap."""
     text = "你好世界你好世界你好世界你好世界"  # 16 CJK codepoints
     r = ShapedTextRendering(size=16)
-    s_no = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_yes = r.render_text(text, Color(0, 0, 0), width=80, wrap_words=True)[1].surface
+    s_no = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_yes = r.render_text(text, color=Color(0, 0, 0), width=80, wrap_words=True)[
+        1
+    ].surface
     # CJK width per glyph ~ 16px → 16 chars wraps to several lines under 80px
     assert s_yes.get_width() <= 80
     assert s_yes.get_height() > s_no.get_height()
@@ -149,8 +155,8 @@ def test_inter_word_spaces_visible() -> None:
     must render wider than 'Helloworld' at natural width (no `width`
     constraint, otherwise the surface is clamped to it)."""
     r = ShapedTextRendering(size=16)
-    with_space = r.render_text("Hello world", Color(0, 0, 0))[1].surface
-    without_space = r.render_text("Helloworld", Color(0, 0, 0))[1].surface
+    with_space = r.render_text("Hello world", color=Color(0, 0, 0))[1].surface
+    without_space = r.render_text("Helloworld", color=Color(0, 0, 0))[1].surface
     assert with_space.get_width() > without_space.get_width()
 
 
@@ -162,8 +168,8 @@ def test_no_phantom_gap_between_uax29_words_without_whitespace() -> None:
     whitespace was present in the source.
     """
     r = ShapedTextRendering(size=16)
-    no_space = r.render_text("Hello世界", Color(0, 0, 0))[1].surface
-    with_space = r.render_text("Hello 世界", Color(0, 0, 0))[1].surface
+    no_space = r.render_text("Hello世界", color=Color(0, 0, 0))[1].surface
+    with_space = r.render_text("Hello 世界", color=Color(0, 0, 0))[1].surface
     # The version with the source whitespace must be strictly wider than
     # the one without, by approximately one `space_advance` (the
     # difference need not be exact since space_advance is fractional and
@@ -185,12 +191,12 @@ def test_no_phantom_gap_in_wrap_mode() -> None:
         return int(nonzero.max()) + 1 if nonzero.size else 0
 
     r = ShapedTextRendering(size=16)
-    s_no = r.render_text("Hello世界", Color(0, 0, 0), width=500, wrap_words=True)[
+    s_no = r.render_text("Hello世界", color=Color(0, 0, 0), width=500, wrap_words=True)[
         1
     ].surface
-    s_yes = r.render_text("Hello 世界", Color(0, 0, 0), width=500, wrap_words=True)[
-        1
-    ].surface
+    s_yes = r.render_text(
+        "Hello 世界", color=Color(0, 0, 0), width=500, wrap_words=True
+    )[1].surface
     assert content_width(s_yes) > content_width(s_no)
 
 
@@ -260,11 +266,13 @@ def test_word_wrap_does_not_strand_trailing_space_at_eol_width() -> None:
     # Build a width where 'aaa bbb' would fit if we don't count the
     # trailing space of 'bbb', but not if we do.
     r = ShapedTextRendering(size=16)
-    s = r.render_text("aaa bbb", Color(0, 0, 0), width=500, wrap_words=True)[1].surface
+    s = r.render_text("aaa bbb", color=Color(0, 0, 0), width=500, wrap_words=True)[
+        1
+    ].surface
     one_line_height = s.get_height()
     # Now constrain width to exactly the natural width of "aaa bbb" → still 1 line
-    natural = r.render_text("aaa bbb", Color(0, 0, 0))[1].surface.get_width()
-    s2 = r.render_text("aaa bbb", Color(0, 0, 0), width=natural, wrap_words=True)[
+    natural = r.render_text("aaa bbb", color=Color(0, 0, 0))[1].surface.get_width()
+    s2 = r.render_text("aaa bbb", color=Color(0, 0, 0), width=natural, wrap_words=True)[
         1
     ].surface
     assert s2.get_height() == one_line_height
@@ -278,8 +286,10 @@ def test_explicit_newlines_preserved_in_wrap() -> None:
     inside each original line, but never coalesce two source lines."""
     text = "first line of text\nsecond line of text"
     r = ShapedTextRendering(size=16)
-    s_no_wrap = r.render_text(text, Color(0, 0, 0))[1].surface
-    s_wrap = r.render_text(text, Color(0, 0, 0), width=80, wrap_words=True)[1].surface
+    s_no_wrap = r.render_text(text, color=Color(0, 0, 0))[1].surface
+    s_wrap = r.render_text(text, color=Color(0, 0, 0), width=80, wrap_words=True)[
+        1
+    ].surface
     # No wrap: 2 lines. With wrap at width=80: at least 2*ceil(line_width/80)
     # but always >= 2.
     assert s_wrap.get_height() >= s_no_wrap.get_height()
@@ -293,7 +303,7 @@ def test_explicit_newlines_preserved_in_wrap() -> None:
 def test_wrap_respects_width(width: int, wrap_words: bool) -> None:
     text = "Lorem ipsum dolor sit amet consectetur adipiscing elit"
     r = ShapedTextRendering(size=16)
-    s = r.render_text(text, Color(0, 0, 0), width=width, wrap_words=wrap_words)[
+    s = r.render_text(text, color=Color(0, 0, 0), width=width, wrap_words=wrap_words)[
         1
     ].surface
     # Word-wrap may overflow on an oversized atomic word; here our words

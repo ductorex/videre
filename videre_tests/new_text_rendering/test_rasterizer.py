@@ -62,7 +62,9 @@ def test_render_text_with_translucent_color() -> None:
     glyph coverage by the requested alpha; output alpha must be
     bounded by the requested alpha."""
     text = "abc"
-    _, rendered = ShapedTextRendering(size=24).render_text(text, Color(255, 0, 0, 128))
+    _, rendered = ShapedTextRendering(size=24).render_text(
+        text, color=Color(255, 0, 0, 128)
+    )
     arr_a = sa.pixels_alpha(rendered.surface)
     # Glyph pixels should never reach full opacity since input alpha
     # was capped at 128.

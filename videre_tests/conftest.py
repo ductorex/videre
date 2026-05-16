@@ -25,7 +25,7 @@ def _image_testing(image_regression):
     errors: list[AssertionError] = []
 
     def check(image: io.BytesIO, **kwargs):
-        from videre.core.shaping.legacy_adapter import use_shaped_rendering
+        from videre.core.shaping.env import use_shaped_rendering
 
         if not use_shaped_rendering():
             image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)

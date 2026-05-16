@@ -120,7 +120,7 @@ class ShapedTextRendering:
         # word boundary in the layout contributes this advance.
         self._space_advance = space_advance(ref_path, size)
 
-    def render_char(self, c: str, color: Color = Colors.black) -> pygame.Surface:
+    def render_char(self, c: str, color: Color | None = None) -> pygame.Surface:
         """Rasterize a single character to a tightly-fitted Surface.
 
         Drop-in replacement for the legacy
@@ -142,6 +142,7 @@ class ShapedTextRendering:
         intentionally NOT applied (matches legacy behavior, where
         `render_char` skipped the per-line underline pass).
         """
+        color = color or Colors.black
         if not c:
             return pygame.Surface((0, 0), pygame.SRCALPHA)
         lines = list(
@@ -186,13 +187,15 @@ class ShapedTextRendering:
     def render_text(
         self,
         text: str,
-        color: Color = Colors.black,
-        *,
         width: int | None = None,
-        wrap_words: bool = True,
+        *,
+        color: Color | None = None,
         align: TextAlign | None = None,
+        wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[ShapedRenderedText, PygameRendered]:
+        color = color or Colors.black
+
         # `split_words=True` only matters when wrapping: it gives the
         # wrap engine real word boundaries to break on. With wrap off
         # there is no benefit to word segmentation; keep the legacy
