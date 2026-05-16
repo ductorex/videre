@@ -38,20 +38,21 @@ def test_normalize_color_4tuple_preserves_alpha() -> None:
 # -- render_single_glyph: missing glyph + whitespace bitmap -----------------
 
 
-def test_render_single_glyph_id_zero_returns_zero_size() -> None:
+def test_render_single_glyph_id_zero_returns_empty() -> None:
     """`glyph_id=0` is the FreeType convention for "no glyph for this
-    codepoint"; rasterizer must short-circuit to a zero-size surface
+    codepoint"; rasterizer must short-circuit to an empty `Glyph`
     instead of asking the cache for a nonsense entry."""
     r = GlyphRasterizer()
     _, font_path = get_font_provider().get_font_info(" ")
     s = r.render_single_glyph(font_path, 16, False, False, 0)
-    assert s.get_size() == (0, 0)
+    assert s.empty()
+    assert s.width == 0 and s.height == 0
 
 
-def test_render_single_glyph_whitespace_yields_zero_size() -> None:
+def test_render_single_glyph_whitespace_yields_empty() -> None:
     """A whitespace glyph (eg. U+0020 SPACE) has a valid glyph_id but
-    no bitmap (width=0). The rasterizer must detect that and return a
-    zero-size surface, not a 1-pixel garbage surface."""
+    no bitmap (width=0). The rasterizer must detect that and return an
+    empty `Glyph`, not a 1-pixel garbage one."""
     shaper = Shaper()
     _, path = get_font_provider().get_font_info(" ")
     glyphs = shaper.shape(
@@ -60,7 +61,8 @@ def test_render_single_glyph_whitespace_yields_zero_size() -> None:
     assert glyphs and glyphs[0].glyph_id != 0
     r = GlyphRasterizer()
     s = r.render_single_glyph(path, 16, False, False, glyphs[0].glyph_id)
-    assert s.get_size() == (0, 0)
+    assert s.empty()
+    assert s.width == 0 and s.height == 0
 
 
 # -- Color with explicit alpha ----------------------------------------------

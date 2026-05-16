@@ -10,7 +10,7 @@ from videre.core.shaping.layout import (
     _LineLayout,
 )
 from videre.core.shaping.pipeline import shape_text
-from videre.core.shaping.rasterizer import GlyphRasterizer
+from videre.core.shaping.rasterizer import Glyph, GlyphArea, GlyphRasterizer
 from videre.core.shaping.shaped import ShapedLine
 from videre.core.shaping.shaper import Shaper
 from videre.core.shaping.texts.textutils import get_font_provider
@@ -159,10 +159,16 @@ class ShapedTextRendering:
         if not word.runs or not word.runs[0].glyphs:
             return pygame.Surface((0, 0), pygame.SRCALPHA)
         run = word.runs[0]
-        glyph = run.glyphs[0]
-        return self._rasterizer.render_single_glyph(
-            run.font_path, self._size, run.bold, run.italic, glyph.glyph_id, color
+        shaped_glyph = run.glyphs[0]
+        glyph = self._rasterizer.render_single_glyph(
+            run.font_path,
+            self._size,
+            run.bold,
+            run.italic,
+            shaped_glyph.glyph_id,
+            color,
         )
+        return _glyph_to_surface(glyph)
 
     @property
     def font_metrics(self) -> FontMetrics:
@@ -385,9 +391,11 @@ class ShapedTextRendering:
         for w_idx, word in enumerate(line.words):
             gap_before_word = w_idx > 0 and word.space_before
             for r_idx, run in enumerate(word.runs):
-                surf, baseline = self._rasterizer.render_run(
+                area = self._rasterizer.render_run(
                     run, self._size, color, subpixel=self._subpixel
                 )
+                surf = _glyph_area_to_surface(area)
+                baseline = area.baseline_y
                 rendered.append((surf, baseline, r_idx == 0 and gap_before_word))
         if not rendered:
             return pygame.Surface((0, 0), pygame.SRCALPHA), self._ascender, 0
@@ -550,3 +558,20 @@ def _selection_rects_from_layout(
                 (layout.x_offset + item.x_start, max(item.x_end - item.x_start, 1))
             )
     return rects
+
+
+def _glyph_to_surface(glyph: Glyph) -> pygame.Surface:
+    if glyph.image is None:
+        return pygame.Surface((0, 0), pygame.SRCALPHA)
+    return pygame.image.frombuffer(
+        glyph.image.tobytes(), (glyph.width, glyph.height), "RGBA"
+    )
+
+
+def _glyph_area_to_surface(area: GlyphArea) -> pygame.Surface:
+    surface = pygame.Surface((area.width, area.height), pygame.SRCALPHA)
+    for sprite, blit_x, blit_y in area.glyphs:
+        if sprite.empty():
+            continue
+        surface.blit(_glyph_to_surface(sprite), (blit_x, area.baseline_y + blit_y))
+    return surface
