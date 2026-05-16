@@ -5,6 +5,7 @@ import pygame
 from videre.colors import Color
 
 Surface = pygame.Surface
+Rect = pygame.Rect
 Event = pygame.event.Event
 
 

@@ -4,6 +4,7 @@ from typing import Self
 import pygame
 
 from videre import TextAlign
+from videre.core.pygame_backend import Rect
 from videre.fonts.unicode_utils import Unicode
 
 
@@ -42,7 +43,7 @@ class CharTask(AbstractTextElement):
         font,
         width: int,
         horizontal_shift: int | float,
-        bounds: pygame.Rect,
+        bounds: Rect,
         pos: int,
     ):
         super().__init__(0, width, horizontal_shift)

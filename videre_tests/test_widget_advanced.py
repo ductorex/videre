@@ -1,7 +1,7 @@
-import pygame
 import pytest
 
 from videre import Text
+from videre.core.pygame_backend import Surface
 from videre.widgets.widget import Widget
 
 
@@ -56,7 +56,7 @@ class TestWidgetAdvanced:
         fake_win.render()
 
         assert widget._surface is not None
-        assert isinstance(widget._surface, pygame.Surface)
+        assert isinstance(widget._surface, Surface)
         assert widget._surface.get_width() > 0
         assert widget._surface.get_height() > 0
 

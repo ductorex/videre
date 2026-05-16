@@ -190,7 +190,7 @@ class Container(AbstractLayout):
         y = self._align_dim(
             inner_height, inner_surface.get_height(), self.vertical_alignment
         )
-        # inner_box = pygame.Rect(0, 0, inner_width - x, inner_height - y)
+        # inner_box = Rect(0, 0, inner_width - x, inner_height - y)
         surface = self.background_color.generate(outer_width, outer_height)
         for border_color, border_points in border.describe_borders(
             outer_width, outer_height

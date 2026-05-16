@@ -6,7 +6,7 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend import Pygame, Surface
+from videre.core.pygame_backend import Pygame, Surface, Rect
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div
@@ -276,7 +276,7 @@ class TextInput(AbstractLayout):
         margin = container.padding + container.border.margin()
         cursor_width = 2
         cursor_height = caret.y_bottom - caret.y_top
-        return pygame.Rect(
+        return Rect(
             margin.left + caret.x, margin.top + caret.y_top, cursor_width, cursor_height
         )
 

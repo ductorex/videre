@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pygame
 import pygame.freetype
 
-from videre.core.pygame_backend import Pygame
+from videre.core.pygame_backend import Pygame, Rect
 from videre.fonts.provider import FontProvider
 from videre.fonts.unicode_utils import Unicode
 
@@ -12,7 +12,7 @@ from videre.fonts.unicode_utils import Unicode
 @dataclass(slots=True)
 class CharMeasures:
     font: pygame.freetype.Font
-    rect: pygame.Rect
+    rect: Rect
     metrics: tuple[int, int, int, int, float, float]
 
 

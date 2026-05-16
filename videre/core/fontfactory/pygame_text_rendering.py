@@ -19,7 +19,7 @@ from videre.core.fontfactory.font_factory_utils import (
     align_words,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_backend import Pygame, PygameRendered, Surface
+from videre.core.pygame_backend import Pygame, PygameRendered, Surface, Rect
 
 
 class FontSizes:
@@ -224,7 +224,7 @@ class PygameTextRendering:
 
     def _get_selection_rects(
         self, lines: list[Line[WordTask]], selection: tuple[int, int] | None
-    ) -> list[pygame.Rect]:
+    ) -> list[Rect]:
         if selection is None:
             return []
 
@@ -272,7 +272,7 @@ class PygameTextRendering:
                 end_x = line.elements[-1].x + line.elements[-1].width
 
             # Create selection rectangle for this line
-            rect = pygame.Rect(
+            rect = Rect(
                 start_x,
                 line.y - self._font_sizes.ascender,
                 end_x - start_x,

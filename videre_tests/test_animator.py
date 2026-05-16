@@ -2,6 +2,7 @@ import time
 from types import SimpleNamespace
 
 import videre
+from videre.core.pygame_backend import Pygame
 
 
 def test_animator_display(snap_win):
@@ -216,9 +217,8 @@ class TestAbstractAnimation:
 
             def draw(self, window, width: int | None = None, height: int | None = None):
                 # Simple implementation for testing
-                import pygame
 
-                surface = pygame.Surface((100, 50))
+                surface = Pygame.new_surface(100, 50)
                 surface.fill((255, 255, 255))
                 return surface
 
@@ -251,9 +251,8 @@ class TestAbstractAnimation:
                 pass
 
             def draw(self, window, width=None, height=None):
-                import pygame
 
-                return pygame.Surface((50, 50))
+                return Pygame.new_surface(50, 50)
 
         # No framing specified should use default FPS
         animation = TestAnimation()
@@ -275,9 +274,8 @@ class TestAbstractAnimation:
                 self.frame_calls += 1
 
             def draw(self, window, width=None, height=None):
-                import pygame
 
-                return pygame.Surface((50, 50))
+                return Pygame.new_surface(50, 50)
 
         # Use FPR framing - every 2 window frames
         animation = TestAnimation(framing=FPR(2))

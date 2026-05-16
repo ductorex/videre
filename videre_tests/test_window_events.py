@@ -8,6 +8,7 @@ from pygame.event import Event
 
 from videre.core.constants import MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry
+from videre.core.pygame_backend import Pygame
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
 
@@ -22,7 +23,7 @@ class TrackerWidget(Widget):
         self.events = []
 
     def draw(self, window, width=None, height=None):
-        surface = pygame.Surface((width or 50, height or 50))
+        surface = Pygame.new_surface(width or 50, height or 50)
         surface.fill((200, 200, 200))
         return surface
 

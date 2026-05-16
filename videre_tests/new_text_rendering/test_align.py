@@ -13,6 +13,7 @@ import pytest
 
 from videre.colors import Color
 from videre.core.constants import TextAlign
+from videre.core.pygame_backend import Surface
 from videre.core.shaping import ShapedTextRendering
 
 
@@ -21,14 +22,14 @@ def _init_pygame() -> None:
     pygame.freetype.init()
 
 
-def _first_nonzero_col(surface: pygame.Surface) -> int:
+def _first_nonzero_col(surface: Surface) -> int:
     arr = sa.pixels_alpha(surface)
     cols = (arr > 0).any(axis=1)
     nz = np.flatnonzero(cols)
     return int(nz.min()) if nz.size else -1
 
 
-def _line_right_edges(surface: pygame.Surface, line_block_height: int) -> list[int]:
+def _line_right_edges(surface: Surface, line_block_height: int) -> list[int]:
     """Returns the rightmost non-zero pixel column for each line block.
 
     Splits the surface vertically into chunks of `line_block_height`
