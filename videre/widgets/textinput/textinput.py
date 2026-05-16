@@ -6,7 +6,7 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_utils import PygameUtils, Surface
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div
@@ -292,6 +292,8 @@ class TextInput(AbstractLayout):
             assert rendered is not None
             caret = rendered.pos_to_pixel(self._cursor_pos)
             cursor_rect = self._get_cursor_rect(caret)
-            pygame.gfxdraw.box(surface, cursor_rect, Colors.black)
+            pygame.gfxdraw.box(
+                surface, cursor_rect, PygameUtils.new_color(Colors.black)
+            )
 
         return surface

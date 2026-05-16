@@ -2,8 +2,8 @@ from typing import Self
 
 import pygame
 
-from videre.colors import ColorDef, Colors, parse_color
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.colors import Color, ColorDef, Colors, parse_color
+from videre.core.pygame_utils import PygameUtils, Surface
 
 
 class Gradient(PygameUtils):
@@ -34,7 +34,7 @@ class Gradient(PygameUtils):
         surface = self.new_surface(width, height)
 
         if len(self._colors) == 1:
-            surface.fill(self._colors[0])
+            surface.fill(self.new_color(self._colors[0]))
             return surface
 
         if self._vertical:
@@ -57,7 +57,9 @@ class Gradient(PygameUtils):
                 )
 
                 # Draw a horizontal line
-                pygame.draw.line(surface, color, (0, i), (width - 1, i))
+                pygame.draw.line(
+                    surface, PygameUtils.new_color(color), (0, i), (width - 1, i)
+                )
         else:
             # Horizontal gradient
             for i in range(width):
@@ -78,12 +80,14 @@ class Gradient(PygameUtils):
                 )
 
                 # Draw a vertical line
-                pygame.draw.line(surface, color, (i, 0), (i, height - 1))
+                pygame.draw.line(
+                    surface, PygameUtils.new_color(color), (i, 0), (i, height - 1)
+                )
 
         return surface
 
     @classmethod
-    def parse(cls, coloring: ColorDef | Self) -> "Gradient":
+    def parse(cls, coloring: Self | ColorDef | None) -> "Gradient":
         if isinstance(coloring, Gradient):
             return coloring
         return Gradient(parse_color(coloring))

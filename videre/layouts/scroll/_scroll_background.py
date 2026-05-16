@@ -1,4 +1,5 @@
-from videre.core.pygame_utils import Color, Surface
+from videre.colors import Color
+from videre.core.pygame_utils import PygameUtils, Surface
 from videre.widgets.widget import Widget
 
 
@@ -37,5 +38,7 @@ class _ScrollBackground(Widget):
         self._parent._set_child_position(self, x, y)
 
         surface = window.new_surface(b_width, b_height)
-        surface.fill(self._COLOR_HOVER if hover else self._COLOR_NORMAL)
+        surface.fill(
+            PygameUtils.new_color(self._COLOR_HOVER if hover else self._COLOR_NORMAL)
+        )
         return surface

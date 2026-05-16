@@ -1,7 +1,7 @@
 import pygame.gfxdraw
 
 from videre.colors import Colors
-from videre.core.pygame_utils import Surface
+from videre.core.pygame_utils import PygameUtils, Surface
 from videre.widgets.abstractanimation import FPS, AbstractAnimation, AbstractFraming
 
 
@@ -34,9 +34,13 @@ class Progressing(AbstractAnimation):
         inner_x = int(self._get_wprop("_cursor") * inner_max_x / self._max_cursor)
 
         bg = window.new_surface(bg_w, bg_h)
-        pygame.gfxdraw.rectangle(bg, pygame.Rect(0, 0, bg_w, bg_h), Colors.black)
+        pygame.gfxdraw.rectangle(
+            bg, pygame.Rect(0, 0, bg_w, bg_h), PygameUtils.new_color(Colors.black)
+        )
         if inner_w:
             pygame.gfxdraw.box(
-                bg, pygame.Rect(inner_x + 1, 1, inner_w, inner_h), Colors.black
+                bg,
+                pygame.Rect(inner_x + 1, 1, inner_w, inner_h),
+                PygameUtils.new_color(Colors.black),
             )
         return bg

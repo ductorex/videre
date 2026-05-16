@@ -6,13 +6,13 @@ from typing import Any, Callable, Sequence
 import pygame
 from pygame.event import Event
 
-from videre.colors import ColorDef, Colors, parse_color
+from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.clipboard import Clipboard
 from videre.core.constants import WINDOW_FPS, Alignment, MouseButton
 from videre.core.events import CustomEvents, KeyboardEntry, MouseEvent
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-from videre.core.pygame_utils import Color, PygameUtils, Surface
+from videre.core.pygame_utils import PygameUtils, Surface
 from videre.core.utils import Procedure, launch_thread
 from videre.layouts.container import Container
 from videre.widgets.button import Button
@@ -76,7 +76,7 @@ class Window(PygameUtils, Clipboard):
         title="Window",
         width=1280,
         height=720,
-        background: ColorDef = None,
+        background: ColorDef | None = None,
         font_size=14,
         hide=False,
         alert_on_exceptions: Sequence[type[Exception]] = (),
@@ -134,7 +134,7 @@ class Window(PygameUtils, Clipboard):
         return self._layout.background
 
     @background.setter
-    def background(self, value: ColorDef):
+    def background(self, value: ColorDef | None):
         self._layout.background = parse_color(value or Colors.white)
 
     @property

@@ -2,7 +2,8 @@ from dataclasses import dataclass
 
 import pygame
 
-Color = pygame.Color
+from videre.colors import Color
+
 Surface = pygame.Surface
 Event = pygame.event.Event
 
@@ -17,6 +18,10 @@ class PygameUtils:
     @classmethod
     def new_surface(cls, width: int | float, height: int | float) -> Surface:
         return Surface((width, height), flags=pygame.SRCALPHA)
+
+    @classmethod
+    def new_color(cls, color: Color) -> pygame.Color:
+        return pygame.Color(color.r, color.g, color.b, color.a)
 
 
 @dataclass(slots=True, frozen=True)

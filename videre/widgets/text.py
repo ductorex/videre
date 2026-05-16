@@ -1,8 +1,8 @@
 from typing import Any
 
-from videre.colors import ColorDef, parse_color
+from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.pygame_utils import Color, Surface
+from videre.core.pygame_utils import Surface
 from videre.core.rendering_result import TextRenderingResult
 from videre.widgets.widget import Widget
 
@@ -33,7 +33,7 @@ class Text(Widget):
         height_delta=2,
         wrap: TextWrap | None = None,
         align: TextAlign | None = None,
-        color: ColorDef = None,
+        color: ColorDef | None = None,
         strong: bool = False,
         italic: bool = False,
         underline: bool = False,
@@ -95,7 +95,7 @@ class Text(Widget):
         return self._get_wprop("color")
 
     @color.setter
-    def color(self, color: ColorDef):
+    def color(self, color: ColorDef | None):
         self._set_wprop("color", None if color is None else parse_color(color))
 
     @property

@@ -7,7 +7,7 @@ import pygame.freetype
 import pygame.gfxdraw
 import pygame.transform
 
-from videre.colors import Colors
+from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
 from videre.core.fontfactory.font_factory_utils import (
@@ -19,7 +19,7 @@ from videre.core.fontfactory.font_factory_utils import (
     align_words,
 )
 from videre.core.fontfactory.pygame_font_factory import CharMeasures, PygameFontFactory
-from videre.core.pygame_utils import Color, PygameRendered, Surface
+from videre.core.pygame_utils import PygameRendered, PygameUtils, Surface
 
 
 class FontSizes:
@@ -146,9 +146,10 @@ class PygameTextRendering:
         self._font_sizes = FontSizes(base, size, height_delta)
 
     def render_char(self, c: str, color: Color | None = None) -> Surface:
+        fgcolor = None if color is None else PygameUtils.new_color(color)
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
-        ).render(c, size=self._size, fgcolor=color)
+        ).render(c, size=self._size, fgcolor=fgcolor)
         return surface
 
     def render_text(
@@ -186,15 +187,16 @@ class PygameTextRendering:
         out = self._fonts.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
             pygame.gfxdraw.box(out, rect, (100, 100, 255, 100))
+        pygame_color = None if color is None else PygameUtils.new_color(color)
         for line in lines:
-            self._draw_underline(line, out, color)
+            self._draw_underline(line, out, pygame_color)
             ly = line.y
             lx = line.x
             for word in line.elements:
                 wx = lx + word.x
                 for ch in word.tasks:
                     ch.font.render_to(
-                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=color
+                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=pygame_color
                     )
         return out
 
@@ -277,16 +279,16 @@ class PygameTextRendering:
 
         return rects
 
-    def _draw_underline(self, line: Line[WordTask], out: Surface, color):
+    def _draw_underline(
+        self, line: Line[WordTask], out: Surface, color: pygame.Color | None
+    ):
         if self._underline and line:
             c = "_"
             x1 = line.elements[0].x + line.elements[0].tasks[0].bounds.x
             x2 = line.limit()
             font = self._fonts.get_font(c, strong=self._strong, italic=self._italic)
             font.antialiased = False
-            surface, box = font.render(
-                c, size=self._size, fgcolor=color or Colors.black
-            )
+            surface, box = font.render(c, size=self._size, fgcolor=color)
             font.antialiased = True
             us = surface.convert_alpha()
             width = x2 - x1

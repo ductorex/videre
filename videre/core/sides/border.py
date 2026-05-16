@@ -1,5 +1,4 @@
-from videre.colors import ColorDef, parse_color, stringify_color
-from videre.core.pygame_utils import Color
+from videre.colors import Color, ColorDef, parse_color, stringify_color
 from videre.core.sides.abstract_sides import AbstractSides
 from videre.core.sides.margin import Margin
 
@@ -7,7 +6,7 @@ from videre.core.sides.margin import Margin
 class BorderSide:
     __slots__ = ("width", "color")
 
-    def __init__(self, width: int, color: ColorDef = None):
+    def __init__(self, width: int, color: ColorDef | None = None):
         self.width = width
         self.color = parse_color(color or "black")
 
@@ -65,7 +64,7 @@ class Border(AbstractSides[BorderType, BorderSide]):
             raise ValueError(f"Unsupported border side value: {side!r}")
 
     @classmethod
-    def all(cls, width: int, color: ColorDef = None):
+    def all(cls, width: int, color: ColorDef | None = None):
         side = BorderSide(width, color)
         return cls(side, side, side, side)
 

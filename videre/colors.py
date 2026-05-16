@@ -1,6 +1,13 @@
+from dataclasses import dataclass
 from typing import TypeAlias
 
-from videre.core.pygame_utils import Color
+
+@dataclass(slots=True, frozen=True)
+class Color:
+    r: int
+    g: int
+    b: int
+    a: int = 255  # 0: transparent, 255: opaque
 
 
 class Colors:
@@ -149,11 +156,11 @@ class Colors:
 
 
 ColorDef: TypeAlias = (
-    Color | tuple[int, int, int] | tuple[int, int, int, int] | list[int] | str | None
+    Color | tuple[int, int, int] | tuple[int, int, int, int] | list[int] | str
 )
 
 
-def parse_color(value: ColorDef) -> Color:
+def parse_color(value: ColorDef | None) -> Color:
     """
     Parse color.
     Options:

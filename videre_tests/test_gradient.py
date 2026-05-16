@@ -1,7 +1,8 @@
 import pygame
 import pytest
 
-from videre.colors import Colors
+from videre.colors import Color, Colors
+from videre.core.pygame_utils import PygameUtils
 from videre.gradient import Gradient
 
 
@@ -13,7 +14,7 @@ def test_gradient_single_color():
     # Check that the entire surface is red
     for x in range(100):
         for y in range(100):
-            assert surface.get_at((x, y)) == Colors.red
+            assert surface.get_at((x, y)) == PygameUtils.new_color(Colors.red)
 
 
 def test_gradient_horizontal():
@@ -22,8 +23,8 @@ def test_gradient_horizontal():
     assert surface.get_width() == 100
     assert surface.get_height() == 50
     # Check colors at extremities
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((99, 0)) == Colors.blue
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.red)
+    assert surface.get_at((99, 0)) == PygameUtils.new_color(Colors.blue)
 
 
 def test_gradient_vertical():
@@ -32,8 +33,8 @@ def test_gradient_vertical():
     assert surface.get_width() == 50
     assert surface.get_height() == 100
     # Check colors at extremities
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((0, 99)) == Colors.blue
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.red)
+    assert surface.get_at((0, 99)) == PygameUtils.new_color(Colors.blue)
 
 
 def test_gradient_multiple_colors():
@@ -42,9 +43,9 @@ def test_gradient_multiple_colors():
     assert surface.get_width() == 101
     assert surface.get_height() == 50
     # Check colors at transition points
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((50, 0)) == Colors.green
-    assert surface.get_at((100, 0)) == Colors.blue
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.red)
+    assert surface.get_at((50, 0)) == PygameUtils.new_color(Colors.green)
+    assert surface.get_at((100, 0)) == PygameUtils.new_color(Colors.blue)
 
 
 def test_gradient_parse():
@@ -90,15 +91,15 @@ def test_gradient_edge_cases():
     surface = gradient.generate(1, 1)
     assert surface.get_width() == 1
     assert surface.get_height() == 1
-    assert surface.get_at((0, 0)) == Colors.red
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.red)
 
     # Test with very large dimensions
     surface = gradient.generate(1000, 1000)
     assert surface.get_width() == 1000
     assert surface.get_height() == 1000
     # Check start and end colors
-    assert surface.get_at((0, 0)) == Colors.red
-    assert surface.get_at((999, 999)) == Colors.blue
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.red)
+    assert surface.get_at((999, 999)) == PygameUtils.new_color(Colors.blue)
 
 
 def test_gradient_color_interpolation():
@@ -114,8 +115,8 @@ def test_gradient_color_interpolation():
     # Test with transparent colors
     transparent_gradient = Gradient(Colors.transparent, Colors.red)
     surface = transparent_gradient.generate(100, 1)
-    assert surface.get_at((0, 0)) == Colors.transparent
-    assert surface.get_at((99, 0)) == Colors.red
+    assert surface.get_at((0, 0)) == PygameUtils.new_color(Colors.transparent)
+    assert surface.get_at((99, 0)) == PygameUtils.new_color(Colors.red)
 
 
 def test_gradient_error_cases():
@@ -140,7 +141,7 @@ def test_gradient_error_cases():
 
 def test_gradient_similar_colors():
     # Test with very similar colors
-    similar_gradient = Gradient(Colors.red, pygame.Color(255, 0, 1))
+    similar_gradient = Gradient(Colors.red, Color(255, 0, 1))
     surface = similar_gradient.generate(100, 1)
 
     # Check that interpolation is still working
