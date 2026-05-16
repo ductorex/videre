@@ -1,7 +1,6 @@
 import math
+import time
 from abc import ABC, abstractmethod
-
-import pygame
 
 from videre import WINDOW_FPS
 from videre.widgets.widget import Widget
@@ -34,18 +33,20 @@ class AbstractFraming(ABC):
 class FPS(AbstractFraming):
     """Frames Per Second rhythm."""
 
-    __slots__ = ("_clock", "_fps", "_delay_ms", "_spent_ms")
+    __slots__ = ("_last_time", "_fps", "_delay_ms", "_spent_ms")
 
     def __init__(self, fps: int = 60):
-        self._clock = pygame.time.Clock()
+        self._last_time = time.perf_counter()
         self._fps = min(max(0, int(fps)), WINDOW_FPS)
         self._delay_ms = 1000 / self._fps if self._fps > 0 else math.inf
-        self._spent_ms = 0
+        self._spent_ms = 0.0
 
     def needs_frame(self, nb_window_frames: int) -> bool:
-        self._spent_ms += self._clock.tick()
+        now = time.perf_counter()
+        self._spent_ms += (now - self._last_time) * 1000
+        self._last_time = now
         if self._spent_ms >= self._delay_ms:
-            self._spent_ms = 0
+            self._spent_ms = 0.0
             return True
         return False
 

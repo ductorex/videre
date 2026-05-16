@@ -1,7 +1,6 @@
 import math
+import time
 from collections.abc import Callable
-
-import pygame
 
 from videre import WINDOW_FPS
 from videre.core.pygame_backend import Surface
@@ -14,17 +13,17 @@ OnFrame = Callable[[Widget, int], None]
 
 class Animator(AbstractLayout):
     __wprops__ = {"on_frame"}
-    __slots__ = ("_clock", "_fps", "_delay_ms", "_spent_ms", "_nb_frames")
+    __slots__ = ("_last_time", "_fps", "_delay_ms", "_spent_ms", "_nb_frames")
     __size__ = 1
 
     def __init__(
         self, control: Widget, on_frame: OnFrame | None = None, fps: int = 60, **kwargs
     ):
         super().__init__([control], **kwargs)
-        self._clock = pygame.time.Clock()
+        self._last_time = time.perf_counter()
         self._fps = min(max(0, int(fps)), WINDOW_FPS)
         self._delay_ms = 1000 / self._fps if self._fps > 0 else math.inf
-        self._spent_ms = 0
+        self._spent_ms = 0.0
         self._nb_frames = 0
         self.on_frame = on_frame
 
@@ -54,9 +53,11 @@ class Animator(AbstractLayout):
         return super().has_changed()
 
     def _check_fps(self):
-        self._spent_ms += self._clock.tick()
+        now = time.perf_counter()
+        self._spent_ms += (now - self._last_time) * 1000
+        self._last_time = now
         if self._spent_ms >= self._delay_ms:
-            self._spent_ms = 0
+            self._spent_ms = 0.0
             self._nb_frames += 1
             self.update()
 
