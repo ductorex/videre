@@ -1,9 +1,10 @@
+"""Glyph rasterizer. Independent from surface rendering backend, only based on freetype."""
+
 import math
 from dataclasses import dataclass
 
 import freetype as ft
 import numpy as np
-import pygame
 from freetype.raw import FT_Outline_Embolden
 
 from videre.core.shaping.shaped import ShapedRun
@@ -59,8 +60,31 @@ def _identity_transform() -> tuple[ft.Matrix, ft.Vector]:
     return ft.Matrix(_FT_FIXED_16_16, 0, 0, _FT_FIXED_16_16), ft.Vector(0, 0)
 
 
+@dataclass(slots=True, frozen=True)
+class Glyph:
+    image: np.ndarray | None
+    width: int
+    height: int
+    bitmap_left: int
+    bitmap_top: int
+
+    def empty(self) -> bool:
+        return self.image is None
+
+
+_GLYPH_ZERO = Glyph(None, 0, 0, 0, 0)
+
+
+@dataclass(slots=True, frozen=True)
+class GlyphArea:
+    width: int
+    height: int
+    baseline_y: int
+    glyphs: tuple[tuple[Glyph, int, int], ...]
+
+
 class GlyphRasterizer:
-    """Rasterize HarfBuzz glyph IDs to pygame Surfaces via freetype-py.
+    """Rasterize HarfBuzz glyph IDs to Glyph objects via freetype-py.
 
     Each glyph is rendered once and cached by
     `(font_path, size_px, bold, italic, glyph_id, color)`. Bold is applied
@@ -75,7 +99,7 @@ class GlyphRasterizer:
     __slots__ = ("_glyph_cache",)
 
     def __init__(self) -> None:
-        self._glyph_cache: dict[tuple, _Glyph] = {}
+        self._glyph_cache: dict[tuple, Glyph] = {}
 
     def render_single_glyph(
         self,
@@ -85,23 +109,20 @@ class GlyphRasterizer:
         italic: bool,
         glyph_id: int,
         color: tuple[int, ...] = (0, 0, 0),
-    ) -> pygame.Surface:
-        """Rasterize a single glyph to a tightly-fitted Surface.
+    ) -> Glyph:
+        """Rasterize a single glyph to a `Glyph`.
 
-        Mirrors what `pygame.freetype.Font.render` produced for the
-        legacy `PygameTextRendering.render_char`: only the glyph bitmap,
-        no advance padding, no baseline-relative offset. Empty glyphs
-        (whitespace, missing glyph) yield a zero-size surface. Returns
-        a fresh copy of the cached sprite so consumers may freely blit
-        onto it without polluting the cache.
+        Produces only the glyph bitmap, no advance padding, no
+        baseline-relative offset. Empty inputs (id 0, whitespace,
+        missing glyph, unsupported pixel format) yield a `Glyph` for
+        which `empty()` is True. The returned `Glyph` is the cached
+        instance; it is frozen and its underlying numpy buffer must be
+        treated as read-only.
         """
         if glyph_id == 0:
-            return pygame.Surface((0, 0), pygame.SRCALPHA)
+            return _GLYPH_ZERO
         rgba = _normalize_color(color)
-        sprite = self._get_glyph(font_path, size_px, bold, italic, glyph_id, rgba)
-        if sprite.surface is None:
-            return pygame.Surface((0, 0), pygame.SRCALPHA)
-        return sprite.surface.copy()
+        return self._get_glyph(font_path, size_px, bold, italic, glyph_id, rgba)
 
     def render_run(
         self,
@@ -110,21 +131,24 @@ class GlyphRasterizer:
         color: tuple[int, ...] = (0, 0, 0),
         *,
         subpixel: bool = False,
-    ) -> tuple[pygame.Surface, int]:
-        """Rasterize a whole shaped run into a single Surface.
+    ) -> GlyphArea:
+        """Rasterize a whole shaped run into a `GlyphArea`.
 
-        Returns `(surface, baseline_y)` where `baseline_y` is the y-coordinate
-        of the typographic baseline within the surface. The caller positions
-        the surface in its own coordinate system using that baseline.
+        The area carries the run's pixel `width` and `height`, the
+        `baseline_y` (y-coordinate of the typographic baseline inside
+        that box), and the per-glyph blit instructions
+        (`Glyph`, blit_x, blit_y). The caller materializes the area
+        into its own coordinate system, positioning it so the
+        baseline aligns with the line's global baseline.
 
-        When `subpixel=True`, each glyph is blitted using a pre-rendered
-        bitmap for the nearest of `_SUBPIXEL_PHASES` horizontal phases
-        (0.00, 0.25, 0.50, 0.75 px), so that the fractional part of the
-        pen position (from kerning / GPOS marks / synthetic slant)
-        survives the integer blit. The per-glyph cache grows by
-        `_SUBPIXEL_PHASES` since the sub-pixel bitmaps are LIGHT-hinted
-        and not interchangeable with the full-hinted ones used when
-        `subpixel=False`.
+        When `subpixel=True`, each glyph is positioned using a
+        pre-rendered bitmap for the nearest of `_SUBPIXEL_PHASES`
+        horizontal phases (0.00, 0.25, 0.50, 0.75 px), so that the
+        fractional part of the pen position (from kerning / GPOS marks
+        / synthetic slant) survives the integer blit. The per-glyph
+        cache grows by `_SUBPIXEL_PHASES` since the sub-pixel bitmaps
+        are LIGHT-hinted and not interchangeable with the full-hinted
+        ones used when `subpixel=False`.
         """
         face = load_freetype_face(run.font_path)
         face.set_pixel_sizes(0, size_px)
@@ -144,7 +168,7 @@ class GlyphRasterizer:
         # Tail glyphs may extend past their last advance (overhang); reserve
         # extra width based on max bitmap_left + width of all glyphs.
         rgba_color = _normalize_color(color)
-        rendered: list[tuple[_Glyph, int, int]] = []
+        rendered: list[tuple[Glyph, int, int]] = []
         pen_x = 0.0
         max_right = 0
         for g in run.glyphs:
@@ -186,13 +210,8 @@ class GlyphRasterizer:
         # cumulatively decalibrated multi-run layout (the wrap engine
         # measures by advances + ink overhang, not surface width).
         width = max(math.ceil(max(total_advance, max_right)), 1)
-        surface = pygame.Surface((width, line_height), pygame.SRCALPHA)
         baseline_y = int(ascender)
-        for sprite, blit_x, blit_y in rendered:
-            if sprite.surface is None:
-                continue
-            surface.blit(sprite.surface, (blit_x, baseline_y + blit_y))
-        return surface, baseline_y
+        return GlyphArea(width, line_height, baseline_y, tuple(rendered))
 
     def _get_glyph(
         self,
@@ -204,7 +223,7 @@ class GlyphRasterizer:
         rgba: tuple[int, int, int, int],
         subpixel: bool = False,
         phase: int = 0,
-    ) -> "_Glyph":
+    ) -> "Glyph":
         # `subpixel` belongs in the cache key because LIGHT vs full
         # hinting produce visibly different bitmaps even at phase 0,
         # so a sub-pixel run and a pixel-aligned run sharing the same
@@ -217,15 +236,6 @@ class GlyphRasterizer:
             )
             self._glyph_cache[key] = sprite
         return sprite
-
-
-@dataclass(slots=True, frozen=True)
-class _Glyph:
-    surface: pygame.Surface | None
-    width: int
-    height: int
-    bitmap_left: int
-    bitmap_top: int
 
 
 def _normalize_color(color: tuple[int, ...]) -> tuple[int, int, int, int]:
@@ -243,7 +253,7 @@ def _rasterize_glyph(
     rgba: tuple[int, int, int, int],
     subpixel: bool,
     phase: int,
-) -> _Glyph:
+) -> Glyph:
     face = load_freetype_face(font_path)
     face.set_pixel_sizes(0, size_px)
     matrix, delta = _italic_transform() if italic else _identity_transform()
@@ -287,20 +297,22 @@ def _rasterize_glyph(
     bitmap_left = face.glyph.bitmap_left
     bitmap_top = face.glyph.bitmap_top
     width, rows, pitch = bitmap.width, bitmap.rows, bitmap.pitch
-    if width == 0 or rows == 0:
-        return _Glyph(None, 0, 0, bitmap_left, bitmap_top)
-
     pixel_mode = bitmap.pixel_mode
-    if pixel_mode == _FT_PIXEL_MODE_BGRA:
+
+    if width == 0 or rows == 0:
+        image = None
+    elif pixel_mode == _FT_PIXEL_MODE_BGRA:
         image = _bgra_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch)
     elif pixel_mode == _FT_PIXEL_MODE_GRAY:
         image = _gray_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch, rgba)
     else:
         # Other formats (FT_PIXEL_MODE_MONO, _LCD, etc.) are rare for our
         # use case; skip them rather than risk a wrong conversion.
-        return _Glyph(None, 0, 0, bitmap_left, bitmap_top)
-    surface = pygame.image.frombuffer(image.tobytes(), (width, rows), "RGBA")
-    return _Glyph(surface, width, rows, bitmap_left, bitmap_top)
+        image = None
+
+    if image is None:
+        return Glyph(None, 0, 0, bitmap_left, bitmap_top)
+    return Glyph(image, width, rows, bitmap_left, bitmap_top)
 
 
 def _gray_to_numpy_array(
