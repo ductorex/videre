@@ -159,5 +159,5 @@ def test_force_alert_on_handled_exception(fake_user):
 
         # Should show error fancybox instead of quitting
         assert win.has_fancybox()
-        assert win._running is True
+        assert win._is_running()
         assert win._exit_code == 0

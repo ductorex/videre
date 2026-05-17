@@ -4,7 +4,7 @@ from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.pygame_backend import Pygame, Surface
 
 
-class Gradient(Pygame):
+class Gradient:
     """
     Optimized gradient implementation using direct drawing.
     This approach is more efficient than using smoothscale for gradients.
@@ -15,8 +15,6 @@ class Gradient(Pygame):
     __slots__ = ("_colors", "_vertical")
 
     def __init__(self, *colors: Color, vertical=False):
-        super().__init__()
-
         self._colors = colors or [Colors.transparent]
         self._vertical: bool = vertical
 

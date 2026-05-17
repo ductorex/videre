@@ -6,7 +6,6 @@ from typing import Any, Callable, Sequence
 import pygame
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.clipboard import Clipboard
 from videre.core.constants import WINDOW_FPS, Alignment, MouseButton
 from videre.core.events import (
     CallbackTask,
@@ -36,21 +35,10 @@ from videre.windowing.windowutils import OnEvent, WidgetByKeyGetter
 logger = logging.getLogger(__name__)
 
 
-def _handle_exception(on_except, function):
-    @functools.wraps(function)
-    def wrapper(*args, **kwargs):
-        try:
-            return function(*args, **kwargs)
-        except Exception as e:
-            if not on_except(e):
-                raise e
-
-    return wrapper
-
-
-class Window(Pygame, Clipboard):
+class Window:
     __slots__ = (
         "_exit_code",
+        "_exit_exception",
         "_title",
         "_width",
         "_height",
@@ -87,27 +75,32 @@ class Window(Pygame, Clipboard):
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
     ):
-        super().__init__()
-        self._exit_code = 0
+        Pygame.init()
 
+        self._screen: Surface | None = None
+        self._exit_code = 0
+        self._exit_exception: Exception | None = None
         self._lock = threading.Lock()
 
         self._title = str(title) or "Window"
+        self._hide = bool(hide)
+
+        # Window event variables: handled by both window and event methods
         self._width = width  # event
         self._height = height  # event
-        self._hide = bool(hide)
-        self._screen: Surface | None = None
-
-        self._pending_tasks: list[VidereTask] = []
-        self._running = True  # event
         self._focus: Widget | None = None  # event
         self._layout = WindowLayout(parse_color(background or Colors.white))  # event
-        self._notif_cbks: list[NotificationCallback] = []  # event
 
+        # Event variables: handled only by event methods
         self._down: dict[MouseButton, Widget | None] = {
             button: None for button in MouseButton
         }  # event
         self._motion: Widget | None = None  # event
+
+        # Videre-specific events
+        self._running = True
+        self._pending_tasks: list[VidereTask] = []
+        self._notif_cbks: list[NotificationCallback] = []
 
         self._controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
@@ -124,6 +117,12 @@ class Window(Pygame, Clipboard):
         self._subpixel: bool | None = handle_text_sub_pixels
 
         self.data = None
+
+    def _is_running(self) -> bool:
+        return self._running
+
+    def _stop_running(self):
+        self._running = False
 
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
@@ -228,6 +227,9 @@ class Window(Pygame, Clipboard):
             self._render()
             clock.tick(WINDOW_FPS)
         pygame.quit()
+
+        if self._exit_exception:
+            raise self._exit_exception
         return self._exit_code
 
     def _init_display(self):
@@ -282,7 +284,8 @@ class Window(Pygame, Clipboard):
             self._pending_tasks = []
         for task in tasks:
             if isinstance(task, ExitTask):
-                self._running = False
+                self._exit_exception = task.exception
+                self._stop_running()
             elif isinstance(task, NotificationTask):
                 task.dispatch(self._notif_cbks)
             else:
@@ -300,27 +303,34 @@ class Window(Pygame, Clipboard):
         self._post_event(CustomTasks.notification_task(notification))
 
     def call_later(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
+        wrapper = self._with_exc_handled(function)
         self._post_event(CustomTasks.callback_task(wrapper, *args, **kwargs))
 
     def call_async(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
+        wrapper = self._with_exc_handled(function)
         self._post_event(
             CustomTasks.callback_task(launch_thread, wrapper, *args, **kwargs)
         )
 
     def call_now(self, function, *args, **kwargs):
-        wrapper = _handle_exception(self._force_quit, function)
+        wrapper = self._with_exc_handled(function)
         return wrapper(*args, **kwargs)
+
+    def _with_exc_handled(self, function: Callable) -> Callable:
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except Exception as e:
+                self._force_quit(e)
+
+        return wrapper
 
     def _force_quit(self, exc: Exception):
         if self._handled_exceptions and isinstance(exc, self._handled_exceptions):
             self._force_alert(exc)
-            return True
         else:
-            self._exit_code = -int(exc is not None)
-            self._post_event(CustomTasks.exit_task())
-            return False
+            self._post_event(CustomTasks.exit_task(exc))
 
     def _force_alert(self, exception: Exception):
         self.clear_context()
@@ -339,8 +349,7 @@ class Window(Pygame, Clipboard):
         expand_buttons=True,
     ):
         assert not self._fancybox
-        if self._focus:
-            self.focus_out(self._focus)
+        self.focus_out()
         self._fancybox = Fancybox(content, title, buttons, expand_buttons)
         self.__refresh_controls()
 
@@ -470,7 +479,7 @@ class Window(Pygame, Clipboard):
     @on_event(pygame.QUIT)
     def _on_quit(self, event: Event):
         logger.warning("Quit pygame.")
-        self._running = False
+        self._stop_running()
 
     @on_event(pygame.MOUSEWHEEL)
     def _on_mouse_wheel(self, event: Event):
@@ -496,8 +505,8 @@ class Window(Pygame, Clipboard):
                 self._focus.handle_focus_out()
             self._focus = focus
 
-    def focus_out(self, widget: Widget):
-        if self._focus is widget:
+    def focus_out(self, widget: Widget | None = None):
+        if self._focus and (widget is None or self._focus is widget):
             self._focus.handle_focus_out()
             self._focus = None
 

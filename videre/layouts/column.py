@@ -118,7 +118,7 @@ class Column(AbstractControlsLayout):
             height = total_height + total_space
         else:
             height = min(height, total_height + space * max(0, nb_rendered - 1))
-        column = window.new_surface(width, height)
+        column = Pygame.new_surface(width, height)
         y = 0
         for i, render in enumerate(rendered):
             if render:

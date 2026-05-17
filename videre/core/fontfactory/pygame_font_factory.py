@@ -16,7 +16,7 @@ class CharMeasures:
     metrics: tuple[int, int, int, int, float, float]
 
 
-class PygameFontFactory(Pygame):
+class PygameFontFactory:
     __slots__ = (
         "_prov",
         "_key_to_font",
@@ -27,7 +27,7 @@ class PygameFontFactory(Pygame):
     )
 
     def __init__(self, size=14):
-        super().__init__()
+        Pygame.init()
         self._prov = FontProvider()
         self._key_to_font: dict[tuple[str, bool, bool], pygame.freetype.Font] = {}
         self._size = size

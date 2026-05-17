@@ -250,7 +250,7 @@ class ScrollView(AbstractLayout):
                 # set content_y to bottom
                 self._content_y = end_pos
 
-        view = window.new_surface(width, height)
+        view = Pygame.new_surface(width, height)
         Pygame.blit(view, content, (self._content_x, self._content_y))
 
         both = has_h_scroll and has_v_scroll

@@ -19,7 +19,8 @@ _Position: TypeAlias = tuple[int | float, int | float]
 class Pygame:
     __slots__ = ()
 
-    def __init__(self):
+    @classmethod
+    def init(cls):
         # Init pygame here.
         pygame.init()
 

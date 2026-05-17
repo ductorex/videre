@@ -188,7 +188,7 @@ class PygameTextRendering:
     ) -> Surface:
         align_words(lines, width, align)
         size = self._size
-        out = self._fonts.new_surface(width, height)
+        out = Pygame.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
             Pygame.box(out, rect, Color(100, 100, 255, 100))
         pygame_color = None if color is None else Pygame.new_color(color)

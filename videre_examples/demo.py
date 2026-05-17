@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import videre
+from videre.core.clipboard import Clipboard
 from videre.core.framing import FPS
 from videre.layouts.div.div import Div
 from videre.testing.utils import LOREM_IPSUM
@@ -65,10 +66,10 @@ class Demo:
         text = videre.Text(sentence)
 
         def to_clipboard(*args):
-            self.window.set_clipboard(sentence)
+            Clipboard.set_clipboard(sentence)
 
         def from_clipboard(*args):
-            text.text = self.window.get_clipboard()
+            text.text = Clipboard.get_clipboard()
 
         return videre.Column(
             [

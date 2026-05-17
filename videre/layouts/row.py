@@ -117,7 +117,7 @@ class Row(AbstractControlsLayout):
         else:
             choice = min if alignment == Alignment.START else max
             height = choice(height, max_height)
-        row = window.new_surface(width, height)
+        row = Pygame.new_surface(width, height)
         x = 0
         for i, render in enumerate(rendered):
             if render:

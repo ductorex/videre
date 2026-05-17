@@ -144,7 +144,7 @@ class _HScrollBar(Widget):
             self.content_pos,
             scrollbar_length=(max(0, view_width - thickness) if self.both else None),
         )
-        h_scroll = window.new_surface(h_scroll_width, thickness)
+        h_scroll = Pygame.new_surface(h_scroll_width, thickness)
         h_scroll.fill(Pygame.new_color(self.color))
         pos = (h_scroll_x, view_height - thickness)
         return h_scroll, pos

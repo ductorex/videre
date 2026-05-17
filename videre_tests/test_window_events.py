@@ -82,10 +82,10 @@ class TrackerWidget(Widget):
 
 
 def test_on_quit(fake_win, fake_user):
-    assert fake_win._running is True
+    assert fake_win._is_running()
     fake_user.quit()
     fake_win.render()
-    assert fake_win._running is False
+    assert not fake_win._is_running()
 
 
 # --- Mouse wheel ---
@@ -549,13 +549,22 @@ def test_run_async_with_error(fake_win):
         raise Exception("function error")
         data.value += a * b
 
+    assert fake_win._exit_code == 0
+    assert fake_win._exit_exception is None
+    # Call task will be pushed in window tasks queue
     fake_win.call_async(function, 6, 7)
-    # This render() will push call event into manual events queue
+    # This render() will handle window tasks queue and launch the thread
     fake_win.render()
-    # This render() will handle manual events queue
-    fake_win.render()
-    # Let's wait a little, to let thread run.
-    time.sleep(0.25)
+    # Let's wait a little, to let thread run and post its ExitTask.
+    time.sleep(0.5)
     assert data.called == 1
     assert data.value == 1
-    assert fake_win._exit_code == -1
+
+    # This render() drains the ExitTask posted by the failing thread,
+    # which sets _exit_exception.
+    fake_win.render()
+
+    assert fake_win._exit_code == 0
+    assert fake_win._exit_exception is not None
+    assert isinstance(fake_win._exit_exception, Exception)
+    assert fake_win._exit_exception.args == ("function error",)

@@ -133,7 +133,7 @@ class NotificationTask:
 
 @dataclass(slots=True, frozen=True)
 class ExitTask:
-    pass
+    exception: Exception | None = None
 
 
 VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask
@@ -149,5 +149,5 @@ class CustomTasks:
         return NotificationTask(something)
 
     @classmethod
-    def exit_task(cls):
-        return ExitTask()
+    def exit_task(cls, exc: Exception | None = None) -> ExitTask:
+        return ExitTask(exc)

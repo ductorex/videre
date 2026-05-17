@@ -2,6 +2,7 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 
 from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
+from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend import Pygame, Rect, Surface
@@ -251,10 +252,10 @@ class TextInput(AbstractLayout):
             elif key.c and self._has_selection():
                 start, end = self._required_selection()
                 content = self._text.text[start:end]
-                self.get_window().set_clipboard(content)
+                Clipboard.set_clipboard(content)
                 self._debug("copied", repr(content))
             elif key.v:
-                inserted = self.get_window().get_clipboard()
+                inserted = Clipboard.get_clipboard()
                 if inserted:
                     in_text = self._text.text
                     if self._has_selection():

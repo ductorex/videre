@@ -66,7 +66,7 @@ class _VScrollBar(_HScrollBar):
             self.content_pos,
             scrollbar_length=(max(0, view_height - thickness) if self.both else None),
         )
-        v_scroll = window.new_surface(thickness, v_scroll_height)
+        v_scroll = Pygame.new_surface(thickness, v_scroll_height)
         v_scroll.fill(Pygame.new_color(self.color))
         pos = (view_width - thickness, v_scroll_y)
         return v_scroll, pos
