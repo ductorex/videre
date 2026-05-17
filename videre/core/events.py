@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Sequence
+from typing import Any, Callable, Sequence, TypeAlias
 
 import pygame
 from pygame.event import Event
@@ -109,16 +109,45 @@ class KeyboardEntry:
         )
 
 
-class CustomEvents:
-    CALLBACK_EVENT = pygame.event.custom_type()
-    NOTIFICATION_EVENT = pygame.event.custom_type()
+NotificationCallback: TypeAlias = Callable[[Any], None]
+
+
+@dataclass(slots=True, frozen=True)
+class CallbackTask:
+    function: Callable
+    args: tuple
+    kwargs: dict
+
+    def run(self):
+        self.function(*self.args, **self.kwargs)
+
+
+@dataclass(slots=True, frozen=True)
+class NotificationTask:
+    notification: Any
+
+    def dispatch(self, callbacks: Sequence[NotificationCallback]):
+        for callback in callbacks:
+            callback(self.notification)
+
+
+@dataclass(slots=True, frozen=True)
+class ExitTask:
+    pass
+
+
+VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask
+
+
+class CustomTasks:
+    @classmethod
+    def callback_task(cls, function, *args, **kwargs) -> CallbackTask:
+        return CallbackTask(function, args, kwargs)
 
     @classmethod
-    def callback_event(cls, function, *args, **kwargs):
-        return Event(
-            cls.CALLBACK_EVENT, {"function": function, "args": args, "kwargs": kwargs}
-        )
+    def notification_task(cls, something: Any) -> NotificationTask:
+        return NotificationTask(something)
 
     @classmethod
-    def notification_event(cls, something):
-        return Event(cls.NOTIFICATION_EVENT, {"notification": something})
+    def exit_task(cls):
+        return ExitTask()

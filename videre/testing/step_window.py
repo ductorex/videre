@@ -27,6 +27,7 @@ class StepWindow(Window):
     def render(self):
         if not self._step_mode:
             raise RuntimeError("render() requires step-mode (`with window`)")
+        assert self._running
         self._render()
 
     def screenshot(self) -> io.BytesIO:

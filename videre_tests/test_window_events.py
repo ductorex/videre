@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pygame
 
 from videre.core.constants import MouseButton
-from videre.core.events import CustomEvents, KeyboardEntry
+from videre.core.events import CustomTasks, KeyboardEntry
 from videre.core.pygame_backend import Event, Pygame
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
@@ -416,10 +416,10 @@ def test_on_custom_callback(fake_win):
         callback_data.args = args
         callback_data.kwargs = kwargs
 
-    callback_event = CustomEvents.callback_event(
+    callback_event = CustomTasks.callback_task(
         test_callback, "arg1", "arg2", key="value"
     )
-    pygame.event.post(callback_event)
+    fake_win._post_event(callback_event)
     fake_win.render()
 
     assert callback_data.called is True
@@ -437,8 +437,8 @@ def test_on_notification(fake_win):
         notification_data.received = notification
 
     fake_win.set_notification_callback(notification_callback)
-    notification_event = CustomEvents.notification_event("Test notification")
-    pygame.event.post(notification_event)
+    notification_event = CustomTasks.notification_task("Test notification")
+    fake_win._post_event(notification_event)
     fake_win.render()
 
     assert notification_data.received == "Test notification"
@@ -446,20 +446,12 @@ def test_on_notification(fake_win):
 
 def test_on_notification_no_callback(fake_win):
     assert not fake_win._notif_cbks
-    notification_event = CustomEvents.notification_event("Test notification")
-    pygame.event.post(notification_event)
+    notification_event = CustomTasks.notification_task("Test notification")
+    fake_win._post_event(notification_event)
     fake_win.render()  # should not raise
 
 
 # --- Post event & thread safety ---
-
-
-def test_post_event(fake_win):
-    test_event = pygame.event.Event(pygame.USEREVENT, data="test")
-    fake_win._post_event(test_event)
-    with fake_win._lock:
-        assert len(fake_win._manual_events_after) == 1
-        assert fake_win._manual_events_after[0] is test_event
 
 
 def test_run_later_method(fake_win):
@@ -482,29 +474,26 @@ def test_run_later_method(fake_win):
 
 
 def test_thread_safety_of_post_event(fake_win):
-    events_posted = []
+    """Posts from multiple threads must all land in `_pending_tasks`
+    without loss or corruption (the buffer is protected by `_lock`)."""
+    tasks_posted = []
 
-    def post_events():
-        for i in range(10):
-            event = pygame.event.Event(
-                pygame.USEREVENT, data=f"event_{threading.current_thread().ident}_{i}"
-            )
-            fake_win._post_event(event)
-            events_posted.append(event)
+    def post_tasks():
+        for _ in range(10):
+            task = CustomTasks.callback_task(lambda: None)
+            fake_win._post_event(task)
+            tasks_posted.append(task)
             time.sleep(0.001)
 
-    threads = []
-    for _ in range(3):
-        thread = threading.Thread(target=post_events)
-        threads.append(thread)
+    threads = [threading.Thread(target=post_tasks) for _ in range(3)]
+    for thread in threads:
         thread.start()
-
     for thread in threads:
         thread.join()
 
     with fake_win._lock:
-        assert len(fake_win._manual_events_after) == 30
-    assert len(events_posted) == 30
+        assert len(fake_win._pending_tasks) == 30
+    assert len(tasks_posted) == 30
 
 
 # --- Default mouse over (synthetic MOUSEMOTION) ---
