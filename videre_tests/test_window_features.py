@@ -65,7 +65,7 @@ def test_set_fancybox_clears_focus(fake_win, fake_user):
     # Give focus
     fake_user.click(ti)
     fake_win.render()
-    assert fake_win._focus is ti
+    assert fake_win._event_manager._focus is ti
 
     # Open fancybox should clear focus
     fake_win.set_fancybox(videre.Text("content"), title="box")
@@ -102,7 +102,7 @@ def test_escape_closes_context(fake_win, fake_user):
 
     # Click elsewhere so focus leaves the context button (so keydown goes to window)
     # Actually, escape without focus goes through the window's _on_keydown else branch
-    fake_win._focus = None
+    fake_win._event_manager._focus = None
     fake_user.keyboard_entry("escape")
     fake_win.render()
 

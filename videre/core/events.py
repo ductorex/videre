@@ -136,7 +136,20 @@ class ExitTask:
     exception: Exception | None = None
 
 
-VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask
+@dataclass(slots=True, frozen=True)
+class SizeTask:
+    width: int
+    height: int
+
+
+@dataclass(slots=True, frozen=True)
+class EscapeTask:
+    pass
+
+
+VidereTask: TypeAlias = (
+    CallbackTask | NotificationTask | ExitTask | SizeTask | EscapeTask
+)
 
 
 class CustomTasks:
@@ -151,3 +164,7 @@ class CustomTasks:
     @classmethod
     def exit_task(cls, exc: Exception | None = None) -> ExitTask:
         return ExitTask(exc)
+
+    @classmethod
+    def size_task(cls, width: int, height: int):
+        return SizeTask(width, height)

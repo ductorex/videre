@@ -131,8 +131,8 @@ def test_on_mouse_button_down(fake_win, fake_user):
 
     assert ("mouse_down",) in tracker.events
     assert ("focus_in",) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._focus is tracker
 
 
 def test_on_mouse_button_down_focus_change(fake_win, fake_user):
@@ -144,21 +144,21 @@ def test_on_mouse_button_down_focus_change(fake_win, fake_user):
     # Click first widget to give it focus
     fake_user.click(tracker1)
     fake_win.render()
-    assert fake_win._focus is tracker1
+    assert fake_win._event_manager._focus is tracker1
 
     # Click second widget
     fake_user.click(tracker2)
     fake_win.render()
 
     assert ("focus_out",) in tracker1.events
-    assert fake_win._focus is tracker2
+    assert fake_win._event_manager._focus is tracker2
 
 
 def test_on_mouse_button_down_no_owner(fake_win, fake_user):
     fake_win.render()
     fake_user.mouse_down(5000, 5000)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 # --- Mouse button up ---
@@ -173,7 +173,7 @@ def test_on_mouse_button_up_with_click(fake_win, fake_user):
     fake_win.render()
 
     assert ("click", MouseButton.BUTTON_LEFT) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 def test_on_mouse_button_up_different_widget(fake_win, fake_user):
@@ -185,7 +185,7 @@ def test_on_mouse_button_up_different_widget(fake_win, fake_user):
     # Mouse down on tracker1
     fake_user.mouse_down(tracker1.global_x + 5, tracker1.global_y + 5)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker1
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker1
 
     # Mouse up on tracker2
     fake_user.mouse_up(tracker2.global_x + 5, tracker2.global_y + 5)
@@ -194,7 +194,7 @@ def test_on_mouse_button_up_different_widget(fake_win, fake_user):
     assert ("click", MouseButton.BUTTON_LEFT) not in tracker1.events
     assert ("click", MouseButton.BUTTON_LEFT) not in tracker2.events
     assert ("mouse_down_canceled", MouseButton.BUTTON_LEFT) in tracker1.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 def test_on_mouse_button_up_no_owner(fake_win, fake_user):
@@ -205,14 +205,14 @@ def test_on_mouse_button_up_no_owner(fake_win, fake_user):
     # Mouse down on tracker
     fake_user.mouse_down(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
 
     # Mouse up outside window
     fake_user.mouse_up(5000, 5000)
     fake_win.render()
 
     assert ("mouse_down_canceled", MouseButton.BUTTON_LEFT) in tracker.events
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is None
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is None
 
 
 # --- Mouse motion ---
@@ -222,13 +222,13 @@ def test_on_mouse_motion_first_enter(fake_win, fake_user):
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
 
     assert ("mouse_enter",) in tracker.events
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 def test_on_mouse_motion_same_widget(fake_win, fake_user):
@@ -242,14 +242,14 @@ def test_on_mouse_motion_same_widget(fake_win, fake_user):
     # First motion - enter
     fake_user.mouse_motion(x, y)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Second motion on same widget - over
     fake_user.mouse_motion(x + 1, y + 1)
     fake_win.render()
 
     assert ("mouse_over",) in tracker.events
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 def test_on_mouse_motion_different_widget(fake_win, fake_user):
@@ -261,7 +261,7 @@ def test_on_mouse_motion_different_widget(fake_win, fake_user):
     # Motion to tracker1
     fake_user.mouse_motion(tracker1.global_x + 5, tracker1.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker1
+    assert fake_win._event_manager._motion is tracker1
 
     # Motion to tracker2
     fake_user.mouse_motion(tracker2.global_x + 5, tracker2.global_y + 5)
@@ -269,7 +269,7 @@ def test_on_mouse_motion_different_widget(fake_win, fake_user):
 
     assert ("mouse_enter",) in tracker2.events
     assert ("mouse_exit",) in tracker1.events
-    assert fake_win._motion is tracker2
+    assert fake_win._event_manager._motion is tracker2
 
 
 def test_on_mouse_motion_no_owner(fake_win, fake_user):
@@ -280,14 +280,14 @@ def test_on_mouse_motion_no_owner(fake_win, fake_user):
     # Enter the widget
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Motion outside window bounds
     fake_user.mouse_motion(5000, 5000)
     fake_win.render()
 
     assert ("mouse_exit",) in tracker.events
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_on_mouse_motion_with_button_down(fake_win, fake_user):
@@ -303,7 +303,7 @@ def test_on_mouse_motion_with_button_down(fake_win, fake_user):
     fake_win.render()
     fake_user.mouse_down(x, y)
     fake_win.render()
-    assert fake_win._down[MouseButton.BUTTON_LEFT] is tracker
+    assert fake_win._event_manager._down[MouseButton.BUTTON_LEFT] is tracker
 
     # Motion with button pressed
     fake_user.mouse_motion(x + 2, y + 2, button_left=True)
@@ -323,22 +323,22 @@ def test_on_window_leave(fake_win, fake_user):
     # Enter the widget
     fake_user.mouse_motion(tracker.global_x + 5, tracker.global_y + 5)
     fake_win.render()
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
     # Window leave
     pygame.event.post(Event(pygame.WINDOWLEAVE))
     fake_win.render()
 
     assert ("mouse_exit",) in tracker.events
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_on_window_leave_no_motion(fake_win):
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
     pygame.event.post(Event(pygame.WINDOWLEAVE))
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 # --- Window resized ---
@@ -363,7 +363,7 @@ def test_on_text_input_with_focus(fake_win, fake_user):
 
     fake_user.click(tracker)
     fake_win.render()
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._focus is tracker
 
     fake_user.text_input("Hello")
     fake_win.render()
@@ -373,7 +373,7 @@ def test_on_text_input_with_focus(fake_win, fake_user):
 
 def test_on_text_input_no_focus(fake_win, fake_user):
     fake_win.render()
-    assert fake_win._focus is None
+    assert fake_win._event_manager._focus is None
     fake_user.text_input("Hello")
     fake_win.render()  # should not raise
 
@@ -388,7 +388,7 @@ def test_on_keydown_with_focus(fake_win, fake_user):
 
     fake_user.click(tracker)
     fake_win.render()
-    assert fake_win._focus is tracker
+    assert fake_win._event_manager._focus is tracker
 
     fake_user.key_down(pygame.K_SPACE, unicode=" ")
     fake_win.render()
@@ -400,7 +400,7 @@ def test_on_keydown_with_focus(fake_win, fake_user):
 
 def test_on_keydown_no_focus(fake_win, fake_user):
     fake_win.render()
-    assert fake_win._focus is None
+    assert fake_win._event_manager._focus is None
     fake_user.key_down(pygame.K_SPACE, unicode=" ")
     fake_win.render()  # should not raise
 
@@ -504,7 +504,7 @@ def test_window_default_mouse_over_no(fake_win):
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
     fake_win.render()
-    assert fake_win._motion is None
+    assert fake_win._event_manager._motion is None
 
 
 def test_window_default_mouse_over(fake_win):
@@ -516,7 +516,7 @@ def test_window_default_mouse_over(fake_win):
     with patch("pygame.mouse.get_focused", return_value=True):
         fake_win.render()
 
-    assert fake_win._motion is tracker
+    assert fake_win._event_manager._motion is tracker
 
 
 # --- Async ---

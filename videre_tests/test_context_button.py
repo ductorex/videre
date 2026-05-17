@@ -70,7 +70,7 @@ def test_context_button_focus_out_closes(fake_win, fake_user):
     fake_user.click(cb)
     fake_win.render()
     assert cb._context is not None
-    assert fake_win._focus is cb
+    assert fake_win._event_manager._focus is cb
 
     # Click elsewhere to lose focus
     fake_user.click(other)
