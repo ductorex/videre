@@ -353,29 +353,27 @@ class ShapedTextRendering:
 
         out = Pygame.new_surface(max(target_width, 1), max(total_height, 1))
 
+        rendered_text = ShapedRenderedText(
+            font_metrics=self.font_metrics, line_layouts=tuple(line_layouts)
+        )
+
         # Pass 1: paint the selection background (translucent) BEFORE
         # blitting glyphs. The order matters: selection must sit behind
         # the glyphs so it doesn't tint them. We use `gfxdraw.box` for
         # alpha-correct fills (`draw.rect` ignores the alpha channel).
+        # `selection` is a half-open range of *visual* positions; the
+        # backend returns one rectangle per line touched, each a
+        # contiguous pixel ribbon (items being in visual pixel order).
         if selection is not None and selection[0] < selection[1]:
-            for layout in line_layouts:
-                for rect_x, rect_w in _selection_rects_from_layout(layout, selection):
-                    Pygame.box(
-                        out,
-                        Rect(
-                            rect_x, layout.y_top, rect_w, layout.y_bottom - layout.y_top
-                        ),
-                        _SELECTION_RGBA,
-                    )
+            for rect in rendered_text.visual_selection_rects(*selection):
+                Pygame.box(out, rect, _SELECTION_RGBA)
 
         # Pass 2: glyphs (each line surface includes its underline).
         for (surface, intrinsic_baseline, _), baseline, x in zip(
             rendered, baselines, x_offsets
         ):
             Pygame.blit(out, surface, (x, baseline - intrinsic_baseline))
-        return ShapedRenderedText(
-            font_metrics=self.font_metrics, line_layouts=tuple(line_layouts)
-        ), PygameRendered(out)
+        return rendered_text, PygameRendered(out)
 
     def _render_line(
         self, line: ShapedLine, color: Color, *, extra_word_gap: float = 0.0
@@ -691,26 +689,6 @@ def _build_line_layout(
         source_length=line.source_length(),
         items=tuple(items),
     )
-
-
-def _selection_rects_from_layout(
-    layout: _LineLayout, selection: tuple[int, int]
-) -> list[tuple[int, int]]:
-    """Pixel ``(x, width)`` tuples (absolute in the surface) for the
-    items of `layout` that intersect ``selection`` half-open range.
-
-    Each item in the layout already carries its absolute source range
-    and its line-relative pixel range; we just shift x by the line's
-    `x_offset` and intersect against the selection.
-    """
-    sel_start, sel_end = selection
-    rects: list[tuple[int, int]] = []
-    for item in layout.items:
-        if item.source_start < sel_end and item.source_end > sel_start:
-            rects.append(
-                (layout.x_offset + item.x_start, max(item.x_end - item.x_start, 1))
-            )
-    return rects
 
 
 def _glyph_to_surface(glyph: Glyph) -> Surface:

@@ -2,6 +2,8 @@ import bisect
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
+from cursword import get_next_word_end_position, get_previous_word_start_position
+
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
@@ -43,6 +45,22 @@ class FontSizes:
         self.descender: int = abs(base_font.get_sized_descender(size))
         self.space_width: int = base.rect.width
         self.space_shift: int | float = metric[4] if metric else self.space_width
+
+
+@dataclass(slots=True, frozen=True)
+class _LegacyCursorState:
+    """`CursorState` implementation for the legacy renderer. The
+    backend has no bidi awareness, so `pos == visual_pos`: the source
+    sequence and the visual sequence are the same. `pixel` is the
+    matching pixel caret, cached so consumers don't need to call
+    `pos_to_pixel` again to paint."""
+
+    pos: int
+    pixel: CaretPosition
+
+    @property
+    def visual_pos(self) -> int:
+        return self.pos
 
 
 @dataclass(slots=True)
@@ -119,6 +137,126 @@ class RenderedText:
         return CaretPosition(
             x=0, y_top=int(height_delta), y_bottom=int(height_delta + asc + desc)
         )
+
+    # ------------------------------------------------------------------
+    # `TextRenderingResult` protocol — visual navigation
+    # ------------------------------------------------------------------
+    #
+    # The legacy renderer has no bidi awareness: visual order equals
+    # source order. The opaque state is simply the source position
+    # itself; navigation reduces to `pos ± 1` and cursword's word
+    # rules. TextInput sees the same surface as on the shaped backend
+    # and never branches on the renderer kind.
+
+    def _make_legacy_state(self, pos: int) -> _LegacyCursorState:
+        """Build the (pos, pixel) pair. Centralizes the pixel
+        derivation so every `visual_*` / `next_visual` / `prev_visual`
+        exit caches both together."""
+        return _LegacyCursorState(pos=pos, pixel=self.pos_to_pixel(pos))
+
+    def visual_state(self, pos: int) -> _LegacyCursorState:
+        return self._make_legacy_state(pos)
+
+    def visual_state_at(self, visual_pos: int) -> _LegacyCursorState:
+        # Legacy backend: visual_pos == source pos. Clamp.
+        return self._make_legacy_state(min(max(0, visual_pos), self._text_length()))
+
+    def total_visual_count(self) -> int:
+        return self._text_length()
+
+    def visual_state_at_pixel(self, x: int, y: int) -> _LegacyCursorState:
+        return self._make_legacy_state(self.pixel_to_pos(x, y))
+
+    def next_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+        return self._make_legacy_state(min(state.pos + 1, self._text_length()))
+
+    def prev_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+        return self._make_legacy_state(max(state.pos - 1, 0))
+
+    def next_visual_word(
+        self, state: _LegacyCursorState, text: str
+    ) -> _LegacyCursorState:
+        return self._make_legacy_state(get_next_word_end_position(text, state.pos))
+
+    def prev_visual_word(
+        self, state: _LegacyCursorState, text: str
+    ) -> _LegacyCursorState:
+        return self._make_legacy_state(
+            get_previous_word_start_position(text, state.pos)
+        )
+
+    def _text_length(self) -> int:
+        """Highest source-character position rendered + 1. Used by
+        `next_visual` to clamp at end-of-document. Computed from the
+        rendered lines; single-line TextInput content is tiny so the
+        scan is cheap and the result is recomputed on demand."""
+        last = 0
+        for ln in self._rendered_lines:
+            for el in ln.elements:
+                for ch in el.tasks:
+                    if ch.pos + 1 > last:
+                        last = ch.pos + 1
+        return last
+
+    def visual_range_to_source_set(self, start: int, end: int) -> frozenset[int]:
+        """Identity: the legacy backend has no bidi reordering, so the
+        visual position sequence equals the source position sequence."""
+        if start >= end:
+            return frozenset()
+        return frozenset(range(start, end))
+
+    def visual_selection_rects(self, start: int, end: int) -> list[Rect]:
+        """Pixel rectangles for a contiguous selection. Same algorithm
+        as `PygameTextRendering._get_selection_rects` but driven by the
+        rendered lines we already hold — accessible after rendering so
+        `TextInput` can rebuild the highlight when the selection
+        changes without forcing a full re-render."""
+        if start >= end:
+            return []
+        rects: list[Rect] = []
+        for line in self._rendered_lines:
+            if not line.elements:
+                continue
+            line_start = line.elements[0].tasks[0].pos
+            line_end = line.elements[-1].tasks[-1].pos + 1
+            if line_end <= start or line_start >= end:
+                continue
+            if line_start < start:
+                start_x: int | None = None
+                for word in line.elements:
+                    for char in word.tasks:
+                        if char.pos >= start:
+                            start_x = int(word.x + char.x)
+                            break
+                    if start_x is not None:
+                        break
+                assert start_x is not None
+            else:
+                start_x = int(line.elements[0].x)
+            if line_end > end:
+                end_x: int | None = None
+                for word in line.elements:
+                    for char in word.tasks:
+                        if char.pos >= end:
+                            end_x = int(word.x + char.x)
+                            break
+                    if end_x is not None:
+                        break
+                assert end_x is not None
+            else:
+                end_x = int(line.elements[-1].x + line.elements[-1].width)
+            rects.append(
+                Rect(
+                    start_x,
+                    int(line.y - self._rendered_font_sizes.ascender),
+                    end_x - start_x,
+                    int(
+                        self._rendered_font_sizes.ascender
+                        + self._rendered_font_sizes.descender
+                    ),
+                )
+            )
+        return rects
 
 
 class PygameTextRendering:

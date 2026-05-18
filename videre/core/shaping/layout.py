@@ -34,7 +34,10 @@ adjacent word.
 
 from dataclasses import dataclass
 
+from cursword import get_next_word_end_position, get_previous_word_start_position
+
 from videre.core.caret_position import CaretPosition
+from videre.core.pygame_backend import Rect
 
 
 @dataclass(slots=True, frozen=True)
@@ -94,6 +97,28 @@ class _LineLayout:
     source_offset: int
     source_length: int
     items: tuple[_LineItem, ...]
+
+
+@dataclass(slots=True, frozen=True)
+class _ShapedCursorState:
+    """`CursorState` implementation for the shaped backend. Carries
+    the visual glyph cursor (the unambiguous navigation anchor) plus
+    derived source position, visual position and pixel caret, cached
+    at construction so each property is a constant-time read.
+
+    `visual_pos` is a globally-counted index in the document's visual
+    codepoint sequence: sum of `len(items)` of preceding lines plus
+    the current line's glyph index. It indexes "caret positions" in
+    visual order (0..total_items inclusive).
+
+    Underscore-prefixed because consumers shouldn't construct it
+    directly — `ShapedRenderedText.visual_state` /
+    `visual_state_at_pixel` / `next_visual` etc. return one."""
+
+    glyph: "GlyphCursor"
+    pos: int
+    visual_pos: int
+    pixel: CaretPosition
 
 
 @dataclass(slots=True, frozen=True)
@@ -354,6 +379,153 @@ class ShapedRenderedText:
         return cursor
 
     # ------------------------------------------------------------------
+    # `TextRenderingResult` protocol — visual navigation
+    # ------------------------------------------------------------------
+    #
+    # State is a `GlyphCursor`. Threading it back through `next_visual`
+    # / `prev_visual` keeps navigation unambiguous at bidi boundaries:
+    # at the LTR↔RTL frontier the same source position has two glyph
+    # cursors, and `source_to_glyph` only returns one — but TextInput
+    # holds the right glyph cursor in its state, so consecutive arrow
+    # presses never re-enter the convention-based resolution.
+
+    def _make_state(self, glyph: "GlyphCursor") -> _ShapedCursorState:
+        """Build the (glyph, pos, visual_pos, pixel) quadruple from a
+        glyph cursor. Centralizes the derivation so every `visual_*`
+        / `next_visual` / `prev_visual` exit caches everything
+        together."""
+        visual_pos = (
+            sum(len(ln.items) for ln in self.line_layouts[: glyph.line_index])
+            + glyph.glyph_index
+        )
+        return _ShapedCursorState(
+            glyph=glyph,
+            pos=self.glyph_to_source(glyph),
+            visual_pos=visual_pos,
+            pixel=self.glyph_caret_pixel(glyph),
+        )
+
+    def visual_state(self, pos: int) -> _ShapedCursorState:
+        return self._make_state(self.source_to_glyph(pos))
+
+    def visual_state_at(self, visual_pos: int) -> _ShapedCursorState:
+        """Walk the per-line glyph counts to find the (line_index,
+        glyph_index_in_line) for a global visual position."""
+        if not self.line_layouts:
+            return self._make_state(GlyphCursor(0, 0))
+        remaining = max(0, visual_pos)
+        for line_idx, line in enumerate(self.line_layouts):
+            if remaining <= len(line.items):
+                return self._make_state(GlyphCursor(line_idx, remaining))
+            remaining -= len(line.items)
+        # Past end of document: clamp to last position.
+        last_line = len(self.line_layouts) - 1
+        return self._make_state(
+            GlyphCursor(last_line, len(self.line_layouts[-1].items))
+        )
+
+    def visual_state_at_pixel(self, x: int, y: int) -> _ShapedCursorState:
+        return self._make_state(self.pixel_to_glyph(x, y))
+
+    def next_visual(self, state: _ShapedCursorState) -> _ShapedCursorState:
+        return self._make_state(self.next_glyph(state.glyph))
+
+    def prev_visual(self, state: _ShapedCursorState) -> _ShapedCursorState:
+        return self._make_state(self.prev_glyph(state.glyph))
+
+    def next_visual_word(
+        self, state: _ShapedCursorState, text: str
+    ) -> _ShapedCursorState:
+        """Find the next word boundary visually to the right by walking
+        glyph cursors one at a time and stopping on the first whose
+        source position is a word-end (per cursword). Linear in the
+        distance to the next boundary; cheap for typical text sizes."""
+        word_ends = _collect_word_ends(text)
+        glyph = state.glyph
+        while True:
+            new_glyph = self.next_glyph(glyph)
+            if new_glyph == glyph:
+                return self._make_state(glyph)
+            glyph = new_glyph
+            if self.glyph_to_source(glyph) in word_ends:
+                return self._make_state(glyph)
+
+    def prev_visual_word(
+        self, state: _ShapedCursorState, text: str
+    ) -> _ShapedCursorState:
+        word_starts = _collect_word_starts(text)
+        glyph = state.glyph
+        while True:
+            new_glyph = self.prev_glyph(glyph)
+            if new_glyph == glyph:
+                return self._make_state(glyph)
+            glyph = new_glyph
+            if self.glyph_to_source(glyph) in word_starts:
+                return self._make_state(glyph)
+
+    def visual_range_to_source_set(self, start: int, end: int) -> frozenset[int]:
+        """Source indices covered by the half-open visual range
+        `[start, end)`. Each visual position corresponds to one item
+        (cluster); the item's source range `[source_start, source_end)`
+        contributes every source index it covers. For mixed bidi the
+        union can be non-contiguous."""
+        if start >= end:
+            return frozenset()
+        sources: set[int] = set()
+        remaining_start = start
+        remaining_end = end
+        for line in self.line_layouts:
+            n = len(line.items)
+            if remaining_start >= n:
+                remaining_start -= n
+                remaining_end -= n
+                continue
+            upper = min(remaining_end, n)
+            for i in range(remaining_start, upper):
+                item = line.items[i]
+                sources.update(range(item.source_start, item.source_end))
+            remaining_start = 0
+            remaining_end -= n
+            if remaining_end <= 0:
+                break
+        return frozenset(sources)
+
+    def total_visual_count(self) -> int:
+        return sum(len(ln.items) for ln in self.line_layouts)
+
+    def visual_selection_rects(self, start: int, end: int) -> list[Rect]:
+        """Pixel rectangles for a contiguous visual selection. One per
+        line touched. Each rectangle spans from the leftmost-visual
+        pixel of `items[start_in_line]` to the rightmost-visual pixel
+        of `items[end_in_line - 1]` — a single ribbon by construction
+        because items are in visual pixel order on each line."""
+        if start >= end:
+            return []
+        rects: list[Rect] = []
+        remaining_start = start
+        remaining_end = end
+        for line in self.line_layouts:
+            n = len(line.items)
+            if remaining_start >= n:
+                remaining_start -= n
+                remaining_end -= n
+                continue
+            upper = min(remaining_end, n)
+            if upper > remaining_start:
+                x_start = line.x_offset + line.items[remaining_start].x_start
+                x_end = line.x_offset + line.items[upper - 1].x_end
+                rects.append(
+                    Rect(
+                        x_start, line.y_top, x_end - x_start, line.y_bottom - line.y_top
+                    )
+                )
+            remaining_start = 0
+            remaining_end -= n
+            if remaining_end <= 0:
+                break
+        return rects
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -377,6 +549,35 @@ class ShapedRenderedText:
                 return max(0, li - 1) if li > 0 else 0
         # y is at or past the last line.
         return len(self.line_layouts) - 1
+
+
+def _collect_word_ends(text: str) -> frozenset[int]:
+    """All source positions corresponding to a word-end per cursword's
+    `get_next_word_end_position` rule, plus the document end."""
+    ends: set[int] = {len(text)}
+    pos = 0
+    while True:
+        nxt = get_next_word_end_position(text, pos)
+        if nxt <= pos:
+            break
+        ends.add(nxt)
+        pos = nxt
+    return frozenset(ends)
+
+
+def _collect_word_starts(text: str) -> frozenset[int]:
+    """Symmetric: all source positions corresponding to a word-start
+    per cursword's `get_previous_word_start_position` rule, plus the
+    document start (0)."""
+    starts: set[int] = {0}
+    pos = len(text)
+    while True:
+        prv = get_previous_word_start_position(text, pos)
+        if prv >= pos:
+            break
+        starts.add(prv)
+        pos = prv
+    return frozenset(starts)
 
 
 def _left_edge_source(item: _LineItem) -> int:
