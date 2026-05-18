@@ -6,6 +6,7 @@ from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend import Pygame, Rect, Surface
+from videre.core.shaping import ShapedRenderedText
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div
@@ -103,9 +104,24 @@ class TextInput(AbstractLayout):
         """
         return Widget.get_mouse_owner(self, x_in_parent, y_in_parent)
 
+    def _shaped_rendered(self) -> ShapedRenderedText | None:
+        """Return the rendered layout iff it's a `ShapedRenderedText`
+        (the shaped pipeline result). Returns None on the legacy
+        renderer so callers fall back to logical-order behavior."""
+        rendered = self._text._rendered
+        return rendered if isinstance(rendered, ShapedRenderedText) else None
+
     def _mouse_to_pos(self, x: int, y: int) -> int:
+        """Map a click pixel to a source position. With the shaped
+        renderer, goes through the glyph cursor so the click lands at
+        the visually-closest caret boundary (important in mixed-bidi
+        text where source and visual edges diverge). Falls back to
+        `pixel_to_pos` on the legacy renderer, which is direction-
+        unaware."""
         rendered = self._text._rendered
         assert rendered is not None
+        if isinstance(rendered, ShapedRenderedText):
+            return rendered.glyph_to_source(rendered.pixel_to_glyph(x, y))
         return rendered.pixel_to_pos(x, y)
 
     def _set_cursor(self, pos: int):
@@ -228,6 +244,7 @@ class TextInput(AbstractLayout):
                 ctrl=key.ctrl,
                 shift=key.shift,
                 right=False,
+                rendered=self._shaped_rendered(),
             )
             assert ret.out_pos is not None
             self._set_cursor(ret.out_pos)
@@ -240,6 +257,7 @@ class TextInput(AbstractLayout):
                 ctrl=key.ctrl,
                 shift=key.shift,
                 right=True,
+                rendered=self._shaped_rendered(),
             )
             assert ret.out_pos is not None
             self._set_cursor(ret.out_pos)

@@ -2,8 +2,16 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterator
 
+from bidi.algorithm import (
+    explicit_embed_and_overrides as _bidi_explicit_embed_and_overrides,
+)
+from bidi.algorithm import get_base_level as _bidi_get_base_level
+from bidi.algorithm import get_embedding_levels as _bidi_get_embedding_levels
+from bidi.algorithm import get_empty_storage as _bidi_get_empty_storage
+from bidi.algorithm import resolve_implicit_levels as _bidi_resolve_implicit_levels
+from bidi.algorithm import resolve_neutral_types as _bidi_resolve_neutral_types
+from bidi.algorithm import resolve_weak_types as _bidi_resolve_weak_types
 from fontTools.unicodedata import script as _script_of
-from fontTools.unicodedata import script_horizontal_direction as _script_h_dir
 from uniseg.linebreak import line_break as _line_break
 from uniseg.wordbreak import words as _word_segments
 
@@ -40,6 +48,27 @@ _LB_WHITESPACE = frozenset({"SP", "BK", "CR", "LF", "NL", "ZW"})
 """Whitespace and mandatory-break characters; tokens made entirely of these
 are dropped before classification."""
 
+_BIDI_CONTROL_CHARS = frozenset(
+    {
+        chr(0x200C),  # ZWNJ - Zero Width Non-Joiner
+        chr(0x200D),  # ZWJ - Zero Width Joiner
+    }
+)
+"""Joiner characters that UAX#9's X9 rule strips before resolving
+levels. They must be filtered out of a line before `_split_by_bidi`,
+otherwise `len(levels) != len(text)`. The other X9-removed characters
+(explicit embedding marks LRE/RLE/PDF/LRO/RLO and isolate marks
+LRI/RLI/FSI/PDI) are filtered upstream by `Unicode.printable`, which
+treats them as non-printable since they have no visual representation.
+
+ZWNJ / ZWJ are NOT filtered by `Unicode.printable` because they affect
+cursive shaping in Arabic / Indic scripts; consumers may legitimately
+want to keep them in source text and route them to HarfBuzz. The bidi
+pipeline simply drops them before resolution, which means their
+contribution to shaping is currently lost — a separate ZWJ-aware
+pipeline would have to keep them and inject a level inherited from the
+neighbour."""
+
 
 @lru_cache(maxsize=1)
 def get_font_provider() -> FontProvider:
@@ -55,15 +84,26 @@ class TextLine:
 class TextScript:
     text: str
     script: str  # ISO 15924 code, available from fontTools.unicodedata
-    right_to_left: bool = False
+    # NB: direction is no longer carried at the script level. UAX#9
+    # resolves direction at the codepoint level (the `bidi_level` on
+    # `RenderablePiece`), which accounts for context — a Latin digit
+    # inside an Arabic run is direction-LTR even though its script is
+    # Common, and a neutral like ' / ' between Latin and Arabic gets
+    # its direction from the surrounding paragraph context, not its
+    # script. Keeping direction on TextScript would conflict with the
+    # bidi-driven value upstream.
+
+
+@dataclass(slots=True, frozen=True)
+class BidiRun:
+    """A maximal run of consecutive codepoints sharing the same bidi
+    embedding level. Produced by `_split_by_level` from a (text,
+    per-codepoint levels) pair. Used to slice a Word into segments of
+    uniform direction before further per-script / per-font splitting.
     """
-    NB: We assume right_to_left depends on script.
-    Example: arabic is always right_to_left.
-    Text is kept as it-is: we assume given text is already
-    in relevant order.
-    Example: "تلود" 
-    => script=<arabic script>, right_to_left=True, text as-is
-    """
+
+    text: str
+    level: int
 
 
 @dataclass(slots=True, frozen=True)
@@ -106,7 +146,18 @@ class RenderablePiece:
     font_name: str
     font_path: str
     script: str
-    right_to_left: bool = False
+    bidi_level: int = 0
+    """UAX#9 resolved embedding level for every codepoint of `text`.
+    Even = LTR, odd = RTL. All codepoints of a single piece share the
+    same level by construction (the segmentation cuts on level changes
+    before script and font)."""
+
+    @property
+    def right_to_left(self) -> bool:
+        """Derived from the bidi level. Kept as a property so consumers
+        (HarfBuzz shaper, glyph layout) can read direction without
+        knowing UAX#9 conventions."""
+        return self.bidi_level % 2 == 1
 
 
 @dataclass(slots=True, frozen=True)
@@ -133,6 +184,11 @@ class RenderableText:
 @dataclass(slots=True, frozen=True)
 class RenderableLine:
     elements: tuple[RenderableText, ...]
+    bidi_base_level: int = 0
+    """UAX#9 paragraph base level for the line (0 = LTR, 1 = RTL),
+    derived from `_split_by_bidi`. Used by the rendering pipeline to
+    apply the L2 visual-reorder rule and to assign a direction to
+    inter-word gaps that have no glyph of their own."""
 
     def is_empty(self) -> bool:
         return not self.elements
@@ -147,26 +203,34 @@ def split_text_to_renderable(
 
     - ``split_words=True`` (used by the rendering pipeline whenever a
       width is given to enable wrapping): segmentation order is
-      **line → word → script → font**. ``_split_by_word`` runs on the
-      whole line (UAX#29 word boundaries are multi-script aware), so
-      ``"Hello世界"`` produces two distinct Words even though no
-      whitespace separates them; ``Word.space_before`` records whether
-      a real source whitespace preceded each Word so the renderer can
-      insert a gap only where it belongs.
+      **line → bidi → word → level → script → font**. UAX#9 levels are
+      resolved on the whole line once (so neutrals like ``:`` and ``/``
+      pick up their direction from the surrounding paragraph context);
+      ``_split_by_word`` then runs on the whole line (UAX#29 word
+      boundaries are multi-script aware) so ``"Hello世界"`` produces two
+      distinct Words even though no whitespace separates them, and
+      ``Word.space_before`` records whether a real source whitespace
+      preceded each Word. Each Word is finally re-segmented per bidi
+      level (rare: only matters when UAX#29 lets a single linguistic
+      word straddle two bidi levels), per script and per font.
 
     - ``split_words=False`` (default, used when no width is given):
-      segmentation order is **line → script → font**, with the entire
-      line wrapped into one non-atomic Word per script run. Whitespace
-      stays inside the piece text and is rasterized as glyphs;
-      ``space_before`` is always False in this mode and the renderer
-      never inserts a virtual gap.
+      segmentation order is **line → bidi → level → script → font**,
+      with the entire line wrapped into one non-atomic Word per bidi
+      level run. Whitespace stays inside the piece text and is
+      rasterized as glyphs; ``space_before`` is always False in this
+      mode and the renderer never inserts a virtual gap.
     """
     lines = _split_by_line(text)
     for line in lines:
         elements: list[RenderableText] = []
 
-        # Remove unprintable characters, first.
-        line_text = "".join(c for c in line.text if Unicode.printable(c))
+        # Strip unprintable characters and bidi controls before bidi
+        # resolution so the resolved levels align 1:1 with `line_text`.
+        line_text = _strip_bidi_controls(
+            "".join(c for c in line.text if Unicode.printable(c))
+        )
+        base_level, line_levels = _split_by_bidi(line_text)
 
         if split_words:
             words = _split_by_word(line_text)
@@ -175,25 +239,40 @@ def split_text_to_renderable(
         else:
             words = []
 
+        # Walk the words in source order, tracking each one's start
+        # offset in `line_text` so we can slice `line_levels`. Words
+        # produced by `_split_by_word` are emitted in source order and
+        # their `.text` is a literal slice of `line_text` (fusions like
+        # `((+CJK+))` keep all the original characters), so a single
+        # forward scan with `str.find` is enough.
+        cursor = 0
         for word in words:
-            # A single Word may straddle several scripts (rare: UAX#29
-            # word boundaries do not always coincide with UAX#24 script
-            # boundaries). Each script run inside the Word becomes one
-            # or more `RenderablePiece` (one per font), and they all
-            # share the parent Word's `atomic` / `space_before` flags.
-            scripts = _split_by_script(word.text)
+            word_start = line_text.find(word.text, cursor)
+            assert word_start != -1, (
+                f"Cannot locate word {word.text!r} in {line_text!r} "
+                f"from offset {cursor}"
+            )
+            word_end = word_start + len(word.text)
+            word_levels = line_levels[word_start:word_end]
+            cursor = word_end
+
+            # A single Word may span several bidi levels, several scripts,
+            # or several fonts. The hierarchy is uniform per piece:
+            # one `RenderablePiece` per (level, script, font) combination,
+            # all sharing the parent Word's `atomic` / `space_before`.
             pieces: list[RenderablePiece] = []
-            for script in scripts:
-                for per_font in _split_by_font(script.text, script.script):
-                    pieces.append(
-                        RenderablePiece(
-                            text=per_font.text,
-                            font_name=per_font.font_name,
-                            font_path=per_font.font_path,
-                            script=script.script,
-                            right_to_left=script.right_to_left,
+            for level_run in _split_by_level(word.text, word_levels):
+                for script in _split_by_script(level_run.text):
+                    for per_font in _split_by_font(script.text, script.script):
+                        pieces.append(
+                            RenderablePiece(
+                                text=per_font.text,
+                                font_name=per_font.font_name,
+                                font_path=per_font.font_path,
+                                script=script.script,
+                                bidi_level=level_run.level,
+                            )
                         )
-                    )
             elements.append(
                 RenderableText(
                     atomic=word.atomic,
@@ -202,7 +281,71 @@ def split_text_to_renderable(
                 )
             )
 
-        yield RenderableLine(elements=tuple(elements))
+        yield RenderableLine(elements=tuple(elements), bidi_base_level=base_level)
+
+
+def _strip_bidi_controls(text: str) -> str:
+    """Remove characters that UAX#9's X9 rule strips before resolving
+    levels. Must be called on a line before `_split_by_bidi`, so
+    `_split_by_bidi`'s output satisfies `len(levels) == len(text)`."""
+    if not any(c in _BIDI_CONTROL_CHARS for c in text):
+        return text
+    return "".join(c for c in text if c not in _BIDI_CONTROL_CHARS)
+
+
+def _split_by_bidi(text: str) -> tuple[int, list[int]]:
+    """Run UAX#9 phases X1 through I2 on `text` and return the
+    paragraph base level plus per-codepoint resolved embedding levels.
+    Even = LTR, odd = RTL. `len(levels) == len(text)`; the caller must
+    have stripped bidi control characters (via `_strip_bidi_controls`)
+    beforehand.
+
+    The L1 / L2 visual-reordering and L4 mirroring phases are NOT
+    applied — we want the resolved levels in source order so that the
+    downstream segmentation (word, script, font) keeps operating on the
+    logical text. Visual reordering belongs to the rendering layer
+    (`_build_line_layout`), which applies L2 to the items produced by
+    HarfBuzz.
+    """
+    if not text:
+        return 0, []
+    base_level = _bidi_get_base_level(text)
+    storage = _bidi_get_empty_storage()
+    storage["base_level"] = base_level
+    storage["base_dir"] = ("L", "R")[base_level]
+    _bidi_get_embedding_levels(text, storage)
+    _bidi_explicit_embed_and_overrides(storage)
+    _bidi_resolve_weak_types(storage)
+    _bidi_resolve_neutral_types(storage, False)
+    _bidi_resolve_implicit_levels(storage, False)
+    levels = [c["level"] for c in storage["chars"]]
+    if len(levels) != len(text):
+        raise ValueError(
+            f"Bidi controls present in text: len(levels)={len(levels)} "
+            f"vs len(text)={len(text)}. Call _strip_bidi_controls first."
+        )
+    return base_level, levels
+
+
+def _split_by_level(text: str, levels: list[int]) -> list[BidiRun]:
+    """Split `text` into maximal runs of consecutive codepoints sharing
+    the same bidi embedding level. `levels` must be the per-codepoint
+    levels returned by `_split_by_bidi(text)` so positions align."""
+    if not text:
+        return []
+    assert len(text) == len(levels), (
+        f"len(text)={len(text)} != len(levels)={len(levels)}"
+    )
+    runs: list[BidiRun] = []
+    chunk_start = 0
+    chunk_level = levels[0]
+    for i in range(1, len(text)):
+        if levels[i] != chunk_level:
+            runs.append(BidiRun(text=text[chunk_start:i], level=chunk_level))
+            chunk_start = i
+            chunk_level = levels[i]
+    runs.append(BidiRun(text=text[chunk_start:], level=chunk_level))
+    return runs
 
 
 def _split_by_line(text: str) -> list[TextLine]:
@@ -221,7 +364,9 @@ def _split_by_script(text: str) -> list[TextScript]:
     NB: Common (Zyyy) and Inherited (Zinh) characters are recast to the
     previous character's script, or the next one's if they appear at the
     start of the text. If the text contains only neutrals, everything is
-    treated as Common (LTR direction).
+    treated as Common.
+
+    Direction is intentionally not computed here — see `TextScript`.
     """
     if not text:
         return []
@@ -253,22 +398,10 @@ def _split_by_script(text: str) -> list[TextScript]:
         if sc == current_script:
             chars.append(c)
         else:
-            result.append(
-                TextScript(
-                    text="".join(chars),
-                    script=current_script,
-                    right_to_left=_script_h_dir(current_script) == "RTL",
-                )
-            )
+            result.append(TextScript(text="".join(chars), script=current_script))
             current_script = sc
             chars = [c]
-    result.append(
-        TextScript(
-            text="".join(chars),
-            script=current_script,
-            right_to_left=_script_h_dir(current_script) == "RTL",
-        )
-    )
+    result.append(TextScript(text="".join(chars), script=current_script))
     return result
 
 

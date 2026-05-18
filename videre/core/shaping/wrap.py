@@ -111,6 +111,7 @@ def _wrap_by_words(
     current: list[ShapedWord] = []
     current_width: float = 0.0
     current_real_right: float = 0.0
+    base = line.bidi_base_level
     while pending:
         word = pending[0]
         w_width = _word_width(word)
@@ -137,7 +138,7 @@ def _wrap_by_words(
             # Flush and retry the word on an empty line. The trailing
             # `space_advance` of the last word is *not* counted in the
             # flushed line.
-            yield ShapedLine(words=tuple(current))
+            yield ShapedLine(words=tuple(current), bidi_base_level=base)
             current = []
             current_width = 0.0
             current_real_right = 0.0
@@ -145,7 +146,7 @@ def _wrap_by_words(
         # Current line is empty AND word alone doesn't fit.
         if word.atomic:
             # Atomic word: emit alone, accept the overflow (no legal break).
-            yield ShapedLine(words=(word,))
+            yield ShapedLine(words=(word,), bidi_base_level=base)
             pending.pop(0)
             continue
         # Non-atomic: split at a cluster boundary. Intra-word splits don't
@@ -153,15 +154,15 @@ def _wrap_by_words(
         fit_word, rest_word = _split_word(word, width)
         if fit_word is None:
             # Even the first cluster doesn't fit; emit as-is, single overflow.
-            yield ShapedLine(words=(word,))
+            yield ShapedLine(words=(word,), bidi_base_level=base)
             pending.pop(0)
             continue
-        yield ShapedLine(words=(fit_word,))
+        yield ShapedLine(words=(fit_word,), bidi_base_level=base)
         pending.pop(0)
         if rest_word is not None:
             pending.insert(0, rest_word)
     if current:
-        yield ShapedLine(words=tuple(current))
+        yield ShapedLine(words=tuple(current), bidi_base_level=base)
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +328,7 @@ def _build_line(original: ShapedLine, clusters: list[_Cluster]) -> ShapedLine:
         cur_run_glyphs.extend(old_run.glyphs[c.glyph_start : c.glyph_end])
     _flush_word()
 
-    return ShapedLine(words=tuple(new_words))
+    return ShapedLine(words=tuple(new_words), bidi_base_level=original.bidi_base_level)
 
 
 def _subrun(old: ShapedRun, glyphs: tuple[ShapedGlyph, ...]) -> ShapedRun:
@@ -348,7 +349,7 @@ def _subrun(old: ShapedRun, glyphs: tuple[ShapedGlyph, ...]) -> ShapedRun:
         font_path=old.font_path,
         font_name=old.font_name,
         script=old.script,
-        right_to_left=old.right_to_left,
+        bidi_level=old.bidi_level,
         bold=old.bold,
         italic=old.italic,
         source_text=new_source,

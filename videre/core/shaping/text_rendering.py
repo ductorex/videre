@@ -11,7 +11,7 @@ from videre.core.shaping.layout import (
 )
 from videre.core.shaping.pipeline import shape_text
 from videre.core.shaping.rasterizer import Glyph, GlyphArea, GlyphRasterizer
-from videre.core.shaping.shaped import ShapedLine
+from videre.core.shaping.shaped import ShapedLine, ShapedWord
 from videre.core.shaping.shaper import Shaper
 from videre.core.shaping.texts.textutils import get_font_provider
 from videre.core.shaping.utils import (
@@ -225,6 +225,15 @@ class ShapedTextRendering:
         lines: list[ShapedLine] = []
         is_paragraph_end: list[bool] = []
         line_source_offsets: list[int] = []
+        # Per-line tuple of source offsets (relative to the line start)
+        # for each word **in visual order** after L2. Captured before
+        # reordering so `_build_line_layout` can still place source
+        # positions correctly when visual order != source order.
+        line_word_source_offsets: list[tuple[int, ...]] = []
+        # Per-line per-word tuple of run source offsets (within the
+        # word). Needed because L2 may reorder runs inside a word too
+        # (e.g. a single word straddling two bidi levels).
+        line_run_source_offsets: list[tuple[tuple[int, ...], ...]] = []
         pos = 0
         for p_idx, p in enumerate(paragraphs):
             if width is not None:
@@ -246,8 +255,15 @@ class ShapedTextRendering:
                 if sl_idx > 0 and sl.words and sl.words[0].space_before:
                     # Inter-sub-line whitespace consumed by the wrap.
                     pos += 1
+                # Apply UAX#9 L2 visual reordering at word + run
+                # granularity. In pure-LTR / single-RTL-run layouts the
+                # result is the identity, so this is a no-op for the
+                # common case.
+                sl_visual, word_offsets, run_offsets = _apply_l2_to_line(sl)
                 line_source_offsets.append(pos)
-                lines.append(sl)
+                lines.append(sl_visual)
+                line_word_source_offsets.append(word_offsets)
+                line_run_source_offsets.append(run_offsets)
                 is_paragraph_end.append(sl_idx == len(sub) - 1)
                 pos += sl.source_length()
             if p_idx < len(paragraphs) - 1:
@@ -330,6 +346,8 @@ class ShapedTextRendering:
                     x_offset=x_offsets[i],
                     extra_word_gap=line_extra_gaps[i],
                     space_advance=self._space_advance,
+                    word_source_offsets=line_word_source_offsets[i],
+                    run_source_offsets_per_word=line_run_source_offsets[i],
                 )
             )
 
@@ -440,6 +458,109 @@ class ShapedTextRendering:
         return out, max_baseline, line_width
 
 
+def _apply_l2_to_line(
+    line: ShapedLine,
+) -> tuple[ShapedLine, tuple[int, ...], tuple[tuple[int, ...], ...]]:
+    """Apply UAX#9 rule L2 visual reordering at two granularities:
+
+    1. Within each `ShapedWord`, reorder its runs in visual order
+       (matters when a word straddles bidi levels — e.g. a paragraph
+       rendered as a single word in ``split_words=False`` mode whose
+       runs span both LTR and RTL chunks).
+    2. Reorder the words of the line in visual order (matters when
+       several words on a line have different bidi levels).
+
+    Returns ``(reordered_line, word_source_offsets,
+    run_source_offsets_per_word)``: the source offset (within the line,
+    pre-`line_source_offset` shift) of each visual word, and within
+    each visual word the source offset (relative to the word's first
+    codepoint in source order) of each visual run. `_build_line_layout`
+    uses these to place source positions correctly when visual order
+    differs from source order.
+    """
+    if not line.words:
+        return line, (), ()
+    base_level = line.bidi_base_level
+    # Step 1: per-word reorder of runs.
+    word_source_offsets: list[int] = []
+    new_words_intermediate: list[ShapedWord] = []
+    run_source_offsets_per_word: list[tuple[int, ...]] = []
+    cumulative = 0
+    for w_idx, w in enumerate(line.words):
+        if w_idx > 0 and w.space_before:
+            cumulative += 1
+        word_source_offsets.append(cumulative)
+        # Compute each run's source offset within the word (in source
+        # order), then L2-reorder the runs.
+        run_offsets_source_order: list[int] = []
+        run_cumulative = 0
+        for r in w.runs:
+            run_offsets_source_order.append(run_cumulative)
+            run_cumulative += len(r.source_text)
+        cumulative += run_cumulative
+        run_levels = [r.bidi_level for r in w.runs]
+        run_perm = _l2_reorder(run_levels, base_level)
+        reordered_runs = tuple(w.runs[i] for i in run_perm)
+        reordered_run_offsets = tuple(run_offsets_source_order[i] for i in run_perm)
+        new_words_intermediate.append(
+            ShapedWord(
+                atomic=w.atomic, runs=reordered_runs, space_before=w.space_before
+            )
+        )
+        run_source_offsets_per_word.append(reordered_run_offsets)
+    # Step 2: word-level reorder.
+    word_levels = [
+        w.runs[0].bidi_level if w.runs else base_level for w in new_words_intermediate
+    ]
+    word_perm = _l2_reorder(word_levels, base_level)
+    new_words = tuple(new_words_intermediate[i] for i in word_perm)
+    new_offsets = tuple(word_source_offsets[i] for i in word_perm)
+    new_run_offsets = tuple(run_source_offsets_per_word[i] for i in word_perm)
+    new_line = ShapedLine(words=new_words, bidi_base_level=base_level)
+    return new_line, new_offsets, new_run_offsets
+
+
+def _l2_reorder(levels: list[int], base_level: int) -> list[int]:
+    """Apply UAX#9 rule L2 to a sequence of items identified by their
+    bidi levels. Returns the permutation (a list of source indices in
+    visual order) that visually reorders the items left-to-right.
+
+    L2: from the highest level present down to ``min(base_level | 1,
+    lowest_odd_level)``, reverse every maximal sub-sequence whose
+    levels are >= that threshold. Levels at or below `base_level` are
+    never reversed. For a pure-LTR paragraph (`base_level == 0`) with
+    all-zero levels the result is the identity; for a paragraph with a
+    single isolated RTL run the result is also the identity (the run
+    is one item, reversing one element is a no-op); only when several
+    items have level >= the threshold does the order actually change.
+    """
+    n = len(levels)
+    if n == 0:
+        return []
+    order = list(range(n))
+    highest = max(levels)
+    # The lowest level that is allowed to be reversed: the lowest odd
+    # level in the paragraph, but no lower than `base_level | 1`
+    # (which is `base_level + 1` if base is even, `base_level` if odd).
+    odd_levels = [lv for lv in levels if lv % 2 == 1]
+    if not odd_levels:
+        return order
+    lowest_odd = min(odd_levels)
+    floor = max(lowest_odd, base_level | 1)
+    for threshold in range(highest, floor - 1, -1):
+        i = 0
+        while i < n:
+            if levels[order[i]] >= threshold:
+                j = i
+                while j + 1 < n and levels[order[j + 1]] >= threshold:
+                    j += 1
+                order[i : j + 1] = reversed(order[i : j + 1])
+                i = j + 1
+            else:
+                i += 1
+    return order
+
+
 def _align_x_offset(align: TextAlign | None, line_width: int, target_width: int) -> int:
     """X-position of a line within the output surface for a given align.
 
@@ -467,39 +588,66 @@ def _build_line_layout(
     x_offset: int,
     extra_word_gap: float,
     space_advance: float,
+    word_source_offsets: tuple[int, ...],
+    run_source_offsets_per_word: tuple[tuple[int, ...], ...],
 ) -> _LineLayout:
     """Build a `_LineLayout` for the rendered line.
 
-    Walks word/run/cluster in source order, emitting one `_LineItem`
-    per HarfBuzz cluster (a group of glyphs sharing one source-index)
-    and one per inter-word gap. The pixel positions inside the line
-    use the same gap arithmetic as `_render_line` (and the same
-    JUSTIFY-driven `extra_word_gap`), so caret / selection helpers
-    stay aligned with what was actually painted.
+    Walks word/run/cluster in the order in which the line is painted
+    (post-L2 visual order, see `_l2_reorder` in `render_text`),
+    emitting one `_LineItem` per HarfBuzz cluster (a group of glyphs
+    sharing one source-index) and one per inter-word gap. The pixel
+    positions inside the line use the same gap arithmetic as
+    `_render_line` (and the same JUSTIFY-driven `extra_word_gap`), so
+    caret / selection helpers stay aligned with what was actually
+    painted.
 
-    LTR-correct. Pure-RTL lines have their clusters laid out in
-    visual order by HarfBuzz, with cluster ids decreasing — the
-    items still get contiguous pixel ranges, but their source
-    positions go right-to-left. Mixed bidi within a single line is
-    not handled by this layout pass.
+    For RTL runs, HarfBuzz returns glyphs in visual order (left-to-
+    right pixel-wise) with cluster ids decreasing in source order.
+    Each cluster's source extent is recovered by looking at the
+    *previous* visual glyph's cluster id (which is the *next* in
+    source order) — symmetric to LTR where we look at the next
+    visual glyph. Items carry their `bidi_level` (and a derived
+    `right_to_left`) so caret helpers can flip the visual-edge
+    interpretation.
+
+    Source positions inside `pos` advance in *source* order across the
+    line (using each run's `source_text` length), but `pixel_x`
+    advances in *visual* order; the result is items whose
+    `(source_start, source_end)` ranges are non-monotonic in mixed
+    bidi but whose `(x_start, x_end)` ranges are strictly increasing.
     """
     items: list[_LineItem] = []
-    pos = line_source_offset
     pixel_x = 0.0
     gap_px = space_advance + extra_word_gap
+    base_level = line.bidi_base_level
+    assert len(word_source_offsets) == len(line.words)
+    assert len(run_source_offsets_per_word) == len(line.words)
     for w_idx, word in enumerate(line.words):
+        word_src = line_source_offset + word_source_offsets[w_idx]
         if w_idx > 0 and word.space_before:
+            # Source position of the gap: it sits at `word_src - 1` (the
+            # whitespace that lives just before this word in source
+            # order, regardless of where the word lands visually after
+            # L2). Pixel position is the current visual cursor.
             items.append(
                 _LineItem(
-                    source_start=pos,
-                    source_end=pos + 1,
+                    source_start=word_src - 1,
+                    source_end=word_src,
                     x_start=int(round(pixel_x)),
                     x_end=int(round(pixel_x + gap_px)),
+                    bidi_level=base_level,
                 )
             )
-            pos += 1
             pixel_x += gap_px
-        for run in word.runs:
+        run_offsets = run_source_offsets_per_word[w_idx]
+        assert len(run_offsets) == len(word.runs)
+        for r_idx, run in enumerate(word.runs):
+            # `pos` is the source position of this run's first codepoint
+            # in source order, regardless of where this run lands
+            # visually after L2.
+            pos = word_src + run_offsets[r_idx]
+            rtl = run.right_to_left
             run_source_len = len(run.source_text)
             n = len(run.glyphs)
             i = 0
@@ -508,16 +656,21 @@ def _build_line_layout(
                 j = i + 1
                 while j < n and run.glyphs[j].cluster == cluster_id:
                     j += 1
-                cluster_source_start = pos + cluster_id
-                if j < n:
-                    cluster_source_end = pos + run.glyphs[j].cluster
+                if rtl:
+                    # Previous glyph in visual order is the next in
+                    # source order; if none, this cluster reaches the
+                    # run's source end.
+                    if i == 0:
+                        next_in_source = run_source_len
+                    else:
+                        next_in_source = run.glyphs[i - 1].cluster
                 else:
-                    cluster_source_end = pos + run_source_len
-                if cluster_source_end < cluster_source_start:
-                    cluster_source_start, cluster_source_end = (
-                        cluster_source_end,
-                        cluster_source_start,
-                    )
+                    if j < n:
+                        next_in_source = run.glyphs[j].cluster
+                    else:
+                        next_in_source = run_source_len
+                cluster_source_start = pos + cluster_id
+                cluster_source_end = pos + next_in_source
                 cluster_pixel_width = sum(g.x_advance for g in run.glyphs[i:j])
                 items.append(
                     _LineItem(
@@ -525,11 +678,11 @@ def _build_line_layout(
                         source_end=cluster_source_end,
                         x_start=int(round(pixel_x)),
                         x_end=int(round(pixel_x + cluster_pixel_width)),
+                        bidi_level=run.bidi_level,
                     )
                 )
                 pixel_x += cluster_pixel_width
                 i = j
-            pos += run_source_len
     return _LineLayout(
         y_top=y_top,
         y_bottom=y_bottom,
