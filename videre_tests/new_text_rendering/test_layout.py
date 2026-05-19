@@ -394,3 +394,149 @@ def test_pixel_to_pos_in_pixel_gap_falls_through_to_line_end() -> None:
     out = _make_layout_with_gap_between_items()
     pos = out.pixel_to_pos(12, 5)
     assert pos == 6  # source_offset(0) + source_length(6)
+
+
+# -- RTL (pure right-to-left) -----------------------------------------------
+#
+# Pure-RTL layouts have items sorted by source_start (logical order),
+# but their pixel ranges run from right to left: the first source
+# position sits at the largest x, and the last source position at x=0.
+# The helpers must flip the LTR "source_start at x_start" assumption.
+
+
+def _make_pure_rtl_layout() -> ShapedRenderedText:
+    """3-codepoint pure-RTL run "ABC" (source order 0, 1, 2) laid out
+    visually as "CBA" left-to-right:
+
+      visual:   C  B  A
+      pixel:   0..10..20..30
+      source:  2..1..0..(end=3)
+
+    Items sorted by source_start: A first (source 0..1, pixels
+    20..30), then B (1..2, 10..20), then C (2..3, 0..10). All tagged
+    `bidi_level=1`."""
+    from videre.core.shaping.layout import FontMetrics, _LineItem, _LineLayout
+
+    line = _LineLayout(
+        y_top=0,
+        y_bottom=15,
+        x_offset=0,
+        source_offset=0,
+        source_length=3,
+        items=(
+            _LineItem(source_start=0, source_end=1, x_start=20, x_end=30, bidi_level=1),
+            _LineItem(source_start=1, source_end=2, x_start=10, x_end=20, bidi_level=1),
+            _LineItem(source_start=2, source_end=3, x_start=0, x_end=10, bidi_level=1),
+        ),
+    )
+    return ShapedRenderedText(
+        font_metrics=FontMetrics(
+            ascender=10, descender=3, height_delta=2, line_spacing=15
+        ),
+        line_layouts=(line,),
+    )
+
+
+def test_rtl_pos_to_pixel_first_source_position_is_visual_right_edge() -> None:
+    """Source pos 0 (logically first) sits at the visual right edge
+    of the run — x=30 for the layout above."""
+    out = _make_pure_rtl_layout()
+    assert out.pos_to_pixel(0).x == 30
+
+
+def test_rtl_pos_to_pixel_last_source_position_is_visual_left_edge() -> None:
+    """Source pos 3 (logically past end) sits at the visual left edge
+    of the run — x=0 for the layout above."""
+    out = _make_pure_rtl_layout()
+    assert out.pos_to_pixel(3).x == 0
+
+
+def test_rtl_pos_to_pixel_advances_right_to_left() -> None:
+    """In a pure-RTL layout, caret x must **decrease** as logical
+    pos increases."""
+    out = _make_pure_rtl_layout()
+    xs = [out.pos_to_pixel(p).x for p in range(4)]
+    for a, b in zip(xs, xs[1:]):
+        assert a > b, f"caret x should decrease left-to-right in RTL: {xs}"
+
+
+def test_rtl_pos_to_pixel_at_cluster_boundaries() -> None:
+    """Each inter-cluster source boundary lands at the boundary's
+    visual position. Between A (source 0..1) and B (source 1..2),
+    pos 1 sits at A's visual left edge = B's visual right edge = x=20."""
+    out = _make_pure_rtl_layout()
+    assert out.pos_to_pixel(1).x == 20
+    assert out.pos_to_pixel(2).x == 10
+
+
+def test_rtl_pixel_to_pos_left_half_returns_source_end() -> None:
+    """A click on the visual-left half of a RTL glyph means the
+    caret should land at the glyph's source END (logically: after
+    the glyph). On glyph C (pixels 0..10, source 2..3), a click at
+    x=2 yields pos 3."""
+    out = _make_pure_rtl_layout()
+    assert out.pixel_to_pos(2, 0) == 3
+
+
+def test_rtl_pixel_to_pos_right_half_returns_source_start() -> None:
+    """Symmetric: visual-right half of a RTL glyph yields source
+    START. On glyph C (pixels 0..10, source 2..3), a click at x=8
+    yields pos 2."""
+    out = _make_pure_rtl_layout()
+    assert out.pixel_to_pos(8, 0) == 2
+
+
+def test_rtl_pixel_to_pos_far_left_returns_run_end() -> None:
+    """A click to the visual left of all items is past the run's end
+    logically (the last cluster in source order is the visually
+    leftmost), so it should return the run's source end (3)."""
+    out = _make_pure_rtl_layout()
+    assert out.pixel_to_pos(-50, 0) == 3
+
+
+def test_rtl_pixel_to_pos_far_right_returns_run_start() -> None:
+    """A click to the visual right of all items is before the run's
+    start logically, so it should return the run's source start (0)."""
+    out = _make_pure_rtl_layout()
+    assert out.pixel_to_pos(1000, 0) == 0
+
+
+def test_rtl_round_trip_at_cluster_boundaries() -> None:
+    """`pos_to_pixel` then `pixel_to_pos` round-trips on every source
+    boundary of a pure-RTL layout."""
+    out = _make_pure_rtl_layout()
+    for pos in range(4):
+        caret = out.pos_to_pixel(pos)
+        recovered = out.pixel_to_pos(caret.x, caret.y_top + 1)
+        assert recovered == pos, f"round-trip failed for pos {pos}: got {recovered}"
+
+
+# -- RTL integration via render_text ----------------------------------------
+#
+# These tests exercise `_build_line_layout` end-to-end with a real
+# Arabic string. They check shape-invariant properties only (HarfBuzz's
+# exact glyph count for a given font is not pinned).
+
+
+_ARABIC_WORD = "سلام"  # "peace", 4 codepoints
+
+
+def test_rtl_render_text_arabic_pos_to_pixel_advances_right_to_left() -> None:
+    r = ShapedTextRendering(size=16)
+    out, _ = r.render_text(_ARABIC_WORD, color=Color(0, 0, 0))
+    xs = [out.pos_to_pixel(p).x for p in range(len(_ARABIC_WORD) + 1)]
+    # First logical position should be visually rightmost; last should
+    # be visually leftmost.
+    assert xs[0] > xs[-1], f"expected RTL caret advance (decreasing x), got {xs}"
+
+
+def test_rtl_render_text_arabic_round_trip_at_every_source_position() -> None:
+    """For each source position p in the Arabic word, the caret pixel
+    returned by `pos_to_pixel(p)` round-trips back to p via
+    `pixel_to_pos`. Validates the bidi-aware mapping end-to-end."""
+    r = ShapedTextRendering(size=16)
+    out, _ = r.render_text(_ARABIC_WORD, color=Color(0, 0, 0))
+    for p in range(len(_ARABIC_WORD) + 1):
+        caret = out.pos_to_pixel(p)
+        recovered = out.pixel_to_pos(caret.x, caret.y_top + 1)
+        assert recovered == p, f"round-trip failed for Arabic pos {p}: got {recovered}"

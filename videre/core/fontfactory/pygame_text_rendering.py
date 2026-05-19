@@ -71,7 +71,9 @@ class RenderedText:
     def pos_to_pixel(self, pos: int) -> CaretPosition:
         """Caret position for a logical source character position.
 
-        The Pygame text renderer lays out characters
+        Mirrors the helper exposed by `ShapedRenderedText` so consumers
+        like `TextInput` can target the same API regardless of which
+        renderer is in use. The legacy pipeline lays out characters
         with absolute x coordinates inside a single `WordTask` per
         line (TextInput uses Text with `keep_spaces=True`, which
         triggers `WordsLine._chars_to_word`); we leverage that
@@ -101,7 +103,8 @@ class RenderedText:
     def pixel_to_pos(self, x: int, y: int) -> int:
         """Source character position closest to a pixel coordinate.
 
-        Snaps to the nearer of `char.x` (start) and `char.x +
+        Mirrors the helper exposed by `ShapedRenderedText`. Snaps to
+        the nearer of `char.x` (start) and `char.x +
         char.horizontal_shift` (end). `y` clamps to the line whose
         baseline is just above; out-of-range x snaps to the nearest
         edge of the line's content.
@@ -139,10 +142,11 @@ class RenderedText:
     # `TextRenderingResult` protocol — visual navigation
     # ------------------------------------------------------------------
     #
-    # The Pygame text renderer has no bidi awareness: visual order equals
+    # The legacy renderer has no bidi awareness: visual order equals
     # source order. The opaque state is simply the source position
     # itself; navigation reduces to `pos ± 1` and cursword's word
-    # rules..
+    # rules. TextInput sees the same surface as on the shaped backend
+    # and never branches on the renderer kind.
 
     def _make_legacy_state(self, pos: int) -> _LegacyCursorState:
         """Build the (pos, pixel) pair. Centralizes the pixel

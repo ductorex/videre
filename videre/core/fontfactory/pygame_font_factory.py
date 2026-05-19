@@ -52,6 +52,12 @@ class PygameFontFactory:
 
     @property
     def symbol_size(self) -> int:
+        # Round to the nearest pixel rather than truncating: the legacy
+        # pipeline accepts the float directly and pygame.freetype's grid-fit
+        # lands on the nearest pixel, while the shaped pipeline can only
+        # consume integer pixel sizes. `int()` would always round down by
+        # up to 0.999 px, shrinking the symbol bitmap by a row at common
+        # base sizes (e.g. 14 → 22.75 truncates to 22, losing 1 row).
         return int(round(self._size * 1.625))
 
     def get_font(

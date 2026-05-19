@@ -52,7 +52,7 @@ def shape_text(
                         font_path=piece.font_path,
                         font_name=piece.font_name,
                         script=piece.script,
-                        right_to_left=piece.right_to_left,
+                        bidi_level=piece.bidi_level,
                         bold=bold,
                         italic=italic,
                         source_text=piece.text,
@@ -66,4 +66,4 @@ def shape_text(
                     space_before=rt.space_before,
                 )
             )
-        yield ShapedLine(words=tuple(words))
+        yield ShapedLine(words=tuple(words), bidi_base_level=line.bidi_base_level)

@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any
 
 import videre
@@ -298,6 +299,7 @@ class Demo:
 
 
 def main():
+    os.environ["VIDERE_USE_SHAPED_RENDERING"] = "1"
     Demo().start()
 
 

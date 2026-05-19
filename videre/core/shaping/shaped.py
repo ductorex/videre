@@ -44,23 +44,29 @@ class ShapedRun:
     """One contiguous run of glyphs that share the same font and script.
 
     Mirrors a `RenderablePiece` from `textutils` after shaping: the text
-    was already split so that this run uses a single font and single script.
-    `bold` / `italic` record whether synthetic bold or slant was applied
-    during shaping; the rasterizer needs them to apply matching outline
-    transformations on each glyph so positions and pixels stay aligned.
-    The `atomic` flag lives one level up on `ShapedWord`, since a single
-    word may span several runs when its characters require several fonts
-    (e.g. Latin letters mixed with combining marks served by a fallback).
+    was already split so that this run uses a single font, single script
+    and single bidi level. `bold` / `italic` record whether synthetic
+    bold or slant was applied during shaping; the rasterizer needs them
+    to apply matching outline transformations on each glyph so positions
+    and pixels stay aligned. The `atomic` flag lives one level up on
+    `ShapedWord`, since a single word may span several runs when its
+    characters require several fonts (e.g. Latin letters mixed with
+    combining marks served by a fallback).
     """
 
     font_path: str
     font_name: str
     script: str
-    right_to_left: bool
+    bidi_level: int
     bold: bool
     italic: bool
     source_text: str
     glyphs: tuple[ShapedGlyph, ...]
+
+    @property
+    def right_to_left(self) -> bool:
+        """Derived from the UAX#9 bidi level (odd = RTL)."""
+        return self.bidi_level % 2 == 1
 
 
 @dataclass(slots=True, frozen=True)
@@ -96,6 +102,10 @@ class ShapedLine:
     """One line worth of shaped words, before any width-based wrapping."""
 
     words: tuple[ShapedWord, ...]
+    bidi_base_level: int = 0
+    """UAX#9 paragraph base level (0 = LTR, 1 = RTL). Propagated from
+    `RenderableLine`. Used by the rendering pipeline to apply L2 visual
+    reordering and to direction-tag inter-word gaps."""
 
     def is_empty(self) -> bool:
         return not self.words

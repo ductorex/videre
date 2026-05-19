@@ -1,5 +1,5 @@
 from videre.core.caret_position import CaretPosition
-from videre.core.shaping.layout import FontMetrics, ShapedRenderedText
+from videre.core.shaping.layout import FontMetrics, GlyphCursor, ShapedRenderedText
 from videre.core.shaping.pipeline import shape_text
 from videre.core.shaping.rasterizer import GlyphRasterizer
 from videre.core.shaping.shaped import ShapedGlyph, ShapedLine, ShapedRun, ShapedWord
