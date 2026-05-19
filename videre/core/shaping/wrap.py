@@ -136,7 +136,7 @@ def _wrap_by_words(
         if current:
             # Flush and retry the word on an empty line. The trailing
             # `space_advance` of the last word is *not* counted in the
-            # flushed line — same convention as pygame.
+            # flushed line.
             yield ShapedLine(words=tuple(current))
             current = []
             current_width = 0.0
