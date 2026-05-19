@@ -61,6 +61,10 @@ extend-select = ["I"]
 [tool.ruff.lint.isort]
 split-on-trailing-comma = false
 
+[[tool.ty.overrides]]
+include = ["videre/core/shaping/shaper.py"]
+rules = { "unresolved-import" = "ignore" }
+
 [tool.poe.tasks]
 format = "ruff format"
 lint = "ruff check --fix"
