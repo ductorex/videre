@@ -41,22 +41,19 @@ class TextInput(AbstractLayout):
             padding=container_padding,
         )
         super().__init__([self._container], **kwargs)
-        # Source-position cursor: this is the authoritative API
-        # (indexes `text` for insertion, selection, etc.).
-        self._cursor_pos: int | None = None
-        # Navigation state owned by the rendering backend. Kept in
-        # sync with `_cursor_pos` so consecutive arrow presses are
-        # bidi-unambiguous on the shaped backend. Set to None whenever
-        # `_cursor_pos` changes through a non-navigation path
-        # (insertion, selection clear, programmatic `value=`); the
-        # next arrow / Ctrl+arrow then re-derives it from the backend
-        # at the cost of one ambiguous resolution.
+        # Source-position cursor: authoritative for `text` slicing
+        # (insertion, deletion). Initialized eagerly to the end of the
+        # text — a convention that needs no rendering. The visual
+        # `_cursor_state` is a cache derived from the rendering and is
+        # filled lazily (see `_ensure_state`); it stays None until the
+        # first navigation or the first draw with focus, both of which
+        # are post-render.
+        self._cursor_pos: int = len(self._text.text)
         self._cursor_state: CursorState | None = None
         self._selecting_pivot: int | None = None
 
         self._set_focus(False)
         self._set_selection(None)
-        self._set_cursor(len(self._text.text))
 
     @property
     def value(self) -> str:
@@ -67,7 +64,7 @@ class TextInput(AbstractLayout):
     def value(self, text: str):
         """Sets the text value."""
         self._text.text = text
-        self._set_cursor(len(text))
+        self._set_cursor_to_pos(len(text))
         self._set_selection(None)
 
     @property
@@ -120,30 +117,37 @@ class TextInput(AbstractLayout):
         """
         return Widget.get_mouse_owner(self, x_in_parent, y_in_parent)
 
-    def _set_cursor(self, pos: int, state: CursorState | None = None):
-        """Move the cursor. When `state` is supplied (after a
-        navigation step the backend just produced), we keep it; when
-        it's None (after insertion / selection clear / clic) we drop
-        the cached state so the next navigation re-derives it.
-        `state.pos` must equal `pos` when both are supplied."""
-        if state is not None:
-            assert state.pos == pos
-        if self._cursor_pos != pos or state is not None:
+    def _set_cursor_to_pos(self, pos: int):
+        """Move the cursor to a source position. Drops the cached
+        visual state so the next `_ensure_state` re-derives it from
+        the current rendering. Use this for mutations (insertion,
+        deletion, value setter) and for moves where only the source
+        position is known."""
+        if self._cursor_pos != pos or self._cursor_state is not None:
             self._cursor_pos = pos
-            self._cursor_state = state
+            self._cursor_state = None
             self.update()
 
+    def _set_cursor_to_state(self, state: CursorState):
+        """Move the cursor to a backend-produced navigation state.
+        Caches the state so consecutive arrow presses stay
+        bidi-unambiguous on the shaped backend. Use this after
+        navigation (mouse click, mouse drag, arrow keys) where the
+        backend has handed out a state."""
+        self._cursor_pos = state.pos
+        self._cursor_state = state
+        self.update()
+
     def _get_cursor(self) -> int:
-        assert self._cursor_pos is not None
         return self._cursor_pos
 
     def _ensure_state(self) -> CursorState:
         """Return a valid navigation state for the current cursor.
         Derives one from the backend if the cache is empty."""
-        rendered = self._text._rendered
-        assert rendered is not None
         if self._cursor_state is None:
-            self._cursor_state = rendered.visual_state(self._get_cursor())
+            rendered = self._text._rendered
+            assert rendered is not None
+            self._cursor_state = rendered.visual_state(self._cursor_pos)
         return self._cursor_state
 
     def _selection_source_indices(self) -> tuple[int, ...]:
@@ -172,7 +176,7 @@ class TextInput(AbstractLayout):
         out_text = "".join(c for i, c in enumerate(in_text) if i not in keep)
         cursor = indices[0]
         self._text.text = out_text
-        self._set_cursor(cursor)
+        self._set_cursor_to_pos(cursor)
         self._set_selection(None)
         return cursor
 
@@ -208,7 +212,7 @@ class TextInput(AbstractLayout):
         # is non-contiguous in bidi-mixed text.
         self._selecting_pivot = state.visual_pos
         self._set_selection(state.visual_pos, state.visual_pos)
-        self._set_cursor(state.pos, state=state)
+        self._set_cursor_to_state(state)
 
     def handle_mouse_down_move(self, event: MouseEvent):
         assert self._selecting_pivot is not None
@@ -223,7 +227,7 @@ class TextInput(AbstractLayout):
             self._set_selection(state.visual_pos, pivot)
         else:
             self._set_selection(pivot, state.visual_pos)
-        self._set_cursor(state.pos, state=state)
+        self._set_cursor_to_state(state)
 
     def handle_mouse_up(self, event: MouseEvent):
         self._debug("mouse_up")
@@ -232,8 +236,6 @@ class TextInput(AbstractLayout):
     def handle_focus_in(self) -> bool:
         self._debug("focus_in")
         self._set_focus(True)
-        if self._cursor_pos is None:
-            self._set_cursor(0)
         return True
 
     def handle_focus_out(self):
@@ -253,7 +255,7 @@ class TextInput(AbstractLayout):
         in_text = self._text.text
         out_text = in_text[:insert_at] + text + in_text[insert_at:]
         self._text.text = out_text
-        self._set_cursor(insert_at + len(text))
+        self._set_cursor_to_pos(insert_at + len(text))
 
     def handle_keydown(self, key: KeyboardEntry):
         self._debug("key_down")
@@ -282,7 +284,7 @@ class TextInput(AbstractLayout):
                         next_pos = in_pos + 1
                 out_text = in_text[:out_pos] + in_text[next_pos:]
                 self._text.text = out_text
-                self._set_cursor(out_pos)
+                self._set_cursor_to_pos(out_pos)
         elif key.left or key.right:
             rendered = self._text._rendered
             assert rendered is not None
@@ -295,7 +297,7 @@ class TextInput(AbstractLayout):
                 right=bool(key.right),
                 rendered=rendered,
             )
-            self._set_cursor(ret.out_state.pos, state=ret.out_state)
+            self._set_cursor_to_state(ret.out_state)
             self._set_selection(*ret.out_selection)
         elif key.ctrl:
             if key.a:
@@ -305,7 +307,7 @@ class TextInput(AbstractLayout):
                 assert rendered is not None
                 total = rendered.total_visual_count()
                 self._set_selection(0, total)
-                self._set_cursor(len(self._text.text))
+                self._set_cursor_to_pos(len(self._text.text))
             elif key.c and self._has_selection():
                 content = self._selection_text()
                 Clipboard.set_clipboard(content)
@@ -320,7 +322,7 @@ class TextInput(AbstractLayout):
                     in_text = self._text.text
                     out_text = in_text[:insert_at] + inserted + in_text[insert_at:]
                     self._text.text = out_text
-                    self._set_cursor(insert_at + len(inserted))
+                    self._set_cursor_to_pos(insert_at + len(inserted))
 
     def _get_cursor_rect(self, caret: CaretPosition):
         container = self._container
@@ -342,7 +344,7 @@ class TextInput(AbstractLayout):
         # (the bare `pos_to_pixel(pos)` route picks a convention that
         # may not match where the cursor visually came from after an
         # arrow press).
-        if self._has_focus() and self._cursor_pos is not None:
+        if self._has_focus():
             caret = self._ensure_state().pixel
             cursor_rect = self._get_cursor_rect(caret)
             Pygame.box(surface, cursor_rect, Colors.black)
