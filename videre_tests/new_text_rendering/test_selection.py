@@ -14,6 +14,7 @@ import pygame.surfarray as sa
 import pytest
 
 from videre.colors import Color
+from videre.core.pygame_backend import Surface
 from videre.core.shaping import ShapedTextRendering
 
 
@@ -22,7 +23,7 @@ def _init_pygame() -> None:
     pygame.freetype.init()
 
 
-def _highlight_x_range(s_sel: pygame.Surface, s_no: pygame.Surface) -> tuple[int, int]:
+def _highlight_x_range(s_sel: Surface, s_no: Surface) -> tuple[int, int]:
     """Difference in blue channel (selection introduces blue pixels;
     text is black). Returns ``(min_col, max_col)`` of the highlighted
     band, or ``(-1, -1)`` if no highlight is present.

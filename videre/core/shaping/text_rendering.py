@@ -3,7 +3,7 @@ import pygame.gfxdraw
 
 from videre.colors import Color, Colors
 from videre.core.constants import TextAlign
-from videre.core.pygame_backend import Pygame, PygameRendered
+from videre.core.pygame_backend import Pygame, PygameRendered, Surface, Rect
 from videre.core.shaping.layout import (
     FontMetrics,
     ShapedRenderedText,
@@ -120,7 +120,7 @@ class ShapedTextRendering:
         # word boundary in the layout contributes this advance.
         self._space_advance = space_advance(ref_path, size)
 
-    def render_char(self, c: str, color: Color | None = None) -> pygame.Surface:
+    def render_char(self, c: str, color: Color | None = None) -> Surface:
         """Rasterize a single character to a tightly-fitted Surface.
 
         Drop-in replacement for the legacy
@@ -279,7 +279,7 @@ class ShapedTextRendering:
         # LEFT/CENTER/RIGHT don't need the second pass — they only shift
         # x-offset at blit time. Compute target_width from the natural
         # measure (so `width=None` still produces a tight surface).
-        natural: list[tuple[pygame.Surface, int, int]] = [
+        natural: list[tuple[Surface, int, int]] = [
             self._render_line(line, color) for line in lines
         ]
         natural_max = max(lw for _, _, lw in natural)
@@ -292,7 +292,7 @@ class ShapedTextRendering:
         # Decide per line whether to re-render with a justified gap, and
         # the x-offset at blit time. Track the per-line `extra_word_gap`
         # so the layout helper can build pixel ranges with matching gaps.
-        rendered: list[tuple[pygame.Surface, int, int]] = []
+        rendered: list[tuple[Surface, int, int]] = []
         x_offsets: list[int] = []
         line_extra_gaps: list[float] = []
         for i, (line, n_render) in enumerate(zip(lines, natural)):
@@ -345,7 +345,7 @@ class ShapedTextRendering:
                 for rect_x, rect_w in _selection_rects_from_layout(layout, selection):
                     pygame.gfxdraw.box(
                         out,
-                        pygame.Rect(
+                        Rect(
                             rect_x, layout.y_top, rect_w, layout.y_bottom - layout.y_top
                         ),
                         _SELECTION_RGBA,
@@ -362,7 +362,7 @@ class ShapedTextRendering:
 
     def _render_line(
         self, line: ShapedLine, color: Color, *, extra_word_gap: float = 0.0
-    ) -> tuple[pygame.Surface, int, int]:
+    ) -> tuple[Surface, int, int]:
         """Render a single line.
 
         Returns ``(surface, baseline_y_in_surface, line_width)``. The
@@ -389,7 +389,7 @@ class ShapedTextRendering:
         # whitespace between them (e.g. `Hello` and `世界` in
         # `"Hello世界"` after UAX#29 segmentation) carry `space_before=
         # False` and are blitted flush.
-        rendered: list[tuple[pygame.Surface, int, bool]] = []
+        rendered: list[tuple[Surface, int, bool]] = []
         for w_idx, word in enumerate(line.words):
             gap_before_word = w_idx > 0 and word.space_before
             for r_idx, run in enumerate(word.runs):
@@ -563,7 +563,7 @@ def _selection_rects_from_layout(
     return rects
 
 
-def _glyph_to_surface(glyph: Glyph) -> pygame.Surface:
+def _glyph_to_surface(glyph: Glyph) -> Surface:
     if glyph.image is None:
         return Pygame.zero()
     return pygame.image.frombuffer(
@@ -571,7 +571,7 @@ def _glyph_to_surface(glyph: Glyph) -> pygame.Surface:
     )
 
 
-def _glyph_area_to_surface(area: GlyphArea) -> pygame.Surface:
+def _glyph_area_to_surface(area: GlyphArea) -> Surface:
     surface = Pygame.new_surface(area.width, area.height)
     for sprite, blit_x, blit_y in area.glyphs:
         if sprite.empty():
