@@ -1,34 +1,58 @@
+from typing import Protocol
+
 from videre import MouseButton
-from videre.core.events import KeyboardEntry, MouseEvent
+from videre.core.events import MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend import Event
 from videre.widgets.widget import Widget
 
 
+class _NamedMethod[W, **P, R](Protocol):
+    """A function-like object exposing `__name__` — what we need to
+    resolve the same method by name on a (possibly subclass) instance
+    via `getattr`. Plain `Callable` doesn't promise `__name__`."""
+
+    __name__: str
+
+    def __call__(self, obj: W, /, *args: P.args, **kwargs: P.kwargs) -> R: ...
+
+
+def call_overload[W, **P, R](
+    obj: W, parent_method: _NamedMethod[W, P, R], *args: P.args, **kwargs: P.kwargs
+) -> R:
+    return getattr(obj, parent_method.__name__)(*args, **kwargs)
+
+
 class EventPropagator:
     @classmethod
-    def _handle(
-        cls, widget: Widget | None, handle_function: str, *args, **kwargs
+    def _handle[**P, R](
+        cls,
+        widget: Widget | None,
+        handle_function: _NamedMethod[Widget, P, R],
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> Widget | None:
-        # print(handle_function, widget)
-        if widget:
-            handled = getattr(widget, handle_function)(*args, **kwargs)
+        while widget:
+            handled = call_overload(widget, handle_function, *args, **kwargs)
             if handled:
-                return handled if isinstance(handled, Widget) else widget
+                assert isinstance(handled, Widget)
+                return handled
             else:
-                return cls._handle(widget.parent, handle_function, *args, **kwargs)
-        else:
-            return None
+                widget = widget.parent
+        return None
 
     @classmethod
-    def _handle_mouse_event(
-        cls, widget: Widget | None, handle_function: str, event: MouseEvent
+    def _handle_mouse_event[R](
+        cls,
+        widget: Widget | None,
+        handle_function: _NamedMethod[Widget, [MouseEvent], R],
+        event: MouseEvent,
     ) -> Widget | None:
-        # print(handle_function, widget)
         while widget:
-            handled = getattr(widget, handle_function)(event)
+            handled = call_overload(widget, handle_function, event)
             if handled:
-                return handled if isinstance(handled, Widget) else widget
+                assert isinstance(handled, Widget)
+                return handled
             else:
                 parent = widget.parent
                 widget = parent
@@ -40,48 +64,41 @@ class EventPropagator:
 
     @classmethod
     def handle_click(cls, widget: Widget, button: MouseButton) -> Widget | None:
-        return cls._handle(widget, Widget.handle_click.__name__, button)
+        return cls._handle(widget, Widget.handle_click, button)
 
     @classmethod
     def handle_focus_in(cls, widget: Widget) -> Widget | None:
-        return cls._handle(widget, Widget.handle_focus_in.__name__)
+        return cls._handle(widget, Widget.handle_focus_in)
 
     @classmethod
-    def handle_keydown(cls, widget: Widget, kentry: KeyboardEntry) -> Widget | None:
-        # Currently unused
-        return cls._handle(widget, Widget.handle_keydown.__name__, kentry)
+    def handle_mouse_over(cls, widget: Widget, event: MouseEvent) -> Widget | None:
+        return cls._handle_mouse_event(widget, Widget.handle_mouse_over, event)
 
     @classmethod
-    def handle_mouse_over(cls, widget: Widget, event: MouseEvent):
-        return cls._handle_mouse_event(widget, Widget.handle_mouse_over.__name__, event)
+    def handle_mouse_enter(cls, widget: Widget, event: MouseEvent) -> Widget | None:
+        return cls._handle_mouse_event(widget, Widget.handle_mouse_enter, event)
 
     @classmethod
-    def handle_mouse_enter(cls, widget: Widget, event: MouseEvent):
-        return cls._handle_mouse_event(
-            widget, Widget.handle_mouse_enter.__name__, event
-        )
+    def handle_mouse_exit(cls, widget: Widget) -> Widget | None:
+        return cls._handle(widget, Widget.handle_mouse_exit)
 
     @classmethod
-    def handle_mouse_exit(cls, widget: Widget):
-        return cls._handle(widget, Widget.handle_mouse_exit.__name__)
+    def handle_mouse_down(cls, widget: Widget, event: MouseEvent) -> Widget | None:
+        return cls._handle_mouse_event(widget, Widget.handle_mouse_down, event)
 
     @classmethod
-    def handle_mouse_down(cls, widget: Widget, event: MouseEvent):
-        return cls._handle_mouse_event(widget, Widget.handle_mouse_down.__name__, event)
+    def handle_mouse_up(cls, widget: Widget, event: MouseEvent) -> Widget | None:
+        return cls._handle_mouse_event(widget, Widget.handle_mouse_up, event)
 
     @classmethod
-    def handle_mouse_up(cls, widget: Widget, event: MouseEvent):
-        return cls._handle_mouse_event(widget, Widget.handle_mouse_up.__name__, event)
+    def handle_mouse_down_move(cls, widget: Widget, event: MouseEvent) -> Widget | None:
+        return cls._handle_mouse_event(widget, Widget.handle_mouse_down_move, event)
 
     @classmethod
-    def handle_mouse_down_move(cls, widget: Widget, event: MouseEvent):
-        return cls._handle_mouse_event(
-            widget, Widget.handle_mouse_down_move.__name__, event
-        )
-
-    @classmethod
-    def handle_mouse_down_canceled(cls, widget: Widget, button: MouseButton):
-        return cls._handle(widget, Widget.handle_mouse_down_canceled.__name__, button)
+    def handle_mouse_down_canceled(
+        cls, widget: Widget, button: MouseButton
+    ) -> Widget | None:
+        return cls._handle(widget, Widget.handle_mouse_down_canceled, button)
 
     @classmethod
     def manage_mouse_motion(cls, event: Event, owner: MouseOwnership, previous: Widget):

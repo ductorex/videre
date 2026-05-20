@@ -30,7 +30,7 @@ class MockWidget(Widget):
 
     def _log_event(self, event_name, *args, **kwargs):
         self.events_received.append((event_name, args, kwargs))
-        return self.capture_events
+        return self if self.capture_events else None
 
     def handle_click(self, button):
         return self._log_event("click", button)
@@ -66,7 +66,7 @@ class TestHandlePropagation:
     def test_event_captured(self):
         widget = MockWidget()
         result = EventPropagator._handle(
-            widget, "handle_click", MouseButton.BUTTON_LEFT
+            widget, Widget.handle_click, MouseButton.BUTTON_LEFT
         )
         assert result is widget
         assert widget.events_received[0] == ("click", (MouseButton.BUTTON_LEFT,), {})
@@ -74,7 +74,7 @@ class TestHandlePropagation:
     def test_event_not_captured_no_parent(self):
         widget = MockWidget(capture_events=False)
         result = EventPropagator._handle(
-            widget, "handle_click", MouseButton.BUTTON_LEFT
+            widget, Widget.handle_click, MouseButton.BUTTON_LEFT
         )
         assert result is None
         assert len(widget.events_received) == 1
@@ -82,7 +82,9 @@ class TestHandlePropagation:
     def test_propagation_to_parent(self):
         parent = MockWidget()
         child = MockWidget(parent=parent, capture_events=False)
-        result = EventPropagator._handle(child, "handle_click", MouseButton.BUTTON_LEFT)
+        result = EventPropagator._handle(
+            child, Widget.handle_click, MouseButton.BUTTON_LEFT
+        )
         assert result is parent
         assert len(child.events_received) == 1
         assert len(parent.events_received) == 1
@@ -91,7 +93,9 @@ class TestHandlePropagation:
         grandparent = MockWidget()
         parent = MockWidget(parent=grandparent, capture_events=False)
         child = MockWidget(parent=parent, capture_events=False)
-        result = EventPropagator._handle(child, "handle_click", MouseButton.BUTTON_LEFT)
+        result = EventPropagator._handle(
+            child, Widget.handle_click, MouseButton.BUTTON_LEFT
+        )
         assert result is grandparent
         assert len(child.events_received) == 1
         assert len(parent.events_received) == 1
@@ -100,7 +104,9 @@ class TestHandlePropagation:
     def test_mouse_event_captured(self):
         widget = MockWidget()
         event = MouseEvent(x=10, y=20)
-        result = EventPropagator._handle_mouse_event(widget, "handle_mouse_down", event)
+        result = EventPropagator._handle_mouse_event(
+            widget, Widget.handle_mouse_down, event
+        )
         assert result is widget
         assert widget.events_received[0][1][0] is event
 
@@ -111,7 +117,9 @@ class TestHandlePropagation:
         child = MockWidget(parent=parent, capture_events=False)
 
         event = MouseEvent(x=10, y=20)
-        result = EventPropagator._handle_mouse_event(child, "handle_mouse_down", event)
+        result = EventPropagator._handle_mouse_event(
+            child, Widget.handle_mouse_down, event
+        )
 
         assert result is parent
         parent_event = parent.events_received[0][1][0]
@@ -120,14 +128,14 @@ class TestHandlePropagation:
 
     def test_none_widget(self):
         assert (
-            EventPropagator._handle(None, "handle_click", MouseButton.BUTTON_LEFT)
+            EventPropagator._handle(None, Widget.handle_click, MouseButton.BUTTON_LEFT)
             is None
         )
 
     def test_none_widget_mouse_event(self):
         event = MouseEvent(x=10, y=20)
         assert (
-            EventPropagator._handle_mouse_event(None, "handle_mouse_down", event)
+            EventPropagator._handle_mouse_event(None, Widget.handle_mouse_down, event)
             is None
         )
 
@@ -144,7 +152,7 @@ class TestHandlePropagation:
         target = MockWidget()
         widget = CustomWidget(target)
         result = EventPropagator._handle(
-            widget, "handle_click", MouseButton.BUTTON_LEFT
+            widget, Widget.handle_click, MouseButton.BUTTON_LEFT
         )
         assert result is target
 
@@ -161,7 +169,9 @@ class TestHandlePropagation:
         target = MockWidget()
         widget = CustomWidget(target)
         event = MouseEvent(x=10, y=20)
-        result = EventPropagator._handle_mouse_event(widget, "handle_mouse_down", event)
+        result = EventPropagator._handle_mouse_event(
+            widget, Widget.handle_mouse_down, event
+        )
         assert result is target
 
 

@@ -1,3 +1,5 @@
+from typing import Self
+
 from cursword import get_next_word_end_position, get_previous_word_start_position
 
 from videre.colors import Colors
@@ -233,10 +235,10 @@ class TextInput(AbstractLayout):
         self._debug("mouse_up")
         self._selecting_pivot = None
 
-    def handle_focus_in(self) -> bool:
+    def handle_focus_in(self) -> Self:
         self._debug("focus_in")
         self._set_focus(True)
-        return True
+        return self
 
     def handle_focus_out(self):
         self._debug("focus_out")

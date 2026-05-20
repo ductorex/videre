@@ -292,39 +292,39 @@ class Widget:
     def handle_mouse_wheel(self, x: int, y: int, shift: bool):
         pass
 
-    def handle_click(self, button: MouseButton):
-        pass
+    def handle_click(self, button: MouseButton) -> "Widget | None":
+        return None
 
-    def handle_focus_in(self) -> "bool | Widget":
-        """Return True if this widget accepts the focus, False otherwise."""
-        return False
+    def handle_focus_in(self) -> "Widget | None":
+        """Return the widget that accepts the focus (usually this widget), or None otherwise."""
+        return None
 
     def handle_focus_out(self):
         pass
 
-    def handle_mouse_enter(self, event: MouseEvent):
-        pass
+    def handle_mouse_enter(self, event: MouseEvent) -> "Widget | None":
+        return None
 
-    def handle_mouse_over(self, event: MouseEvent):
-        pass
+    def handle_mouse_over(self, event: MouseEvent) -> "Widget | None":
+        return None
 
-    def handle_mouse_down(self, event: MouseEvent):
-        pass
+    def handle_mouse_down(self, event: MouseEvent) -> "Widget | None":
+        return None
 
-    def handle_mouse_down_move(self, event: MouseEvent):
-        pass
+    def handle_mouse_down_move(self, event: MouseEvent) -> "Widget | None":
+        return None
 
-    def handle_mouse_down_canceled(self, button: MouseButton):
-        pass
+    def handle_mouse_down_canceled(self, button: MouseButton) -> "Widget | None":
+        return None
 
-    def handle_mouse_up(self, event: MouseEvent):
-        pass
+    def handle_mouse_up(self, event: MouseEvent) -> "Widget | None":
+        return None
 
-    def handle_mouse_exit(self):
-        pass
+    def handle_mouse_exit(self) -> "Widget | None":
+        return None
 
     def handle_text_input(self, text: str):
         pass
 
-    def handle_keydown(self, key: KeyboardEntry):
-        pass
+    def handle_keydown(self, key: KeyboardEntry) -> "Widget | None":
+        return None

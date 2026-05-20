@@ -36,46 +36,46 @@ class TrackerWidget(Widget):
 
     def handle_keydown(self, key):
         self.events.append(("keydown", key))
-        return True
+        return self
 
     def handle_focus_in(self):
         self.events.append(("focus_in",))
-        return True
+        return self
 
     def handle_focus_out(self):
         self.events.append(("focus_out",))
 
     def handle_click(self, button):
         self.events.append(("click", button))
-        return True
+        return self
 
     def handle_mouse_enter(self, event):
         self.events.append(("mouse_enter",))
-        return True
+        return self
 
     def handle_mouse_over(self, event):
         self.events.append(("mouse_over",))
-        return True
+        return self
 
     def handle_mouse_exit(self):
         self.events.append(("mouse_exit",))
-        return True
+        return self
 
     def handle_mouse_down(self, event):
         self.events.append(("mouse_down",))
-        return True
+        return self
 
     def handle_mouse_up(self, event):
         self.events.append(("mouse_up",))
-        return True
+        return self
 
     def handle_mouse_down_move(self, event):
         self.events.append(("mouse_down_move",))
-        return True
+        return self
 
     def handle_mouse_down_canceled(self, button):
         self.events.append(("mouse_down_canceled", button))
-        return True
+        return self
 
 
 # --- Quit ---

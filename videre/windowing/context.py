@@ -24,7 +24,7 @@ class Context(AbstractLayout):
     def relative(self) -> Widget:
         return self._relative
 
-    def handle_focus_in(self) -> bool | Widget:
+    def handle_focus_in(self) -> Widget | None:
         return self._relative.handle_focus_in()
 
     def draw(
