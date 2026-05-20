@@ -136,5 +136,5 @@ def test_dropdown_click_outer(fake_win, fake_user):
 
 
 def test_dropdown_empty_options():
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         videre.Dropdown(options=[])

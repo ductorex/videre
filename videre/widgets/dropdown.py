@@ -48,7 +48,7 @@ class _OptionWidget(Div):
 
 
 class Dropdown(Div):
-    __slots__ = ("_context", "_text", "_arrow")
+    __slots__ = ("_context", "_text", "_arrow", "_option_width")
     __wprops__ = {"options", "index", "name"}
     ARROW_DOWN = "▼"
 
@@ -56,12 +56,9 @@ class Dropdown(Div):
         self._text = _Text()
         self._arrow = _Text(self.ARROW_DOWN)
         self._context: Column | None = None
+        self._option_width: dict[tuple[tuple[Any, ...], bool], int] = {}
         super().__init__(Row([Container(self._text, weight=1), self._arrow]), **kwargs)
         self.options = options
-        self.index = 0
-
-        if self.options:
-            self._text.text = str(self.selected)
 
     @property
     def options(self) -> tuple:
@@ -70,8 +67,10 @@ class Dropdown(Div):
     @options.setter
     def options(self, options: list | tuple):
         options = tuple(options)
-        assert options
-        self._set_wprop("options", options)
+        if not options:
+            raise ValueError("Dropdown.options cannot be empty")
+        if options != self.options:
+            self._set_wprop("options", options)
         self.index = 0
 
     @property
@@ -116,22 +115,27 @@ class Dropdown(Div):
             self._context = None
 
     def _compute_width(self, window, include_border=True) -> int:
-        text_width = (
-            max(
-                (
-                    _Text(str(option)).render(window, None, None).get_width()
-                    for option in self.options
-                ),
-                default=0,
+        # NB: option width can also be invalidated if window fonts change.
+        # Could not currently happen, though.
+        key = (self.options, include_border)
+        if key not in self._option_width:
+            text_width = (
+                max(
+                    (
+                        _Text(str(option)).render(window, None, None).get_width()
+                        for option in self.options
+                    ),
+                    default=0,
+                )
+                + self._arrow.render(window, None, None).get_width()
             )
-            + self._arrow.render(window, None, None).get_width()
-        )
 
-        container = self._container()
-        margin = container.padding
-        if include_border:
-            margin = margin + container.border.margin()
-        return margin.left + text_width + margin.right
+            container = self._container()
+            margin = container.padding
+            if include_border:
+                margin = margin + container.border.margin()
+            self._option_width[key] = margin.left + text_width + margin.right
+        return self._option_width[key]
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
