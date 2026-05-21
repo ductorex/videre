@@ -17,7 +17,21 @@ _Position: TypeAlias = tuple[int | float, int | float]
 
 
 class Pygame:
-    __slots__ = ()
+    __slots__ = ("__default_cursor", "__text_cursor")
+
+    def __init__(self):
+        self.init()
+        self.__default_cursor = pygame.mouse.get_cursor()
+        self.__text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
+
+    def set_text_cursor(self):
+        pygame.mouse.set_cursor((8, 16), (0, 0), *self.__text_cursor)
+
+    def set_default_cursor(self):
+        pygame.mouse.set_cursor(*self.__default_cursor)
+
+    def cursor_is_default(self) -> bool:
+        return pygame.mouse.get_cursor() == self.__default_cursor
 
     @classmethod
     def init(cls):

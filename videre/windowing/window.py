@@ -53,13 +53,12 @@ class Window:
         "_notif_cbks",
         "_lock",
         "_nb_frames",
-        "_text_cursor",
-        "_default_cursor",
         "data",
         "_handled_exceptions",
         "_subpixel",
         "_pending_tasks",
         "_event_manager",
+        "__backend",
     )
 
     def __init__(
@@ -73,7 +72,7 @@ class Window:
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
     ):
-        Pygame.init()
+        self.__backend = Pygame()
 
         self._screen: Surface | None = None
         self._exit_code = 0
@@ -100,9 +99,6 @@ class Window:
 
         self._nb_frames = 0
 
-        self._default_cursor = pygame.mouse.get_cursor()
-        self._text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
-
         self._handled_exceptions = tuple(alert_on_exceptions)
         self._subpixel: bool | None = handle_text_sub_pixels
 
@@ -118,11 +114,9 @@ class Window:
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
 
-    def set_text_cursor(self):
-        pygame.mouse.set_cursor((8, 16), (0, 0), *self._text_cursor)
-
-    def set_default_cursor(self):
-        pygame.mouse.set_cursor(*self._default_cursor)
+    @property
+    def backend(self) -> Pygame:
+        return self.__backend
 
     @property
     def background(self) -> Color:

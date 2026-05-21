@@ -1,4 +1,3 @@
-import pygame.mouse
 import pytest
 
 import videre
@@ -169,7 +168,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     assert ti._get_selection() is None
 
     # Also check mouse cursor
-    assert pygame.mouse.get_cursor() == fake_win._default_cursor
+    assert fake_win.backend.cursor_is_default()
 
     rendered = ti._text._rendered
     assert rendered is not None
@@ -211,8 +210,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     # Check mouse cursor
     # Mouse motion should have triggered a mouse enter,
     # to cursor should have changed
-    text_cursor = pygame.mouse.get_cursor()
-    assert text_cursor != fake_win._default_cursor
+    assert not fake_win.backend.cursor_is_default()
 
     # Mouse down move left again
     x = x_for_pos(1)
@@ -253,7 +251,7 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     fake_user.mouse_motion(placeholder.global_x, placeholder.global_y)
     fake_win.check("cursor_4")
     # Check mouse cursor
-    assert pygame.mouse.get_cursor() == fake_win._default_cursor
+    assert fake_win.backend.cursor_is_default()
 
 
 def test_keyboard_delete(fake_win, fake_user):
