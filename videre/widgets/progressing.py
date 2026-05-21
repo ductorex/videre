@@ -25,7 +25,7 @@ class Progressing(AbstractAnimation):
         self, window, width: int | None = None, height: int | None = None
     ) -> Surface:
         bg_w = 102 if width is None else max(width, 2)
-        bg_h = window.fonts.font_height
+        bg_h = window.font_height
         inner_w = (bg_w - 2) // 2
         inner_h = bg_h - 2
 

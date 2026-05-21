@@ -21,5 +21,5 @@ def test_rendered_button_sizes(fake_win):
     print("b:Hello", b3.rendered_height)
     print("radio", br.rendered_height)
     print("checkbox", bc.rendered_height)
-    print("standard", fake_win.fonts.font_height)
+    print("standard", fake_win.font_height)
     fake_win.check()

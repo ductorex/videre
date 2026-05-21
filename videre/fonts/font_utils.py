@@ -3,14 +3,14 @@ from fontTools.ttLib import TTFont
 from videre.fonts.unicode_utils import Unicode
 
 
-def _get_sized_height(font: TTFont, pt_size, dpi=72) -> int:
+def _get_sized_height(font: TTFont, pt_size: int, dpi: int = 72) -> int:
     head = font["head"]
     hhea = font["hhea"]
 
-    units_per_em = head.unitsPerEm
+    units_per_em = head.unitsPerEm  # ty: ignore[unresolved-attribute]
     ascent = hhea.ascent
     descent = hhea.descent
-    line_gap = hhea.lineGap
+    line_gap = hhea.lineGap  # ty: ignore[unresolved-attribute]
 
     line_height_units = ascent - descent + line_gap
 
@@ -18,21 +18,14 @@ def _get_sized_height(font: TTFont, pt_size, dpi=72) -> int:
 
     height_px = line_height_units * pixel_size / units_per_em
 
-    return int(round(height_px, 2) + 0.5)
+    return round(height_px)
 
 
 class FontUtils:
     __slots__ = ("_path", "_unicode_map", "_name", "_sized_height")
 
-    def __init__(
-        self,
-        path: str,
-        size_points: int | None = None,
-        *,
-        font_index=-1,
-        allow_vid=NotImplemented,
-    ):
-        with TTFont(path, fontNumber=font_index, allowVID=allow_vid) as font:
+    def __init__(self, path: str, size_points: int | None = None, *, font_index=-1):
+        with TTFont(path, fontNumber=font_index) as font:
             # (2024/06/11) https://stackoverflow.com/a/72228817
             debug_name = font["name"].getDebugName(4)
             if debug_name is None:
@@ -43,13 +36,13 @@ class FontUtils:
                     f"Cannot find best unicode table in font: {debug_name}"
                 )
             sized_height = (
-                0 if size_points is None else _get_sized_height(font, size_points)
+                None if size_points is None else _get_sized_height(font, size_points)
             )
 
         self._path = path
         self._unicode_map: dict[int, str] = unicode_map
         self._name: str = debug_name
-        self._sized_height = sized_height
+        self._sized_height: int | None = sized_height
 
     @property
     def name(self) -> str:
@@ -60,7 +53,7 @@ class FontUtils:
         return self._path
 
     @property
-    def sized_height(self) -> int:
+    def sized_height(self) -> int | None:
         return self._sized_height
 
     def to_dict(self) -> dict[str, str]:

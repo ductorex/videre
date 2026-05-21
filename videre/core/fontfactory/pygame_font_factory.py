@@ -17,14 +17,7 @@ class CharMeasures:
 
 
 class PygameFontFactory:
-    __slots__ = (
-        "_prov",
-        "_key_to_font",
-        "_size",
-        "_origin",
-        "_base_font",
-        "_cached_char_measures",
-    )
+    __slots__ = ("_prov", "_key_to_font", "_size", "_origin", "_cached_char_measures")
 
     def __init__(self, size=14):
         Pygame.init()
@@ -32,19 +25,7 @@ class PygameFontFactory:
         self._key_to_font: dict[tuple[str, bool, bool], pygame.freetype.Font] = {}
         self._size = size
         self._origin = True
-        self._base_font = None
-
         self._cached_char_measures: dict[tuple[str, int, bool, bool], CharMeasures] = {}
-
-    @property
-    def base_font(self) -> pygame.freetype.Font:
-        if self._base_font is None:
-            self._base_font = self.get_font(" ")
-        return self._base_font
-
-    @property
-    def font_height(self) -> int:
-        return self.base_font.get_sized_height(self._size)
 
     def get_font(
         self, c: str, strong: bool = False, italic: bool = False

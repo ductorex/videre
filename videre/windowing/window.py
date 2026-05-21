@@ -21,6 +21,8 @@ from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 from videre.core.pygame_backend import Event, Pygame, Surface
 from videre.core.utils import Procedure, launch_thread
+from videre.fonts.font_utils import FontUtils
+from videre.fonts.provider import FontProvider
 from videre.layouts.container import Container
 from videre.widgets.button import Button
 from videre.widgets.text import Text
@@ -60,6 +62,7 @@ class Window:
         "_event_manager",
         "__backend",
         "_font_size_pts",
+        "_font_height",
     )
 
     def __init__(
@@ -75,6 +78,7 @@ class Window:
     ):
         self.__backend = Pygame()
         self._font_size_pts = font_size
+        self._font_height: int | None = None
 
         self._screen: Surface | None = None
         self._exit_code = 0
@@ -133,12 +137,16 @@ class Window:
         return self._nb_frames
 
     @property
-    def fonts(self) -> PygameFontFactory:
-        return self._fonts
-
-    @property
     def symbol_size(self) -> int:
         return int(round(self._font_size_pts * 1.625))
+
+    @property
+    def font_height(self) -> int:
+        if self._font_height is None:
+            _, path = FontProvider().get_font_info(" ")
+            self._font_height = FontUtils(path, self._font_size_pts).sized_height
+        assert self._font_height is not None
+        return self._font_height
 
     @property
     def controls(self) -> tuple[Widget, ...]:
