@@ -1,7 +1,11 @@
+import pygame
+import pygame.freetype
 import pytest
 
 from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
 from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
+from videre.fonts.font_utils import FontUtils
+from videre.fonts.provider import get_fonts
 
 
 @pytest.mark.parametrize("wrap_words", (False, True))
@@ -86,3 +90,24 @@ def test_render_text(wrap_words):
     s = ff_render_text("a\na\na\n\n")
     assert s.get_width() == 12
     assert s.get_height() == compact_y + 4 * line_height + descender
+
+
+_FONTS = get_fonts()
+
+
+def test_font_resolution():
+    pygame.freetype.init()
+    path = next(iter(_FONTS.values()))
+    font = pygame.freetype.Font(path)
+    assert font.resolution == 72
+
+
+@pytest.mark.parametrize("path", _FONTS.values(), ids=_FONTS.keys())
+def test_font_sized_height(path: str):
+    pygame.freetype.init()
+
+    size = 24
+    pygame_size = pygame.freetype.Font(path).get_sized_height(size)
+    fonttools_size = FontUtils(path, size).sized_height
+    assert fonttools_size > 0, fonttools_size
+    assert pygame_size == fonttools_size, (pygame_size, fonttools_size)
