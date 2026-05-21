@@ -3,6 +3,7 @@ import pytest
 
 import videre
 from videre import Column, Container, ScrollView, Text
+from videre_tests.common import win_hd_parameters, win_parameters
 
 
 class TestScrollViewRendering:
@@ -138,7 +139,8 @@ class TestScrollViewInteractions:
         finally:
             pygame.key.get_mods = original_get_mods
 
-    def test_wheel_at_scroll_limits(self, fake_win, win_HD, fake_user):
+    @win_hd_parameters()
+    def test_wheel_at_scroll_limits(self, fake_win, fake_user):
         """Test mouse wheel behavior at scroll boundaries"""
         items = [Text(f"Item {i}", size=16) for i in range(10)]
         content = Column(items)
@@ -347,7 +349,7 @@ class TestScrollViewConfiguration:
 class TestScrollViewEdgeCases:
     """Test edge cases and boundary conditions"""
 
-    @pytest.mark.win_params({"width": 50, "height": 50})
+    @win_parameters(width=50, height=50)
     def test_very_small_viewport(self, fake_win):
         """Test ScrollView with very small viewport"""
         content = Column([Text(f"Item {i}", size=16) for i in range(10)])
@@ -449,7 +451,7 @@ class TestScrollViewAlgorithms:
         # Test with scroll disabled
         assert ScrollView._can_scroll(1, False, 200, 500, -100) is False
 
-    @pytest.mark.win_params({"width": 200, "height": 150})
+    @win_parameters(width=200, height=150)
     def test_content_position_bounds_correction(self, fake_win):
         """Test automatic correction of invalid content positions"""
         items = [Text(f"Item {i}", size=16) for i in range(10)]
