@@ -1,6 +1,11 @@
+from typing import TYPE_CHECKING
+
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.pygame_backend import Surface
 from videre.widgets.widget import Widget
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class Character(Widget):
@@ -74,14 +79,12 @@ class Character(Widget):
     def underline(self, underline: bool):
         self._set_wprop("underline", bool(underline))
 
-    def _text_rendering(self, window):
-        from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-
+    def _text_rendering(self, window: "Window"):
         size = self.size
         if size is None:
             size = window.fonts.symbol_size
 
-        rendering: PygameTextRendering = window.text_rendering(
+        rendering = window.text_rendering(
             size=size, strong=self.strong, italic=self.italic, underline=self.underline
         )
         return rendering

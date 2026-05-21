@@ -285,7 +285,7 @@ class Widget:
 
     @abstractmethod
     def draw(
-        self, window, width: int | None = None, height: int | None = None
+        self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Surface:
         raise NotImplementedError()
 

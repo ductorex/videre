@@ -164,7 +164,7 @@ class Window:
         height_delta: int | None = None,
     ):
         return PygameTextRendering(
-            self.fonts,
+            self._fonts,
             size=size,
             strong=strong,
             italic=italic,
