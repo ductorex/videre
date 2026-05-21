@@ -59,6 +59,7 @@ class Window:
         "_pending_tasks",
         "_event_manager",
         "__backend",
+        "_font_size_pts",
     )
 
     def __init__(
@@ -73,6 +74,7 @@ class Window:
         handle_text_sub_pixels: bool | None = None,
     ):
         self.__backend = Pygame()
+        self._font_size_pts = font_size
 
         self._screen: Surface | None = None
         self._exit_code = 0
@@ -95,7 +97,7 @@ class Window:
         self._fancybox: Fancybox | None = None
         self._context: Context | None = None
 
-        self._fonts = PygameFontFactory(size=font_size)
+        self._fonts = PygameFontFactory(size=self._font_size_pts)
 
         self._nb_frames = 0
 
@@ -135,6 +137,10 @@ class Window:
         return self._fonts
 
     @property
+    def symbol_size(self) -> int:
+        return int(round(self._font_size_pts * 1.625))
+
+    @property
     def controls(self) -> tuple[Widget, ...]:
         return tuple(self._controls)
 
@@ -165,7 +171,7 @@ class Window:
     ):
         return PygameTextRendering(
             self._fonts,
-            size=size,
+            size=size or self._font_size_pts,
             strong=strong,
             italic=italic,
             underline=underline,

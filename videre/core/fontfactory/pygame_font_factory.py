@@ -43,16 +43,8 @@ class PygameFontFactory:
         return self._base_font
 
     @property
-    def size(self) -> int:
-        return self._size
-
-    @property
     def font_height(self) -> int:
         return self.base_font.get_sized_height(self._size)
-
-    @property
-    def symbol_size(self) -> int:
-        return int(round(self._size * 1.625))
 
     def get_font(
         self, c: str, strong: bool = False, italic: bool = False

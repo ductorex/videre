@@ -6,19 +6,24 @@ from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
 
 @pytest.mark.parametrize("wrap_words", (False, True))
 def test_render_text(wrap_words):
+    size = 24
     height_delta = 2
-    ff = PygameFontFactory(size=24)
+    ff = PygameFontFactory(size=size)
     font = ff.base_font
     line_height = ff.font_height + height_delta
-    ascender = abs(font.get_sized_ascender(ff.size)) + 1
-    descender = abs(font.get_sized_descender(ff.size))
+    ascender = abs(font.get_sized_ascender(size)) + 1
+    descender = abs(font.get_sized_descender(size))
     compact_y = ascender + height_delta
     assert line_height == 35
     assert ascender == 27
     assert descender == 8
 
-    tr_compact = PygameTextRendering(ff, height_delta=height_delta, compact=True)
-    tr_full = PygameTextRendering(ff, height_delta=height_delta, compact=False)
+    tr_compact = PygameTextRendering(
+        ff, size=size, height_delta=height_delta, compact=True
+    )
+    tr_full = PygameTextRendering(
+        ff, size=size, height_delta=height_delta, compact=False
+    )
 
     def ff_render_text(text):
         return tr_compact.render_text(text, wrap_words=wrap_words)[1].surface

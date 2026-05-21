@@ -259,14 +259,14 @@ class PygameTextRendering:
     def __init__(
         self,
         fonts: PygameFontFactory,
-        size=0,
+        size: int,
         strong=False,
         italic=False,
         underline=False,
         height_delta=2,
         compact: bool = True,
     ):
-        size = size or fonts.size
+        assert size > 0
         height_delta = 2 if height_delta is None else height_delta
         strong = bool(strong)
         italic = bool(italic)

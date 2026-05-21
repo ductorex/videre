@@ -82,7 +82,7 @@ class Character(Widget):
     def _text_rendering(self, window: "Window"):
         size = self.size
         if size is None:
-            size = window.fonts.symbol_size
+            size = window.symbol_size
 
         rendering = window.text_rendering(
             size=size, strong=self.strong, italic=self.italic, underline=self.underline
