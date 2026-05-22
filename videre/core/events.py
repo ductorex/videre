@@ -164,7 +164,3 @@ class CustomTasks:
     @classmethod
     def exit_task(cls, exc: Exception | None = None) -> ExitTask:
         return ExitTask(exc)
-
-    @classmethod
-    def size_task(cls, width: int, height: int):
-        return SizeTask(width, height)

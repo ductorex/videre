@@ -345,12 +345,17 @@ def test_on_window_leave_no_motion(fake_win):
 
 
 def test_on_window_resized(fake_win):
-    assert fake_win._width == 320
-    assert fake_win._height == 240
-    pygame.event.post(Event(pygame.WINDOWRESIZED, x=1024, y=768))
     fake_win.render()
-    assert fake_win._width == 1024
-    assert fake_win._height == 768
+    assert fake_win.width == 320
+    assert fake_win.height == 240
+
+    x = 1024
+    y = 768
+    fake_win._backend._screen = pygame.display.set_mode((x, y), pygame.RESIZABLE)
+    pygame.event.post(Event(pygame.WINDOWRESIZED, x=x, y=y))
+    fake_win.render()
+    assert fake_win.width == x
+    assert fake_win.height == y
 
 
 # --- Text input ---

@@ -133,7 +133,7 @@ class WindowEventManager:
 
     @on_event(pygame.WINDOWRESIZED)
     def _on_window_resized(self, event: Event) -> SizeTask:
-        return CustomTasks.size_task(event.x, event.y)
+        return SizeTask(event.x, event.y)
 
     @on_event(pygame.TEXTINPUT)
     def _on_text_input(self, event: Event) -> None:

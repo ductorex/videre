@@ -21,7 +21,7 @@ class StepWindow(Window):
         if not self._is_running():
             raise RuntimeError("Window has already run. Cannot run again.")
         self._step_mode = True
-        self._init_display()
+        self._backend.__enter__()
         return self
 
     def render(self):
@@ -47,7 +47,7 @@ class StepWindow(Window):
         if self._step_mode:
             self._step_mode = False
             self._stop_running()
-            pygame.quit()
+            self._backend.__exit__(exc_type, exc_val, exc_tb)
 
     def find(self, widget_cls, **wprops):
         return self._layout.collect_matches(

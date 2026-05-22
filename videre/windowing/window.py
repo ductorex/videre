@@ -41,17 +41,12 @@ class Window:
     __slots__ = (
         "_exit_code",
         "_exit_exception",
-        "_title",
-        "_width",
-        "_height",
         "_running",
-        "_screen",
         "_layout",
         "_controls",
         "_fancybox",
         "_context",
         "_fonts",
-        "_hide",
         "_notif_cbks",
         "_lock",
         "_nb_frames",
@@ -60,7 +55,7 @@ class Window:
         "_subpixel",
         "_pending_tasks",
         "_event_manager",
-        "__backend",
+        "_backend",
         "_font_size_pts",
         "_font_height",
     )
@@ -76,20 +71,14 @@ class Window:
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
     ):
-        self.__backend = Pygame()
+        self._backend = Pygame(width, height, str(title) or "Window", bool(hide))
         self._font_size_pts = font_size
         self._font_height: int | None = None
 
-        self._screen: Surface | None = None
         self._exit_code = 0
         self._exit_exception: Exception | None = None
         self._lock = threading.Lock()
 
-        self._title = str(title) or "Window"
-        self._hide = bool(hide)
-
-        self._width = width
-        self._height = height
         self._layout = WindowLayout(parse_color(background or Colors.white))
 
         # Videre-specific events
@@ -122,7 +111,7 @@ class Window:
 
     @property
     def backend(self) -> Pygame:
-        return self.__backend
+        return self._backend
 
     @property
     def background(self) -> Color:
@@ -159,15 +148,18 @@ class Window:
 
     @property
     def width(self) -> int:
-        return self._width
+        return self._backend.width
 
     @property
     def height(self) -> int:
-        return self._height
+        return self._backend.height
+
+    @property
+    def title(self) -> str:
+        return self._backend.title
 
     def get_screen(self) -> Surface:
-        assert self._screen is not None
-        return self._screen
+        return self._backend.get_screen()
 
     def text_rendering(
         self,
@@ -190,32 +182,15 @@ class Window:
         if not self._running:
             raise RuntimeError("Window has already run. Cannot run again.")
 
-        self._init_display()
-
-        clock = pygame.time.Clock()
-        while self._running:
-            self._render()
-            clock.tick(WINDOW_FPS)
-        pygame.quit()
+        with self._backend:
+            clock = pygame.time.Clock()
+            while self._running:
+                self._render()
+                clock.tick(WINDOW_FPS)
 
         if self._exit_exception:
             raise self._exit_exception
         return self._exit_code
-
-    def _init_display(self):
-        flags = pygame.RESIZABLE
-        if self._hide:
-            flags |= pygame.HIDDEN
-        self._screen = pygame.display.set_mode((self._width, self._height), flags=flags)
-        pygame.display.set_caption(self._title)
-
-        # Initialize keyboard repeat.
-        # NB: TEXTINPUT events already handle repeat,
-        # but we still need manual initialization for KEYDOWN/KEYUP events.
-        # I don't know how to get default delay and interval values for TEXTINPUT,
-        # so I tried here to set empiric values so that key repeat
-        # is the most like textinput repeat.
-        pygame.key.set_repeat(500, 35)
 
     def _render(self):
         # Handle interface events.
@@ -440,7 +415,7 @@ class Window:
     @on_task(SizeTask)
     def _task_size(self, task: SizeTask):
         logger.debug(f"Window resized: {task}")
-        self._width, self._height = task.width, task.height
+        self._backend.width, self._backend.height = task.width, task.height
 
     @on_task(EscapeTask)
     def _task_escape(self, task: EscapeTask):
