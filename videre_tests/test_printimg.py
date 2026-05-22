@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from videre.core.pygame_backend import Pygame
+from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.scroll.scrollview import ScrollView
 from videre.testing.utils import IMAGE_EXAMPLE
 from videre.tools import _build_image_window

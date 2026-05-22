@@ -4,9 +4,8 @@ from dataclasses import dataclass
 import pygame
 import pygame.freetype
 
-from videre.core.pygame_backend import Pygame, Rect
+from videre.core.pygame_backend.definitions import Rect
 from videre.fonts.provider import FontProvider
-from videre.fonts.unicode_utils import Unicode
 
 
 @dataclass(slots=True)
@@ -17,13 +16,11 @@ class CharMeasures:
 
 
 class PygameFontFactory:
-    __slots__ = ("_prov", "_key_to_font", "_size", "_origin", "_cached_char_measures")
+    __slots__ = ("_prov", "_key_to_font", "_origin", "_cached_char_measures")
 
-    def __init__(self, size=14):
-        Pygame.init()
+    def __init__(self):
         self._prov = FontProvider()
         self._key_to_font: dict[tuple[str, bool, bool], pygame.freetype.Font] = {}
-        self._size = size
         self._origin = True
         self._cached_char_measures: dict[tuple[str, int, bool, bool], CharMeasures] = {}
 
@@ -45,13 +42,6 @@ class PygameFontFactory:
                     f"{type(exc).__name__}: {exc}"
                 )
             self._key_to_font[cache_key] = font
-            logging.debug(
-                f"[pygame][font](block={Unicode.block(c)}, c={c}) {name}, "
-                f"height {font.get_sized_height(self._size)}, "
-                f"glyph height {font.get_sized_glyph_height(self._size)}, "
-                f"ascender {font.get_sized_ascender(self._size)}, "
-                f"descender {font.get_sized_descender(self._size)}"
-            )
         return font
 
     def get_char_measures(

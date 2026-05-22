@@ -1,7 +1,8 @@
 from typing import Self
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.pygame_backend import Pygame, Surface
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.pygame_backend.primitives import Pygame
 
 
 class Gradient:

@@ -1,5 +1,6 @@
 from videre.core.constants import Alignment
-from videre.core.pygame_backend import Pygame, Surface
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.pygame_backend.primitives import Pygame
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.gradient import ColoringDefinition, Gradient

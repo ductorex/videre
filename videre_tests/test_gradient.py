@@ -2,7 +2,7 @@ import pygame
 import pytest
 
 from videre.colors import Color, Colors
-from videre.core.pygame_backend import Pygame
+from videre.core.pygame_backend.primitives import Pygame
 from videre.gradient import Gradient
 
 

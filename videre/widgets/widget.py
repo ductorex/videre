@@ -7,7 +7,7 @@ from videre.core.constants import MouseButton
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.position_mapping import Position, PositionMapping
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend.definitions import Surface
 
 if TYPE_CHECKING:
     from videre.windowing.window import Window

@@ -17,9 +17,8 @@ from videre.core.events import (
     SizeTask,
     VidereTask,
 )
-from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
-from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
-from videre.core.pygame_backend import Event, Pygame, Surface
+from videre.core.pygame_backend.backend import PygameBackend
+from videre.core.pygame_backend.definitions import Event, Surface
 from videre.core.utils import Procedure, launch_thread
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
@@ -46,7 +45,6 @@ class Window:
         "_controls",
         "_fancybox",
         "_context",
-        "_fonts",
         "_notif_cbks",
         "_lock",
         "_nb_frames",
@@ -71,7 +69,7 @@ class Window:
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
     ):
-        self._backend = Pygame(width, height, str(title) or "Window", bool(hide))
+        self._backend = PygameBackend(width, height, str(title) or "Window", bool(hide))
         self._font_size_pts = font_size
         self._font_height: int | None = None
 
@@ -89,8 +87,6 @@ class Window:
         self._controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
         self._context: Context | None = None
-
-        self._fonts = PygameFontFactory(size=self._font_size_pts)
 
         self._nb_frames = 0
 
@@ -110,7 +106,7 @@ class Window:
         return f"[{type(self).__name__}][{id(self)}]"
 
     @property
-    def backend(self) -> Pygame:
+    def backend(self) -> PygameBackend:
         return self._backend
 
     @property
@@ -169,8 +165,7 @@ class Window:
         underline: bool = False,
         height_delta: int | None = None,
     ):
-        return PygameTextRendering(
-            self._fonts,
+        return self._backend.text_rendering(
             size=size or self._font_size_pts,
             strong=strong,
             italic=italic,

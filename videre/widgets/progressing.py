@@ -1,6 +1,7 @@
 from videre.colors import Colors
 from videre.core.framing import FPS, AbstractFraming
-from videre.core.pygame_backend import Pygame, Rect, Surface
+from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.primitives import Pygame
 from videre.widgets.abstractanimation import AbstractAnimation
 
 

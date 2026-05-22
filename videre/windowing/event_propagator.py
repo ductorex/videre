@@ -3,7 +3,7 @@ from typing import Protocol
 from videre import MouseButton
 from videre.core.events import MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend import Event
+from videre.core.pygame_backend.definitions import Event
 from videre.widgets.widget import Widget
 
 

@@ -12,7 +12,7 @@ from videre.core.events import (
     SizeTask,
     VidereTask,
 )
-from videre.core.pygame_backend import Event
+from videre.core.pygame_backend.definitions import Event
 from videre.widgets.widget import Widget
 from videre.windowing.event_propagator import EventPropagator
 from videre.windowing.windowlayout import WindowLayout

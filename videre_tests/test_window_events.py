@@ -7,7 +7,8 @@ import pygame
 
 from videre.core.constants import MouseButton
 from videre.core.events import CustomTasks, KeyboardEntry
-from videre.core.pygame_backend import Event, Pygame
+from videre.core.pygame_backend.definitions import Event
+from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
 

@@ -2,7 +2,7 @@ import pygame
 
 from videre.core.constants import MouseButton
 from videre.core.events import KeyboardEntry, MouseEvent
-from videre.core.pygame_backend import Event
+from videre.core.pygame_backend.definitions import Event
 
 
 class TestKeyboardEntry:

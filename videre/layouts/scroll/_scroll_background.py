@@ -1,5 +1,6 @@
 from videre.colors import Color
-from videre.core.pygame_backend import Pygame, Surface
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.pygame_backend.primitives import Pygame
 from videre.widgets.widget import Widget
 
 

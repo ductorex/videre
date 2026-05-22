@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from videre.core.framing import FPS, AbstractFraming
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.widgets.widget import Widget
 

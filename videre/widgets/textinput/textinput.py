@@ -7,7 +7,8 @@ from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend import Pygame, Rect, Surface
+from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rendering_result import CursorState
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container

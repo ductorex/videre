@@ -3,7 +3,7 @@ from typing import Any, Self
 from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.events import MouseEvent
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.core.sides.border import Border
 from videre.layouts.column import Column
 from videre.layouts.container import Container

@@ -1,7 +1,7 @@
 import pytest
 
 from videre import Text
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.widgets.widget import Widget
 
 

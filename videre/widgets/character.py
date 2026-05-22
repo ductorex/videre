@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from videre.colors import Color, ColorDef, parse_color
-from videre.core.pygame_backend import Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.widgets.widget import Widget
 
 if TYPE_CHECKING:

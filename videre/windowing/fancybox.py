@@ -3,7 +3,8 @@ from typing import Sequence
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend import Pygame, Rect, Surface
+from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.column import Column
 from videre.layouts.container import Container

@@ -4,7 +4,7 @@ from typing import cast
 
 import videre
 from videre.core.framing import FPR, FPS
-from videre.core.pygame_backend import Pygame
+from videre.core.pygame_backend.primitives import Pygame
 from videre.widgets.abstractanimation import AbstractAnimation
 
 

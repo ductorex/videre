@@ -2,17 +2,19 @@ import pygame
 import pygame.freetype
 import pytest
 
-from videre.core.fontfactory.pygame_font_factory import PygameFontFactory
-from videre.core.fontfactory.pygame_text_rendering import PygameTextRendering
+from videre.core.pygame_backend.font_factory import PygameFontFactory
+from videre.core.pygame_backend.text_rendering import PygameTextRendering
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
 
 
 @pytest.mark.parametrize("wrap_words", (False, True))
 def test_render_text(wrap_words):
+    pygame.freetype.init()
+
     size = 24
     height_delta = 2
-    ff = PygameFontFactory(size=size)
+    ff = PygameFontFactory()
     font = ff.get_font(" ")
     line_height = font.get_sized_height(size) + height_delta
     ascender = abs(font.get_sized_ascender(size)) + 1
