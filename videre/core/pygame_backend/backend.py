@@ -159,6 +159,13 @@ class PygameBackend(Pygame):
         # to the window. Instead, when no real MOUSEMOTION arrived this frame but
         # the cursor is currently over the window, synthesize a no-op motion so
         # the widget under the cursor can pick up its hover state.
+
+        # NB: We also need to emit a mouse motion anyway if not yet emitted,
+        # so that hover is correctly handled. E.g: if a fancybox is removed,
+        # the widget below the mouse on remaining view should handle hover.
+        # But, removing fancybox or any other widget does not currently
+        # trigger a hover update on the window. The only valid way to handle
+        # hover for now is to force this mouse motion event.
         if not has_mouse_motion and pygame.mouse.get_focused():
             self.__on_event(
                 Event(
