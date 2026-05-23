@@ -1,7 +1,5 @@
 import io
 
-import pygame
-
 from videre.windowing.window import Window
 
 
@@ -34,10 +32,7 @@ class StepWindow(Window):
     def screenshot(self) -> io.BytesIO:
         if not self._step_mode:
             raise RuntimeError("screenshot() requires step-mode (`with window`)")
-        data = io.BytesIO()
-        pygame.image.save(self.get_screen(), data)
-        data.flush()
-        return data
+        return self._backend.screenshot()
 
     def snapshot(self) -> io.BytesIO:
         self.render()

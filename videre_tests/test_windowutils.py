@@ -1,5 +1,5 @@
 from videre.core.utils import OnEvent
-from videre.windowing.windowutils import WidgetByKeyGetter
+from videre.widgets.widget_utils import WidgetByKeyGetter
 
 
 def test_on_event_str():

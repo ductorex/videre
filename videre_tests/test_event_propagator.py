@@ -1,7 +1,7 @@
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.layouts.container import Container
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 from videre.windowing.event_propagator import EventPropagator
 
 

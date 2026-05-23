@@ -1,8 +1,6 @@
 import threading
 from typing import Any, Callable, Iterable
 
-from videre.core.events import VidereTask
-
 
 def launch_thread(function, *args, **kwargs):
     thread = threading.Thread(
@@ -71,27 +69,3 @@ class OnEvent[K]:
 
     def items(self) -> Iterable[tuple[K, Callable]]:
         return self._callbacks.items()
-
-
-class TaskManager:
-    def __init__(self, on_task: Callable[[VidereTask], None]):
-        self._on_task = on_task
-        self._lock = threading.Lock()
-        self._pending_tasks: list[VidereTask] = []
-
-    def post_task(self, task: VidereTask):
-        with self._lock:
-            self._pending_tasks.append(task)
-
-    def _flush_tasks(self) -> list[VidereTask]:
-        with self._lock:
-            tasks = self._pending_tasks
-            self._pending_tasks = []
-        return tasks
-
-    def manage_tasks(self) -> None:
-        for task in self._flush_tasks():
-            self._on_task(task)
-
-    def one_shot(self, task: VidereTask) -> None:
-        self._on_task(task)

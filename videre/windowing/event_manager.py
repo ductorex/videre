@@ -1,7 +1,6 @@
 import logging
 
 from videre.core.events import (
-    EscapeTask,
     KeyDownEvent,
     MouseButton,
     MouseButtonDownEvent,
@@ -11,9 +10,9 @@ from videre.core.events import (
     MouseWheelEvent,
     TextInputEvent,
     VidereEvent,
-    VidereTask,
     WindowLeaveEvent,
 )
+from videre.core.tasks import EscapeTask, VidereTask
 from videre.core.utils import OnEvent
 from videre.widgets.widget import Widget
 from videre.windowing.event_propagator import EventPropagator

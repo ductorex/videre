@@ -1,8 +1,8 @@
 from typing import Callable, Sequence
 
 from videre import Alignment
-from videre.core.mouse_ownership import MouseOwnership
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class AbstractLayout(Widget):

@@ -1,8 +1,8 @@
 from typing import Protocol
 
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class _NamedMethod[W, **P, R](Protocol):

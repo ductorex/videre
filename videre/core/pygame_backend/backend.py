@@ -1,3 +1,4 @@
+import io
 import logging
 from collections.abc import Callable
 
@@ -12,7 +13,6 @@ from videre.core.events import (
     MouseWheelEvent,
     TextInputEvent,
     VidereEvent,
-    VidereTask,
     WindowLeaveEvent,
 )
 from videre.core.pygame_backend.definitions import Event, Surface
@@ -20,10 +20,12 @@ from videre.core.pygame_backend.font_factory import PygameFontFactory
 from videre.core.pygame_backend.mapping import (
     pygame_to_keyboard_entry,
     pygame_to_mouse_button,
+    pygame_to_mouse_buttons,
 )
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.pygame_backend.text_rendering import PygameTextRendering
-from videre.core.utils import OnEvent, TaskManager
+from videre.core.tasks import TaskManager, VidereTask
+from videre.core.utils import OnEvent
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,7 @@ class PygameBackend(Pygame):
         "_fps",
         "_running",
         "_nb_frames",
-        "_manager",
+        "_event_dispatcher",
         "_task_manager",
         "_render_manager",
     )
@@ -52,7 +54,7 @@ class PygameBackend(Pygame):
         height: int,
         title: str,
         event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[], Surface],
+        render_manager: Callable[[Surface], None],
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
@@ -72,13 +74,9 @@ class PygameBackend(Pygame):
         self._running: bool = True
         self._nb_frames: int = 0
 
-        self._manager = event_manager
+        self._event_dispatcher = event_manager
         self._render_manager = render_manager
         self._task_manager = task_manager
-
-    def get_screen(self) -> Surface:
-        assert self._screen is not None
-        return self._screen
 
     @property
     def nb_frames(self) -> int:
@@ -88,21 +86,9 @@ class PygameBackend(Pygame):
     def width(self) -> int:
         return self._width
 
-    @width.setter
-    def width(self, width: int) -> None:
-        if self._screen is not None:
-            assert self._screen.get_width() == width
-        self._width = width
-
     @property
     def height(self) -> int:
         return self._height
-
-    @height.setter
-    def height(self, height: int) -> None:
-        if self._screen is not None:
-            assert self._screen.get_height() == height
-        self._height = height
 
     @property
     def title(self) -> str:
@@ -124,6 +110,13 @@ class PygameBackend(Pygame):
 
     def cursor_is_default(self) -> bool:
         return pygame.mouse.get_cursor() == self.__default_cursor
+
+    def screenshot(self) -> io.BytesIO:
+        assert self._screen is not None
+        data = io.BytesIO()
+        pygame.image.save(self._screen, data)
+        data.flush()
+        return data
 
     def __enter__(self):
         flags = pygame.RESIZABLE
@@ -178,7 +171,8 @@ class PygameBackend(Pygame):
             )
 
         # Refresh screen.
-        assert self._render_manager() is self._screen
+        assert self._screen is not None
+        self._render_manager(self._screen)
         pygame.display.flip()
         self._nb_frames += 1
 
@@ -224,7 +218,11 @@ class PygameBackend(Pygame):
 
     @_on_event(pygame.WINDOWRESIZED)
     def _resize_window(self, event: Event) -> None:
-        self.width, self.height = event.x, event.y
+        width, height = event.x, event.y
+        if self._screen is not None:
+            assert self._screen.get_width() == width
+            assert self._screen.get_height() == height
+        self._width, self._height = width, height
 
     @_on_event(pygame.MOUSEWHEEL)
     def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
@@ -232,7 +230,7 @@ class PygameBackend(Pygame):
         wheel_dx = event.x
         wheel_dy = event.y
         shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
-        return self._manager(
+        return self._event_dispatcher(
             MouseWheelEvent(
                 mouse_x=mouse_x,
                 mouse_y=mouse_y,
@@ -246,41 +244,34 @@ class PygameBackend(Pygame):
     def _on_mouse_button_down(self, event: Event) -> VidereTask | None:
         x, y = event.pos
         button = pygame_to_mouse_button(event.button)
-        return self._manager(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
+        return self._event_dispatcher(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
 
     @_on_event(pygame.MOUSEBUTTONUP)
     def _on_mouse_button_up(self, event: Event) -> VidereTask | None:
         x, y = event.pos
         button = pygame_to_mouse_button(event.button)
-        return self._manager(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
+        return self._event_dispatcher(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
     @_on_event(pygame.MOUSEMOTION)
     def _on_mouse_motion(self, event: Event) -> VidereTask | None:
-        buttons = []
-        if event.buttons[0]:
-            buttons.append(pygame_to_mouse_button(pygame.BUTTON_LEFT))
-        if event.buttons[1]:
-            buttons.append(pygame_to_mouse_button(pygame.BUTTON_MIDDLE))
-        if event.buttons[2]:
-            buttons.append(pygame_to_mouse_button(pygame.BUTTON_RIGHT))
-        return self._manager(
+        return self._event_dispatcher(
             MouseMotionEvent(
                 x=event.pos[0],
                 y=event.pos[1],
                 dx=event.rel[0],
                 dy=event.rel[1],
-                buttons=tuple(buttons),
+                buttons=pygame_to_mouse_buttons(event.buttons),
             )
         )
 
     @_on_event(pygame.WINDOWLEAVE)
     def _on_window_leave(self, event: Event) -> VidereTask | None:
-        return self._manager(WindowLeaveEvent())
+        return self._event_dispatcher(WindowLeaveEvent())
 
     @_on_event(pygame.TEXTINPUT)
     def _on_text_input(self, event: Event) -> VidereTask | None:
-        return self._manager(TextInputEvent(event.text))
+        return self._event_dispatcher(TextInputEvent(event.text))
 
     @_on_event(pygame.KEYDOWN)
     def _on_keydown(self, event: Event) -> VidereTask | None:
-        return self._manager(KeyDownEvent(pygame_to_keyboard_entry(event)))
+        return self._event_dispatcher(KeyDownEvent(pygame_to_keyboard_entry(event)))

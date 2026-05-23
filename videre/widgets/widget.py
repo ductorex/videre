@@ -4,9 +4,9 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Self
 
 from videre.core.events import KeyboardEntry, MouseButton, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.core.position_mapping import Position, PositionMapping
 from videre.core.pygame_backend.definitions import Surface
+from videre.widgets.widget_utils import MouseOwnership
 
 if TYPE_CHECKING:
     from videre.windowing.window import Window

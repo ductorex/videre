@@ -1,10 +1,10 @@
 from videre.colors import Color
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.scroll._scroll_background import _ScrollBackground
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class _HScrollBar(Widget):

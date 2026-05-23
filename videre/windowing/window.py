@@ -4,30 +4,30 @@ from typing import Any, Callable, Sequence
 
 from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.constants import Alignment
-from videre.core.events import (
+from videre.core.pygame_backend.backend import PygameBackend
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.tasks import (
     CallbackTask,
-    CustomTasks,
     EscapeTask,
     ExitTask,
     NotificationCallback,
     NotificationTask,
+    TaskManager,
     VidereTask,
 )
-from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.pygame_backend.definitions import Surface
-from videre.core.utils import OnEvent, Procedure, TaskManager, launch_thread
+from videre.core.utils import OnEvent, Procedure, launch_thread
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
 from videre.layouts.container import Container
 from videre.widgets.button import Button
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import WidgetByKeyGetter
 from videre.windowing.context import Context
 from videre.windowing.event_manager import WindowEventManager
 from videre.windowing.fancybox import Fancybox
 from videre.windowing.fancyclosebutton import FancyCloseButton
 from videre.windowing.windowlayout import WindowLayout
-from videre.windowing.windowutils import WidgetByKeyGetter
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +150,6 @@ class Window:
     def title(self) -> str:
         return self._backend.title
 
-    def get_screen(self) -> Surface:
-        return self._backend.get_screen()
-
     def text_rendering(
         self,
         size: int | None = None,
@@ -186,20 +183,21 @@ class Window:
             + ((self._context,) if self._context else ())
         )
 
-    def _refresh(self) -> Surface:
-        return self._layout.render(self)
+    def _refresh(self, screen: Surface) -> None:
+        self._layout.screen = screen
+        self._layout.render(self)
 
     def notify(self, notification: Any):
-        self._post_event(CustomTasks.notification_task(notification))
+        self._post_event(NotificationTask(notification))
 
     def call_later(self, function, *args, **kwargs):
         wrapper = self._with_exc_handled(function)
-        self._post_event(CustomTasks.callback_task(wrapper, *args, **kwargs))
+        self._post_event(CallbackTask(function=wrapper, args=args, kwargs=kwargs))
 
     def call_async(self, function, *args, **kwargs):
         wrapper = self._with_exc_handled(function)
         self._post_event(
-            CustomTasks.callback_task(launch_thread, wrapper, *args, **kwargs)
+            CallbackTask(function=launch_thread, args=(wrapper, *args), kwargs=kwargs)
         )
 
     def call_now(self, function, *args, **kwargs):
@@ -225,7 +223,7 @@ class Window:
     def _force_alert(self, exception: Exception):
         self.clear_context()
         self.clear_fancybox()
-        self._post_event(CustomTasks.callback_task(self.error, exception))
+        self._post_event(CallbackTask.new(self.error, exception))
 
     def _post_event(self, task: VidereTask):
         self._task_manager.post_task(task)

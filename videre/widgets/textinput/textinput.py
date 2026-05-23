@@ -6,7 +6,6 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend.definitions import Rect, Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rendering_result import CursorState
@@ -16,6 +15,7 @@ from videre.layouts.div.div import Div
 from videre.widgets.text import Text
 from videre.widgets.textinput.keyboard_handling import compute_key_x
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class TextInput(AbstractLayout):

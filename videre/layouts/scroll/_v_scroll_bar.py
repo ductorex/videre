@@ -1,8 +1,8 @@
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class _VScrollBar(_HScrollBar):

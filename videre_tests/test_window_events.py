@@ -5,9 +5,10 @@ from unittest.mock import patch
 
 import pygame
 
-from videre.core.events import CustomTasks, KeyboardEntry, MouseButton
+from videre.core.events import KeyboardEntry, MouseButton
 from videre.core.pygame_backend.definitions import Event
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.tasks import CallbackTask, NotificationTask
 from videre.layouts.column import Column
 from videre.widgets.widget import Widget
 
@@ -421,9 +422,7 @@ def test_on_custom_callback(fake_win):
         callback_data.args = args
         callback_data.kwargs = kwargs
 
-    callback_event = CustomTasks.callback_task(
-        test_callback, "arg1", "arg2", key="value"
-    )
+    callback_event = CallbackTask.new(test_callback, "arg1", "arg2", key="value")
     fake_win._post_event(callback_event)
     fake_win.render()
 
@@ -442,7 +441,7 @@ def test_on_notification(fake_win):
         notification_data.received = notification
 
     fake_win.set_notification_callback(notification_callback)
-    notification_event = CustomTasks.notification_task("Test notification")
+    notification_event = NotificationTask("Test notification")
     fake_win._post_event(notification_event)
     fake_win.render()
 
@@ -451,7 +450,7 @@ def test_on_notification(fake_win):
 
 def test_on_notification_no_callback(fake_win):
     assert not fake_win._notification_callbacks
-    notification_event = CustomTasks.notification_task("Test notification")
+    notification_event = NotificationTask("Test notification")
     fake_win._post_event(notification_event)
     fake_win.render()  # should not raise
 
@@ -485,7 +484,7 @@ def test_thread_safety_of_post_event(fake_win):
 
     def post_tasks():
         for _ in range(10):
-            task = CustomTasks.callback_task(lambda: None)
+            task = CallbackTask.new(lambda: None)
             fake_win._post_event(task)
             tasks_posted.append(task)
             time.sleep(0.001)

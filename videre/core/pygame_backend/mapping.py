@@ -1,9 +1,11 @@
+from typing import Sequence
+
 import pygame
 
 from videre.core.events import Key, KeyboardEntry, KeyMod, MouseButton
 from videre.core.pygame_backend.definitions import Event
 
-PYGAME_MOUSE_BUTTON: dict[int, MouseButton] = {
+_PYGAME_MOUSE_BUTTON: dict[int, MouseButton] = {
     pygame.BUTTON_LEFT: MouseButton.BUTTON_LEFT,
     pygame.BUTTON_MIDDLE: MouseButton.BUTTON_MIDDLE,
     pygame.BUTTON_RIGHT: MouseButton.BUTTON_RIGHT,
@@ -12,7 +14,8 @@ PYGAME_MOUSE_BUTTON: dict[int, MouseButton] = {
     pygame.BUTTON_X1: MouseButton.BUTTON_X1,
     pygame.BUTTON_X2: MouseButton.BUTTON_X2,
 }
-PYGAME_KEY: dict[int, Key] = {
+
+_PYGAME_KEY: dict[int, Key] = {
     pygame.K_BACKSPACE: Key.BACKSPACE,
     pygame.K_TAB: Key.TAB,
     pygame.K_RETURN: Key.ENTER,
@@ -32,7 +35,8 @@ PYGAME_KEY: dict[int, Key] = {
     pygame.K_c: Key.c,
     pygame.K_v: Key.v,
 }
-PYGAME_KEYMOD: dict[int, KeyMod] = {
+
+_PYGAME_KEYMOD: dict[int, KeyMod] = {
     pygame.KMOD_LSHIFT: KeyMod.LSHIFT,
     pygame.KMOD_RSHIFT: KeyMod.RSHIFT,
     pygame.KMOD_LCTRL: KeyMod.LCTRL,
@@ -43,15 +47,26 @@ PYGAME_KEYMOD: dict[int, KeyMod] = {
 }
 
 
+_INDEX_BUTTONS = (
+    MouseButton.BUTTON_LEFT,
+    MouseButton.BUTTON_MIDDLE,
+    MouseButton.BUTTON_RIGHT,
+)
+
+
 def pygame_to_mouse_button(inp: int) -> MouseButton:
-    return PYGAME_MOUSE_BUTTON[inp]
+    return _PYGAME_MOUSE_BUTTON[inp]
+
+
+def pygame_to_mouse_buttons(flags: Sequence[int]) -> tuple[MouseButton, ...]:
+    return tuple(button for button, flag in zip(_INDEX_BUTTONS, flags) if flag)
 
 
 def pygame_to_keyboard_entry(event: Event) -> KeyboardEntry:
     return KeyboardEntry(
         modifiers=frozenset(
-            mod for py_mod, mod in PYGAME_KEYMOD.items() if event.mod & py_mod
+            mod for py_mod, mod in _PYGAME_KEYMOD.items() if event.mod & py_mod
         ),
-        key=PYGAME_KEY.get(event.key),
+        key=_PYGAME_KEY.get(event.key),
         unicode=event.unicode,
     )

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto, unique
-from typing import Any, Callable, Self, Sequence, TypeAlias
+from typing import Self, TypeAlias
 
 
 @unique
@@ -12,6 +12,39 @@ class MouseButton(Enum):
     BUTTON_WHEELUP = auto()
     BUTTON_X1 = auto()
     BUTTON_X2 = auto()
+
+
+@unique
+class KeyMod(Enum):
+    LSHIFT = auto()
+    RSHIFT = auto()
+    LCTRL = auto()
+    RCTRL = auto()
+    RALT = auto()
+    LALT = auto()
+    CAPS = auto()
+
+
+@unique
+class Key(Enum):
+    BACKSPACE = auto()
+    TAB = auto()
+    ENTER = auto()
+    ESCAPE = auto()
+    DELETE = auto()
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    HOME = auto()
+    END = auto()
+    PAGEUP = auto()
+    PAGEDOWN = auto()
+    PRINTSCREEN = auto()
+    SPACE = auto()
+    a = auto()
+    c = auto()
+    v = auto()
 
 
 @dataclass(slots=True, frozen=True)
@@ -49,37 +82,28 @@ class MouseEvent:
         )
 
 
-@unique
-class KeyMod(Enum):
-    LSHIFT = auto()
-    RSHIFT = auto()
-    LCTRL = auto()
-    RCTRL = auto()
-    RALT = auto()
-    LALT = auto()
-    CAPS = auto()
+@dataclass(slots=True, frozen=True)
+class MouseButtonDownEvent(MouseEvent):
+    pass
 
 
-@unique
-class Key(Enum):
-    BACKSPACE = auto()
-    TAB = auto()
-    ENTER = auto()
-    ESCAPE = auto()
-    DELETE = auto()
-    UP = auto()
-    DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
-    HOME = auto()
-    END = auto()
-    PAGEUP = auto()
-    PAGEDOWN = auto()
-    PRINTSCREEN = auto()
-    SPACE = auto()
-    a = auto()
-    c = auto()
-    v = auto()
+@dataclass(slots=True, frozen=True)
+class MouseButtonUpEvent(MouseEvent):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class MouseMotionEvent(MouseEvent):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class MouseWheelEvent:
+    mouse_x: int
+    mouse_y: int
+    wheel_dx: int
+    wheel_dy: int
+    shift: bool
 
 
 @dataclass(slots=True, frozen=True)
@@ -134,75 +158,6 @@ class KeyboardEntry:
         return " + ".join(
             key for key in ("caps", "ctrl", "alt", "shift") if getattr(self, key)
         )
-
-
-NotificationCallback: TypeAlias = Callable[[Any], None]
-
-
-@dataclass(slots=True, frozen=True)
-class CallbackTask:
-    function: Callable
-    args: tuple
-    kwargs: dict
-
-    def run(self):
-        self.function(*self.args, **self.kwargs)
-
-
-@dataclass(slots=True, frozen=True)
-class NotificationTask:
-    notification: Any
-
-    def dispatch(self, callbacks: Sequence[NotificationCallback]):
-        for callback in callbacks:
-            callback(self.notification)
-
-
-@dataclass(slots=True, frozen=True)
-class ExitTask:
-    exception: Exception | None = None
-
-
-@dataclass(slots=True, frozen=True)
-class EscapeTask:
-    pass
-
-
-VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask | EscapeTask
-
-
-class CustomTasks:
-    @classmethod
-    def callback_task(cls, function, *args, **kwargs) -> CallbackTask:
-        return CallbackTask(function, args, kwargs)
-
-    @classmethod
-    def notification_task(cls, something: Any) -> NotificationTask:
-        return NotificationTask(something)
-
-
-@dataclass(slots=True, frozen=True)
-class MouseWheelEvent:
-    mouse_x: int
-    mouse_y: int
-    wheel_dx: int
-    wheel_dy: int
-    shift: bool
-
-
-@dataclass(slots=True, frozen=True)
-class MouseButtonDownEvent(MouseEvent):
-    pass
-
-
-@dataclass(slots=True, frozen=True)
-class MouseButtonUpEvent(MouseEvent):
-    pass
-
-
-@dataclass(slots=True, frozen=True)
-class MouseMotionEvent(MouseEvent):
-    pass
 
 
 @dataclass(slots=True, frozen=True)

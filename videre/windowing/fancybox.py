@@ -2,7 +2,6 @@ from typing import Sequence
 
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
-from videre.core.mouse_ownership import MouseOwnership
 from videre.core.pygame_backend.definitions import Rect, Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.abstractlayout import AbstractLayout
@@ -12,6 +11,7 @@ from videre.layouts.row import Row
 from videre.widgets.button import Button
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
+from videre.widgets.widget_utils import MouseOwnership
 
 
 class Fancybox(AbstractLayout):
