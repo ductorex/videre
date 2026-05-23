@@ -108,9 +108,8 @@ def test_on_mouse_wheel_with_shift(fake_win):
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
     fake_win.render()
-    with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
-        fake_user.mouse_wheel(x=1, y=-2)
-        fake_win.render()
+    fake_user.mouse_wheel(x=1, y=-2, shift=True)
+    fake_win.render()
     assert ("mouse_wheel", 1, -2, True) in tracker.events
 
 

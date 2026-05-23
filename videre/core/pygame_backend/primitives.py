@@ -114,6 +114,7 @@ class Pygame:
             }
             pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
         elif isinstance(event, MouseWheelEvent):
+            pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
             event_data = {"x": event.wheel_dx, "y": event.wheel_dy}
             pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
         elif isinstance(event, KeyDownEvent):
