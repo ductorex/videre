@@ -239,12 +239,14 @@ class Demo:
 
     @on_demo("fancybox")
     def on_demo_fancybox(self, *args):
-        self.window.set_fancybox(
-            videre.ScrollView(
-                videre.Column([videre.Text(f"Item {i + 1}") for i in range(100)])
-            ),
-            buttons=[videre.Button("yes"), videre.Button("NO!")],
-        )
+        def _on_click(*args, **kwargs):
+            self.window.set_fancybox(
+                videre.ScrollView(
+                    videre.Column([videre.Text(f"Item {i + 1}") for i in range(100)])
+                ),
+                buttons=[videre.Button("yes"), videre.Button("NO!")],
+            )
+        return videre.Button("My big beautiful button", on_click=_on_click)
 
     @on_demo("alert")
     def on_alert(self, *args):

@@ -152,10 +152,10 @@ class PygameBackend(Pygame):
             has_mouse_motion = has_mouse_motion or event.type == pygame.MOUSEMOTION
             self.__on_event(event)
 
-        # If we haven't already handled a mouse motion event but mouse if over screen,
+        # If we haven't already handled a mouse motion event but mouse is over screen,
         # then we process a custom mouse motion event.
         # TODO We might need to process a custom mouse motion event anyway,
-        #   event if there was a mouse motion event above, for example
+        #   even if there was a mouse motion event above, for example
         #   if supplementary events changed the interface between
         #   the mouse motion event found above and
         #   the end of loop above.
@@ -176,7 +176,7 @@ class PygameBackend(Pygame):
         pygame.display.flip()
         self._nb_frames += 1
 
-        # Manage post-manual events.
+        # Process pending tasks.
         self._task_manager.manage_tasks()
 
     def __on_event(self, event: Event):
