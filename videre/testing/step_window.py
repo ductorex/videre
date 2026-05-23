@@ -1,5 +1,6 @@
 import io
 
+from videre.testing.fake_user import FakeUser
 from videre.windowing.window import Window
 
 
@@ -51,3 +52,7 @@ class StepWindow(Window):
                 and all(getattr(w, key) == value for key, value in wprops.items())
             )
         )
+
+    @property
+    def user(self) -> FakeUser:
+        return FakeUser(self._backend)

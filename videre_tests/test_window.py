@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 import videre
+from videre.testing.step_window import StepWindow
 
 
 def test_window_change_background(fake_win):
@@ -13,7 +14,8 @@ def test_window_change_background(fake_win):
     fake_win.check("red")
 
 
-def test_window_notify(fake_win, fake_user):
+def test_window_notify(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(notifications=[], send_called=0, cb_called=0)
 
     def send_notification(*args):
@@ -44,10 +46,9 @@ def test_window_notify(fake_win, fake_user):
     assert data.notifications[0] == "Test Notification"
 
 
-def test_window_run(fake_user):
-    from videre.windowing.window import Window
-
-    win = Window("Test Window", width=200, height=200, hide=True)
+def test_window_run():
+    win = StepWindow(title="Test Window", width=200, height=200)
+    fake_user = win.user
 
     def stop_window():
         time.sleep(0.5)

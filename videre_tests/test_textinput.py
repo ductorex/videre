@@ -16,7 +16,8 @@ def test_value(fake_win):
     assert ti.value == "test"
 
 
-def test_cursor(fake_win, fake_user):
+def test_cursor(fake_win):
+    fake_user = fake_win.user
     string = "Hello, world!"
     ti = videre.TextInput(text=string)
     placeholder = videre.Container(width=100, height=100)
@@ -43,7 +44,8 @@ def test_cursor(fake_win, fake_user):
     fake_win.check("cursor_none")
 
 
-def test_cursor_move_by_keyboard(fake_win, fake_user):
+def test_cursor_move_by_keyboard(fake_win):
+    fake_user = fake_win.user
     string = "Hello, world!"
     ti = videre.TextInput(text=string)
     placeholder = videre.Container(width=100, height=100)
@@ -132,7 +134,8 @@ def test_cursor_move_by_keyboard(fake_win, fake_user):
     assert ti._get_cursor() == 0
 
 
-def test_cursor_mouse_on_empty(fake_win, fake_user):
+def test_cursor_mouse_on_empty(fake_win):
+    fake_user = fake_win.user
     ti = videre.TextInput(text="", weight=1)
     placeholder = videre.Container(width=100, height=100, background_color="green")
     fake_win.controls = [
@@ -152,7 +155,8 @@ def test_cursor_mouse_on_empty(fake_win, fake_user):
     assert ti._get_selection() == (0, 0)
 
 
-def test_cursor_move_by_mouse(fake_win, fake_user):
+def test_cursor_move_by_mouse(fake_win):
+    fake_user = fake_win.user
     string = "Hello, world!"
     ti = videre.TextInput(text=string)
     placeholder = videre.Container(width=100, height=100)
@@ -254,7 +258,8 @@ def test_cursor_move_by_mouse(fake_win, fake_user):
     assert fake_win.backend.cursor_is_default()
 
 
-def test_keyboard_delete(fake_win, fake_user):
+def test_keyboard_delete(fake_win):
+    fake_user = fake_win.user
     string = "Hello, world!"
     ti = videre.TextInput(text=string)
     placeholder = videre.Container(width=100, height=100)
@@ -336,7 +341,8 @@ def test_keyboard_delete(fake_win, fake_user):
     assert ti.value == ""
 
 
-def test_keyboard_backspace(fake_win, fake_user):
+def test_keyboard_backspace(fake_win):
+    fake_user = fake_win.user
     backspace = "backspace"
 
     string = "Hello, world!"
@@ -421,7 +427,8 @@ def test_keyboard_backspace(fake_win, fake_user):
 @pytest.mark.parametrize("key", ("delete", "backspace"))
 @pytest.mark.parametrize("ctrl", (False, True))
 @pytest.mark.parametrize("shift", (False, True))
-def test_delete_selection(fake_win, fake_user, key, ctrl, shift):
+def test_delete_selection(fake_win, key, ctrl, shift):
+    fake_user = fake_win.user
     ti = videre.TextInput(text="hello, world")
 
     fake_win.controls = [ti]
@@ -448,7 +455,8 @@ def test_delete_selection(fake_win, fake_user, key, ctrl, shift):
     assert ti._get_selection() is None
 
 
-def test_select_all(fake_win, fake_user):
+def test_select_all(fake_win):
+    fake_user = fake_win.user
     clipboard_store = {"content": ""}
     original_copy = Clipboard._copy
     original_paste = Clipboard._paste
@@ -499,7 +507,8 @@ def test_select_all(fake_win, fake_user):
         Clipboard._paste = original_paste
 
 
-def test_select_and_text_input(fake_win, fake_user):
+def test_select_and_text_input(fake_win):
+    fake_user = fake_win.user
     string = "hello, world"
     ti = videre.TextInput(text=string)
     fake_win.controls = [ti]

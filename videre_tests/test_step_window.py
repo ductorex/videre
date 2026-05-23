@@ -23,11 +23,12 @@ def test_screenshot_outside_step_mode():
         win.screenshot()
 
 
-def test_enter_after_run(fake_user):
+def test_enter_after_run():
     import threading
     import time
 
     win = StepWindow()
+    fake_user = win.user
 
     def stop():
         time.sleep(0.3)

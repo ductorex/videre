@@ -14,6 +14,10 @@ _PYGAME_MOUSE_BUTTON: dict[int, MouseButton] = {
     pygame.BUTTON_X1: MouseButton.BUTTON_X1,
     pygame.BUTTON_X2: MouseButton.BUTTON_X2,
 }
+_PYGAME_MOUSE_BUTTON_REVERSE: dict[MouseButton, int] = {
+    vd: py for py, vd in _PYGAME_MOUSE_BUTTON.items()
+}
+assert len(_PYGAME_MOUSE_BUTTON_REVERSE) == len(_PYGAME_MOUSE_BUTTON)
 
 _PYGAME_KEY: dict[int, Key] = {
     pygame.K_BACKSPACE: Key.BACKSPACE,
@@ -31,10 +35,12 @@ _PYGAME_KEY: dict[int, Key] = {
     pygame.K_PAGEDOWN: Key.PAGEDOWN,
     pygame.K_PRINTSCREEN: Key.PRINTSCREEN,
     pygame.K_SPACE: Key.SPACE,
-    pygame.K_a: Key.a,
-    pygame.K_c: Key.c,
-    pygame.K_v: Key.v,
+    pygame.K_a: Key.A,
+    pygame.K_c: Key.C,
+    pygame.K_v: Key.V,
 }
+_PYGAME_KEY_REVERSE: dict[Key, int] = {vd: py for py, vd in _PYGAME_KEY.items()}
+assert len(_PYGAME_KEY_REVERSE) == len(_PYGAME_KEY)
 
 _PYGAME_KEYMOD: dict[int, KeyMod] = {
     pygame.KMOD_LSHIFT: KeyMod.LSHIFT,
@@ -58,6 +64,10 @@ def pygame_to_mouse_button(inp: int) -> MouseButton:
     return _PYGAME_MOUSE_BUTTON[inp]
 
 
+def mouse_button_to_pygame(button: MouseButton) -> int:
+    return _PYGAME_MOUSE_BUTTON_REVERSE[button]
+
+
 def pygame_to_mouse_buttons(flags: Sequence[int]) -> tuple[MouseButton, ...]:
     return tuple(button for button, flag in zip(_INDEX_BUTTONS, flags) if flag)
 
@@ -70,3 +80,12 @@ def pygame_to_keyboard_entry(event: Event) -> KeyboardEntry:
         key=_PYGAME_KEY.get(event.key),
         unicode=event.unicode,
     )
+
+
+def keyboard_entry_to_pygame_dict(entry: KeyboardEntry) -> dict:
+    key = _PYGAME_KEY_REVERSE[entry.key] if entry.key is not None else None
+    py_mod = 0
+    for py, vd in _PYGAME_KEYMOD.items():
+        if vd in entry.modifiers:
+            py_mod |= py
+    return {"key": key, "mod": py_mod, "unicode": entry.unicode}

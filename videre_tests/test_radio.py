@@ -1,7 +1,8 @@
 import videre
 
 
-def test_radio(fake_win, fake_user):
+def test_radio(fake_win):
+    fake_user = fake_win.user
     radio1 = videre.Radio(value="one")
     radio2 = videre.Radio(value="two")
     radio3 = videre.Radio(value="three")
@@ -64,7 +65,8 @@ def test_radio_initial_checked(fake_win):
     assert radio3._get_checked() is False
 
 
-def test_radio_deselect(fake_win, fake_user):
+def test_radio_deselect(fake_win):
+    fake_user = fake_win.user
     radio1 = videre.Radio(value="one")
     radio2 = videre.Radio(value="two")
     radio3 = videre.Radio(value="three")
@@ -89,7 +91,8 @@ def test_radio_deselect(fake_win, fake_user):
     assert radio3._get_checked() is False
 
 
-def test_radio_outside_group(fake_win, fake_user):
+def test_radio_outside_group(fake_win):
+    fake_user = fake_win.user
     radio = videre.Radio(value="test")
     fake_win.controls = [radio]
     fake_win.render()

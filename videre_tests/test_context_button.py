@@ -2,7 +2,8 @@ import videre
 from videre.widgets.context_button import ContextButton
 
 
-def test_context_button_open_close(fake_win, fake_user):
+def test_context_button_open_close(fake_win):
+    fake_user = fake_win.user
     called = []
     actions = [
         ("Action 1", lambda: called.append(1)),
@@ -30,7 +31,8 @@ def test_context_button_open_close(fake_win, fake_user):
     assert not fake_win.has_context()
 
 
-def test_context_button_execute_action(fake_win, fake_user):
+def test_context_button_execute_action(fake_win):
+    fake_user = fake_win.user
     called = []
     actions = [
         ("Action 1", lambda: called.append(1)),
@@ -60,7 +62,8 @@ def test_context_button_execute_action(fake_win, fake_user):
     assert cb._context is None
 
 
-def test_context_button_focus_out_closes(fake_win, fake_user):
+def test_context_button_focus_out_closes(fake_win):
+    fake_user = fake_win.user
     cb = ContextButton("Menu", actions=[("Action", None)])  # ty: ignore[invalid-argument-type]
     other = videre.Button("Other")
     fake_win.controls = [videre.Column([cb, other])]

@@ -31,7 +31,8 @@ def test_form_values_auto_name(fake_win):
     assert set(values.values()) == {"a", "b"}
 
 
-def test_submit_button(fake_win, fake_user):
+def test_submit_button(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(submitted=None)
 
     def on_submit(values):
@@ -49,7 +50,8 @@ def test_submit_button(fake_win, fake_user):
     assert data.submitted == {"field": "world"}
 
 
-def test_submit_button_no_callback(fake_win, fake_user):
+def test_submit_button_no_callback(fake_win):
+    fake_user = fake_win.user
     submit = SubmitButton("Submit")
     form = Form(Column([videre.TextInput(text="x"), submit]))
     fake_win.controls = [form]

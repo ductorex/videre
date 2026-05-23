@@ -303,7 +303,7 @@ class TextInput(AbstractLayout):
             self._set_cursor_to_state(ret.out_state)
             self._set_selection(*ret.out_selection)
         elif key.ctrl:
-            if key.a:
+            if key.A:
                 # Select all — span the entire visual sequence so the
                 # ribbon covers the whole text on screen.
                 rendered = self._text._rendered
@@ -311,11 +311,11 @@ class TextInput(AbstractLayout):
                 total = rendered.total_visual_count()
                 self._set_selection(0, total)
                 self._set_cursor_to_pos(len(self._text.text))
-            elif key.c and self._has_selection():
+            elif key.C and self._has_selection():
                 content = self._selection_text()
                 Clipboard.set_clipboard(content)
                 self._debug("copied", repr(content))
-            elif key.v:
+            elif key.V:
                 inserted = Clipboard.get_clipboard()
                 if inserted:
                     if self._has_selection():

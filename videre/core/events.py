@@ -42,9 +42,9 @@ class Key(Enum):
     PAGEDOWN = auto()
     PRINTSCREEN = auto()
     SPACE = auto()
-    a = auto()
-    c = auto()
-    v = auto()
+    A = auto()
+    C = auto()
+    V = auto()
 
 
 @dataclass(slots=True, frozen=True)
@@ -134,9 +134,9 @@ class KeyboardEntry:
     pagedown = property(lambda self: self.key == Key.PAGEDOWN)
     printscreen = property(lambda self: self.key == Key.PRINTSCREEN)
 
-    a = property(lambda self: self.key == Key.a)
-    c = property(lambda self: self.key == Key.c)
-    v = property(lambda self: self.key == Key.v)
+    A = property(lambda self: self.key == Key.A)
+    C = property(lambda self: self.key == Key.C)
+    V = property(lambda self: self.key == Key.V)
 
     @property
     def caps(self) -> int:
@@ -175,6 +175,11 @@ class KeyDownEvent:
     entry: KeyboardEntry
 
 
+@dataclass(slots=True, frozen=True)
+class ExitEvent:
+    pass
+
+
 VidereEvent: TypeAlias = (
     MouseWheelEvent
     | MouseMotionEvent
@@ -183,4 +188,5 @@ VidereEvent: TypeAlias = (
     | TextInputEvent
     | KeyDownEvent
     | WindowLeaveEvent
+    | ExitEvent
 )

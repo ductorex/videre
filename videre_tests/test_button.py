@@ -5,7 +5,9 @@ def test_button(snap_win):
     snap_win.controls = [videre.Button(text="Hello World!")]
 
 
-def test_click(fake_win, fake_user):
+def test_click(fake_win):
+    fake_user = fake_win.user
+
     def on_click(button):
         button.text = "Hello Again!"
 

@@ -21,7 +21,8 @@ def test_window_background_property(fake_win):
 # --- confirm ---
 
 
-def test_confirm(fake_win, fake_user):
+def test_confirm(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(confirmed=False)
 
     def on_confirm():
@@ -57,7 +58,8 @@ def test_error(fake_win):
 # --- set_fancybox with existing focus ---
 
 
-def test_set_fancybox_clears_focus(fake_win, fake_user):
+def test_set_fancybox_clears_focus(fake_win):
+    fake_user = fake_win.user
     ti = videre.TextInput(text="hello")
     fake_win.controls = [ti]
     fake_win.render()
@@ -77,7 +79,8 @@ def test_set_fancybox_clears_focus(fake_win, fake_user):
 # --- escape handling ---
 
 
-def test_escape_closes_fancybox(fake_win, fake_user):
+def test_escape_closes_fancybox(fake_win):
+    fake_user = fake_win.user
     fake_win.alert("message")
     fake_win.render()
     assert fake_win.has_fancybox()
@@ -88,7 +91,8 @@ def test_escape_closes_fancybox(fake_win, fake_user):
     assert not fake_win.has_fancybox()
 
 
-def test_escape_closes_context(fake_win, fake_user):
+def test_escape_closes_context(fake_win):
+    fake_user = fake_win.user
     from videre.widgets.context_button import ContextButton
 
     cb = ContextButton("Menu", actions=[("Action", None)])  # ty: ignore[invalid-argument-type]
@@ -141,7 +145,7 @@ def test_clear_notification_callbacks(fake_win):
 # --- force_quit with alert_on_exceptions ---
 
 
-def test_force_alert_on_handled_exception(fake_user):
+def test_force_alert_on_handled_exception():
     from videre.testing.step_window import StepWindow
 
     def raise_value_error():

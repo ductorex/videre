@@ -53,7 +53,8 @@ def test_dropdown_options_change(fake_win):
     assert dropdown.options == ("X", "Y", "Z")
 
 
-def test_dropdown_click_opens_context(fake_win, fake_user):
+def test_dropdown_click_opens_context(fake_win):
+    fake_user = fake_win.user
     dropdown = videre.Dropdown(options=["Apple", "Banana", "Cherry"])
     fake_win.controls = [dropdown]
     fake_win.check("default")
@@ -77,7 +78,8 @@ def test_dropdown_click_opens_context(fake_win, fake_user):
     assert dropdown._context is None
 
 
-def test_dropdown_focus_behavior(fake_win, fake_user):
+def test_dropdown_focus_behavior(fake_win):
+    fake_user = fake_win.user
     dropdown = videre.Dropdown(options=["Apple", "Banana", "Cherry"])
     fake_win.controls = [dropdown]
     fake_win.render()
@@ -95,7 +97,8 @@ def test_dropdown_focus_behavior(fake_win, fake_user):
     assert dropdown._context is None
 
 
-def test_dropdown_click_to_option(fake_win, fake_user):
+def test_dropdown_click_to_option(fake_win):
+    fake_user = fake_win.user
     dropdown = videre.Dropdown(options=["Apple", "Banana", "Cherry"])
     fake_win.controls = [dropdown]
     fake_win.render()
@@ -117,7 +120,8 @@ def test_dropdown_click_to_option(fake_win, fake_user):
     assert dropdown.selected == "Banana"
 
 
-def test_dropdown_click_outer(fake_win, fake_user):
+def test_dropdown_click_outer(fake_win):
+    fake_user = fake_win.user
     dropdown = videre.Dropdown(options=["Apple", "Banana", "Cherry"])
     fake_win.controls = [dropdown]
     fake_win.render()

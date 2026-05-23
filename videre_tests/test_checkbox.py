@@ -11,7 +11,8 @@ def test_checkbox_unchecked(snap_win, checked):
     snap_win.controls = [checkbox]
 
 
-def test_checkbox_toggle(fake_win, fake_user):
+def test_checkbox_toggle(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(value=0, checkbox=None)
 
     def on_change(checkbox):
@@ -64,7 +65,8 @@ def test_checkbox_set_checked_property(fake_win):
     assert data.value == 1
 
 
-def test_checkbox_change_callback(fake_win, fake_user):
+def test_checkbox_change_callback(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(value=0)
 
     def on_change1(checkbox):

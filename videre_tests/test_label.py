@@ -5,7 +5,8 @@ from videre.core.events import MouseButton, MouseEvent
 from videre.widgets.empty_widget import EmptyWidget
 
 
-def test_label(fake_win, fake_user):
+def test_label(fake_win):
+    fake_user = fake_win.user
     checkbox = videre.Checkbox(key="a checkbox")
     label = videre.Label(checkbox, text="control checkbox!", height_delta=0)
     fake_win.controls = [
@@ -21,7 +22,8 @@ def test_label(fake_win, fake_user):
     assert checkbox.checked
 
 
-def test_label_with_key(fake_win, fake_user):
+def test_label_with_key(fake_win):
+    fake_user = fake_win.user
     key = "my_checkbox"
     checkbox = videre.Checkbox(key=key)
     label = videre.Label(key, text="control checkbox!", height_delta=0)

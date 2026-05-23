@@ -5,7 +5,22 @@ import pygame.gfxdraw
 from PIL.Image import Image
 
 from videre.colors import Color
-from videre.core.pygame_backend.definitions import PygameColor, Rect, Surface
+from videre.core.events import (
+    ExitEvent,
+    KeyDownEvent,
+    MouseButtonDownEvent,
+    MouseButtonUpEvent,
+    MouseMotionEvent,
+    MouseWheelEvent,
+    TextInputEvent,
+    VidereEvent,
+    WindowLeaveEvent,
+)
+from videre.core.pygame_backend.definitions import Event, PygameColor, Rect, Surface
+from videre.core.pygame_backend.mapping import (
+    keyboard_entry_to_pygame_dict,
+    mouse_button_to_pygame,
+)
 
 _Position: TypeAlias = tuple[int | float, int | float]
 
@@ -70,3 +85,47 @@ class Pygame:
         # exists. A self-contained Surface is safer at this boundary and
         # the copy cost is dwarfed by the upstream PIL decode + tobytes.
         return pygame.image.frombytes(image.tobytes(), image.size, "RGBA")
+
+    @classmethod
+    def post_event(cls, event: VidereEvent) -> None:
+        event_type = type(event)
+        if isinstance(event, MouseButtonDownEvent):
+            event_data = {
+                "pos": (event.x, event.y),
+                "button": mouse_button_to_pygame(event.button),
+            }
+            pygame.event.post(Event(pygame.MOUSEBUTTONDOWN, event_data))
+        elif isinstance(event, MouseButtonUpEvent):
+            event_data = {
+                "pos": (event.x, event.y),
+                "button": mouse_button_to_pygame(event.button),
+            }
+            pygame.event.post(Event(pygame.MOUSEBUTTONUP, event_data))
+        elif isinstance(event, MouseMotionEvent):
+            event_data = {
+                "pos": (event.x, event.y),
+                "rel": (event.dx, event.dy),
+                "touch": False,
+                "buttons": (
+                    int(event.button_left),
+                    int(event.button_middle),
+                    int(event.button_right),
+                ),
+            }
+            pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
+        elif isinstance(event, MouseWheelEvent):
+            event_data = {"x": event.wheel_dx, "y": event.wheel_dy}
+            pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
+        elif isinstance(event, KeyDownEvent):
+            pygame.event.post(
+                Event(pygame.KEYDOWN, keyboard_entry_to_pygame_dict(event.entry))
+            )
+        elif isinstance(event, TextInputEvent):
+            event_data = {"text": event.text}
+            pygame.event.post(Event(pygame.TEXTINPUT, event_data))
+        elif isinstance(event, WindowLeaveEvent):
+            pygame.event.post(Event(pygame.WINDOWLEAVE))
+        elif isinstance(event, ExitEvent):
+            pygame.event.post(Event(pygame.QUIT))
+        else:
+            raise NotImplementedError(event_type, event)

@@ -78,8 +78,9 @@ class TestScrollViewRendering:
 class TestScrollViewInteractions:
     """Test user interactions with ScrollView scrollbars and mouse wheel"""
 
-    def test_scrollbar_hover_states(self, fake_win, fake_user):
+    def test_scrollbar_hover_states(self, fake_win):
         """Test visual feedback when hovering over scrollbars"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}", size=16) for i in range(15)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -97,8 +98,9 @@ class TestScrollViewInteractions:
         fake_win.check("hover_true")
         assert v_scrollbar._hover is True
 
-    def test_wheel_vertical_scroll(self, fake_win, fake_user):
+    def test_wheel_vertical_scroll(self, fake_win):
         """Test vertical scrolling with mouse wheel"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}", size=16) for i in range(20)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -115,8 +117,9 @@ class TestScrollViewInteractions:
         # Content should have moved up (negative direction)
         assert scroll._content_y < initial_y
 
-    def test_wheel_horizontal_scroll_with_shift(self, fake_win, fake_user):
+    def test_wheel_horizontal_scroll_with_shift(self, fake_win):
         """Test horizontal scrolling with Shift+mouse wheel"""
+        fake_user = fake_win.user
         content = Text("Very long horizontal text " * 20, size=16)
         scroll = ScrollView(content)
         fake_win.controls = [scroll]
@@ -140,8 +143,9 @@ class TestScrollViewInteractions:
             pygame.key.get_mods = original_get_mods
 
     @win_hd_parameters()
-    def test_wheel_at_scroll_limits(self, fake_win, fake_user):
+    def test_wheel_at_scroll_limits(self, fake_win):
         """Test mouse wheel behavior at scroll boundaries"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}", size=16) for i in range(10)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -157,8 +161,9 @@ class TestScrollViewInteractions:
         # Position should not change as no scroll is needed
         assert scroll._content_y == initial_y == 0
 
-    def test_scrollbar_click_jump(self, fake_win, fake_user):
+    def test_scrollbar_click_jump(self, fake_win):
         """Test clicking on scrollbar track to jump to position"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}" * 20, size=16) for i in range(20)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -193,8 +198,9 @@ class TestScrollViewInteractions:
         # Content should have jumped to new horizontal position
         assert scroll._content_x < initial_x
 
-    def test_scrollbar_drag_interaction(self, fake_win, fake_user):
+    def test_scrollbar_drag_interaction(self, fake_win):
         """Test dragging scrollbar grip to scroll content"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}", size=16) for i in range(20)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -224,8 +230,9 @@ class TestScrollViewInteractions:
         fake_win.check("drag_3")
         assert v_scrollbar._grabbed == ()
 
-    def test_horizontal_scrollbar_drag_interactions(self, fake_win, fake_user):
+    def test_horizontal_scrollbar_drag_interactions(self, fake_win):
         """Test horizontal scrollbar mouse interactions"""
+        fake_user = fake_win.user
         content = Text("Very long horizontal text " * 20, size=16)
         scroll = ScrollView(content)
         fake_win.controls = [scroll]
@@ -258,8 +265,9 @@ class TestScrollViewInteractions:
         fake_win.check("drag_4")
         assert h_scrollbar._hover is False
 
-    def test_scrollbar_mouse_cancel_events(self, fake_win, fake_user):
+    def test_scrollbar_mouse_cancel_events(self, fake_win):
         """Test scrollbar mouse cancel events"""
+        fake_user = fake_win.user
         items = [Text(f"Item {i}", size=16) for i in range(20)]
         content = Column(items)
         scroll = ScrollView(content)
@@ -376,8 +384,9 @@ class TestScrollViewEdgeCases:
         scroll.scroll_thickness = -5
         fake_win.render()  # Should not crash
 
-    def test_nested_scrollviews_mouse_wheel(self, fake_win, fake_user):
+    def test_nested_scrollviews_mouse_wheel(self, fake_win):
         """Test mouse wheel propagation with nested ScrollViews"""
+        fake_user = fake_win.user
         inner_content = Column([Text(f"Inner {i}", size=14) for i in range(10)])
         inner_scroll = ScrollView(inner_content)
 

@@ -16,7 +16,8 @@ def _make_scrollable(fake_win, fake_user, **scroll_kwargs):
 # --- handle_mouse_wheel edge cases ---
 
 
-def test_mouse_wheel_no_delta(fake_win, fake_user):
+def test_mouse_wheel_no_delta(fake_win):
+    fake_user = fake_win.user
     """handle_mouse_wheel(0, 0, shift) returns early (line 154)."""
     scroll = _make_scrollable(fake_win, fake_user)
     initial_y = scroll._content_y
@@ -27,7 +28,8 @@ def test_mouse_wheel_no_delta(fake_win, fake_user):
     assert scroll._content_y == initial_y
 
 
-def test_mouse_wheel_both_x_and_y(fake_win, fake_user):
+def test_mouse_wheel_both_x_and_y(fake_win):
+    fake_user = fake_win.user
     """handle_mouse_wheel(x, y) with both non-zero (line 158)."""
     content = Text("Very long horizontal text " * 20, size=16)
     items = [content] + [Text(f"Item {i}", size=16) for i in range(30)]
@@ -47,7 +49,8 @@ def test_mouse_wheel_both_x_and_y(fake_win, fake_user):
     assert moved
 
 
-def test_mouse_wheel_x_only(fake_win, fake_user):
+def test_mouse_wheel_x_only(fake_win):
+    fake_user = fake_win.user
     """handle_mouse_wheel(x, 0) with only x non-zero (line 160)."""
     content = Text("Very long horizontal text " * 30, size=16)
     scroll = ScrollView(content)
@@ -66,7 +69,8 @@ def test_mouse_wheel_x_only(fake_win, fake_user):
 # --- scroll up (line 289) ---
 
 
-def test_scroll_up_after_down(fake_win, fake_user):
+def test_scroll_up_after_down(fake_win):
+    fake_user = fake_win.user
     """Scroll down then back up (step > 0, line 289)."""
     scroll = _make_scrollable(fake_win, fake_user)
     assert scroll._content_y == 0
@@ -88,7 +92,8 @@ def test_scroll_up_after_down(fake_win, fake_user):
 # --- default_bottom (lines 131, 239-249) ---
 
 
-def test_default_bottom(fake_win, fake_user):
+def test_default_bottom(fake_win):
+    fake_user = fake_win.user
     """ScrollView with default_bottom=True scrolls to bottom automatically."""
     scroll = _make_scrollable(fake_win, fake_user, default_bottom=True)
 
@@ -99,7 +104,8 @@ def test_default_bottom(fake_win, fake_user):
     assert scroll._content_y == expected_y
 
 
-def test_default_bottom_canceled_by_scroll(fake_win, fake_user):
+def test_default_bottom_canceled_by_scroll(fake_win):
+    fake_user = fake_win.user
     """Scrolling up cancels default_bottom."""
     scroll = _make_scrollable(fake_win, fake_user, default_bottom=True)
     assert scroll.default_bottom is True
@@ -114,7 +120,8 @@ def test_default_bottom_canceled_by_scroll(fake_win, fake_user):
 # --- get_mouse_wheel_owner returning self (line 149) ---
 
 
-def test_mouse_wheel_owner_is_scrollview(fake_win, fake_user):
+def test_mouse_wheel_owner_is_scrollview(fake_win):
+    fake_user = fake_win.user
     """When ScrollView has no child ScrollView, it claims wheel ownership itself."""
     scroll = _make_scrollable(fake_win, fake_user)
     # The scroll is rendered, mouse at (0,0) is inside it

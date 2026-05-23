@@ -82,9 +82,9 @@ class TestKeyboardEntry:
             (pygame.K_RETURN, "enter"),
             (pygame.K_ESCAPE, "escape"),
             (pygame.K_PRINTSCREEN, "printscreen"),
-            (pygame.K_a, "a"),
-            (pygame.K_c, "c"),
-            (pygame.K_v, "v"),
+            (pygame.K_a, "A"),
+            (pygame.K_c, "C"),
+            (pygame.K_v, "V"),
         ]
 
         various_prop_names = [prop_name for _, prop_name in navigation_keys]

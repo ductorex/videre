@@ -3,7 +3,6 @@ from typing import Callable, Iterator
 
 import pytest
 
-from videre.testing.fake_user import FakeUser
 from videre.testing.step_window import StepWindow
 from videre.testing.utils import LD
 
@@ -31,11 +30,6 @@ def _image_testing(image_regression) -> ImageCheck:
         image_regression.check(image.getvalue(), diff_threshold=0, **kwargs)
 
     return check
-
-
-@pytest.fixture
-def fake_user():
-    yield FakeUser
 
 
 @pytest.fixture

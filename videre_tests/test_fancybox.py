@@ -15,7 +15,9 @@ def test_fancybox_rendering(fake_win):
     fake_win.check()
 
 
-def test_fancybox(fake_win, fake_user):
+def test_fancybox(fake_win):
+    fake_user = fake_win.user
+
     def _fancy(*args, **kwargs):
         fake_win.set_fancybox(videre.Text("I am at top!"), title="fancybox")
 
@@ -45,7 +47,9 @@ def test_fancybox(fake_win, fake_user):
     assert not fake_win.has_fancybox()
 
 
-def test_alert(fake_win, fake_user):
+def test_alert(fake_win):
+    fake_user = fake_win.user
+
     def _alert(*args, **kwargs):
         fake_win.alert("I am at top!", title="fancybox")
 

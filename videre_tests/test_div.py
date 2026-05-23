@@ -30,7 +30,8 @@ def test_div_with_style(snap_win):
     snap_win.controls = [div]
 
 
-def test_div_click_handler(fake_win, fake_user):
+def test_div_click_handler(fake_win):
+    fake_user = fake_win.user
     data = SimpleNamespace(clicked=False, div_ref=None)
 
     def on_click(div):
@@ -51,7 +52,8 @@ def test_div_click_handler(fake_win, fake_user):
     assert data.div_ref is div
 
 
-def test_div_hover_style(fake_win, fake_user):
+def test_div_hover_style(fake_win):
+    fake_user = fake_win.user
     text = videre.Text("Hover Div")
     div = videre.Div(
         text,
@@ -90,7 +92,8 @@ def test_div_alignment(snap_win):
     snap_win.controls = [div]
 
 
-def test_div_no_click_handler(fake_win, fake_user):
+def test_div_no_click_handler(fake_win):
+    fake_user = fake_win.user
     text = videre.Text("No Handler")
     div = videre.Div(text)
     fake_win.controls = [div]
