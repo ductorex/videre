@@ -152,13 +152,13 @@ class PygameBackend(Pygame):
             has_mouse_motion = has_mouse_motion or event.type == pygame.MOUSEMOTION
             self.__on_event(event)
 
-        # If we haven't already handled a mouse motion event but mouse is over screen,
-        # then we process a custom mouse motion event.
-        # TODO We might need to process a custom mouse motion event anyway,
-        #   even if there was a mouse motion event above, for example
-        #   if supplementary events changed the interface between
-        #   the mouse motion event found above and
-        #   the end of loop above.
+        # WINDOWENTER and WINDOWFOCUSGAINED are unreliable across platforms
+        # (not fired when mouse is already over the window at startup, missing
+        # on Windows in some setups, late or absent on macOS, bogus on KDE/Plasma),
+        # so we can't rely on them to refresh hover state when the user returns
+        # to the window. Instead, when no real MOUSEMOTION arrived this frame but
+        # the cursor is currently over the window, synthesize a no-op motion so
+        # the widget under the cursor can pick up its hover state.
         if not has_mouse_motion and pygame.mouse.get_focused():
             self.__on_event(
                 Event(
