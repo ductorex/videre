@@ -152,20 +152,16 @@ class PygameBackend(Pygame):
             has_mouse_motion = has_mouse_motion or event.type == pygame.MOUSEMOTION
             self.__on_event(event)
 
-        # WINDOWENTER and WINDOWFOCUSGAINED are unreliable across platforms
-        # (not fired when mouse is already over the window at startup, missing
-        # on Windows in some setups, late or absent on macOS, bogus on KDE/Plasma),
-        # so we can't rely on them to refresh hover state when the user returns
-        # to the window. Instead, when no real MOUSEMOTION arrived this frame but
-        # the cursor is currently over the window, synthesize a no-op motion so
-        # the widget under the cursor can pick up its hover state.
-
-        # NB: We also need to emit a mouse motion anyway if not yet emitted,
-        # so that hover is correctly handled. E.g: if a fancybox is removed,
-        # the widget below the mouse on remaining view should handle hover.
-        # But, removing fancybox or any other widget does not currently
-        # trigger a hover update on the window. The only valid way to handle
-        # hover for now is to force this mouse motion event.
+        # Synthesize a no-op MOUSEMOTION when none arrived this frame and the
+        # cursor is over the window. This compensates for two pygame gaps:
+        #   - WINDOWENTER / WINDOWFOCUSGAINED are unreliable across platforms
+        #     (not fired when the mouse is already over the window at startup,
+        #     missing on Windows in some setups, late or absent on macOS,
+        #     bogus on KDE/Plasma) — so hover state would not refresh when the
+        #     user returns to the window without moving the mouse.
+        #   - Widget-tree mutations (e.g. closing a fancybox) do not emit any
+        #     pygame event, so the widget newly exposed under an immobile
+        #     cursor would never receive its hover transition.
         if not has_mouse_motion and pygame.mouse.get_focused():
             self.__on_event(
                 Event(
