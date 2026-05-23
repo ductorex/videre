@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Sequence
 
 from videre.colors import Color, Colors
+from videre.core.events import KeyboardEntry
 from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
@@ -86,6 +87,13 @@ class WindowLayout(AbstractControlsLayout):
         if self._context is not None:
             children.append(self._context)
         self._set_controls(children)
+
+    def handle_keydown(self, key: KeyboardEntry):
+        if key.escape:
+            if self.has_context():
+                self.set_context(None)
+            elif self.has_fancybox():
+                self.set_fancybox(None)
 
     def render(
         self, window: "Window", width: int | None = None, height: int | None = None

@@ -33,12 +33,7 @@ class ExitTask:
     exception: Exception | None = None
 
 
-@dataclass(slots=True, frozen=True)
-class EscapeTask:
-    pass
-
-
-VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask | EscapeTask
+VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask
 
 
 class TaskManager:

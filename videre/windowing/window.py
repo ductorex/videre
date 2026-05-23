@@ -8,7 +8,6 @@ from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.pygame_backend.definitions import Surface
 from videre.core.tasks import (
     CallbackTask,
-    EscapeTask,
     ExitTask,
     NotificationCallback,
     NotificationTask,
@@ -326,13 +325,6 @@ class Window:
         logger.warning("Quit.")
         self._exit_exception = task.exception
         self._stop_running()
-
-    @on_task(EscapeTask)
-    def _task_escape(self, task: EscapeTask):
-        if self.has_context():
-            self.clear_context()
-        elif self.has_fancybox():
-            self.clear_fancybox()
 
     @on_task(NotificationTask)
     def _task_notification(self, task: NotificationTask):

@@ -12,7 +12,7 @@ from videre.core.events import (
     VidereEvent,
     WindowLeaveEvent,
 )
-from videre.core.tasks import EscapeTask, VidereTask
+from videre.core.tasks import VidereTask
 from videre.core.utils import OnEvent
 from videre.widgets.widget import Widget
 from videre.windowing.event_propagator import EventPropagator
@@ -124,9 +124,5 @@ class WindowEventManager:
             self._focus.handle_text_input(event.text)
 
     @on_event(KeyDownEvent)
-    def on_keydown(self, event: KeyDownEvent) -> EscapeTask | None:
-        if self._focus:
-            self._focus.handle_keydown(event.entry)
-        elif event.entry.escape:
-            return EscapeTask()
-        return None
+    def on_keydown(self, event: KeyDownEvent) -> None:
+        (self._focus or self._layout).handle_keydown(event.entry)
