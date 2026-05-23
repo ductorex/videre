@@ -1,12 +1,9 @@
 import functools
 import logging
-import threading
 from typing import Any, Callable, Sequence
 
-import pygame
-
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.constants import WINDOW_FPS, Alignment
+from videre.core.constants import Alignment
 from videre.core.events import (
     CallbackTask,
     CustomTasks,
@@ -14,12 +11,11 @@ from videre.core.events import (
     ExitTask,
     NotificationCallback,
     NotificationTask,
-    SizeTask,
     VidereTask,
 )
 from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.pygame_backend.definitions import Event, Surface
-from videre.core.utils import Procedure, launch_thread
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.utils import OnEvent, Procedure, TaskManager, launch_thread
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
 from videre.layouts.container import Container
@@ -31,7 +27,7 @@ from videre.windowing.event_manager import WindowEventManager
 from videre.windowing.fancybox import Fancybox
 from videre.windowing.fancyclosebutton import FancyCloseButton
 from videre.windowing.windowlayout import WindowLayout
-from videre.windowing.windowutils import OnEvent, WidgetByKeyGetter
+from videre.windowing.windowutils import WidgetByKeyGetter
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +36,16 @@ class Window:
     __slots__ = (
         "_exit_code",
         "_exit_exception",
-        "_running",
         "_layout",
         "_controls",
         "_fancybox",
         "_context",
-        "_notif_cbks",
-        "_lock",
-        "_nb_frames",
+        "_notification_callbacks",
         "data",
         "_handled_exceptions",
         "_subpixel",
-        "_pending_tasks",
         "_event_manager",
+        "_task_manager",
         "_backend",
         "_font_size_pts",
         "_font_height",
@@ -69,38 +62,41 @@ class Window:
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
     ):
-        self._backend = PygameBackend(width, height, str(title) or "Window", bool(hide))
+        self._layout = WindowLayout(parse_color(background or Colors.white))
+        self._event_manager = WindowEventManager(self._layout)
+        self._task_manager = TaskManager(self._manage_task)
+        self._backend = PygameBackend(
+            width=width,
+            height=height,
+            title=str(title) or "Window",
+            hide=bool(hide),
+            event_manager=self._event_manager.manage,
+            render_manager=self._refresh,
+            task_manager=self._task_manager,
+        )
         self._font_size_pts = font_size
         self._font_height: int | None = None
 
         self._exit_code = 0
         self._exit_exception: Exception | None = None
-        self._lock = threading.Lock()
-
-        self._layout = WindowLayout(parse_color(background or Colors.white))
 
         # Videre-specific events
-        self._running = True
-        self._pending_tasks: list[VidereTask] = []
-        self._notif_cbks: list[NotificationCallback] = []
+        self._notification_callbacks: list[NotificationCallback] = []
 
         self._controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
         self._context: Context | None = None
 
-        self._nb_frames = 0
-
         self._handled_exceptions = tuple(alert_on_exceptions)
         self._subpixel: bool | None = handle_text_sub_pixels
 
         self.data = None
-        self._event_manager = WindowEventManager(self._layout)
 
     def _is_running(self) -> bool:
-        return self._running
+        return self._backend.running
 
     def _stop_running(self):
-        self._running = False
+        self._backend.running = False
 
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
@@ -119,7 +115,7 @@ class Window:
 
     @property
     def nb_frames(self) -> int:
-        return self._nb_frames
+        return self._backend.nb_frames
 
     @property
     def symbol_size(self) -> int:
@@ -174,58 +170,14 @@ class Window:
         )
 
     def run(self) -> int:
-        if not self._running:
+        if not self._is_running():
             raise RuntimeError("Window has already run. Cannot run again.")
 
-        with self._backend:
-            clock = pygame.time.Clock()
-            while self._running:
-                self._render()
-                clock.tick(WINDOW_FPS)
+        self._backend.run()
 
         if self._exit_exception:
             raise self._exit_exception
         return self._exit_code
-
-    def _render(self):
-        # Handle interface events.
-        # Also check if we got a mouse motion event.
-        has_mouse_motion = False
-        for event in pygame.event.get():
-            has_mouse_motion = has_mouse_motion or event.type == pygame.MOUSEMOTION
-            self.__on_event(event)
-
-        # If we haven't already handled a mouse motion event but mouse if over screen,
-        # then we process a custom mouse motion event.
-        # TODO We might need to process a custom mouse motion event anyway,
-        #   event if there was a mouse motion event above, for example
-        #   if supplementary events changed the interface between
-        #   the mouse motion event found above and
-        #   the end of loop above.
-        if not has_mouse_motion and pygame.mouse.get_focused():
-            self.__on_event(
-                Event(
-                    pygame.MOUSEMOTION,
-                    pos=pygame.mouse.get_pos(),
-                    rel=(0, 0),
-                    buttons=(0, 0, 0),
-                    touch=False,
-                )
-            )
-
-        # Refresh screen.
-        self._layout.render(self)
-        pygame.display.flip()
-        self._nb_frames += 1
-
-        # Post manual events.
-        with self._lock:
-            tasks = self._pending_tasks
-            self._pending_tasks = []
-        for task in tasks:
-            task_callback = self.on_task.get(type(task))
-            assert task_callback is not None
-            task_callback(self, task)
 
     def __refresh_controls(self):
         self._layout.controls = (
@@ -233,6 +185,9 @@ class Window:
             + ((self._fancybox,) if self._fancybox else ())
             + ((self._context,) if self._context else ())
         )
+
+    def _refresh(self) -> Surface:
+        return self._layout.render(self)
 
     def notify(self, notification: Any):
         self._post_event(CustomTasks.notification_task(notification))
@@ -265,7 +220,7 @@ class Window:
         if self._handled_exceptions and isinstance(exc, self._handled_exceptions):
             self._force_alert(exc)
         else:
-            self._post_event(CustomTasks.exit_task(exc))
+            self._post_event(ExitTask(exc))
 
     def _force_alert(self, exception: Exception):
         self.clear_context()
@@ -273,8 +228,7 @@ class Window:
         self._post_event(CustomTasks.callback_task(self.error, exception))
 
     def _post_event(self, task: VidereTask):
-        with self._lock:
-            self._pending_tasks.append(task)
+        self._task_manager.post_task(task)
 
     def set_fancybox(
         self,
@@ -343,16 +297,11 @@ class Window:
         self._context = Context(relative, control, x=x, y=y)
         self.__refresh_controls()
 
-    def clear_context(self, relative: Widget | None = None) -> bool:
-        """
-        Clear current context.
-        Return True if context was cleared, False otherwise.
-        """
+    def clear_context(self, relative: Widget | None = None) -> None:
+        """Clear current context."""
         if self.has_context(relative):
             self._context = None
             self.__refresh_controls()
-            return True
-        return False
 
     def has_context(self, relative: Widget | None = None) -> bool:
         """
@@ -372,32 +321,27 @@ class Window:
             self.add_notification_callback(callback)
 
     def add_notification_callback(self, callback: NotificationCallback):
-        if callback not in self._notif_cbks:
-            self._notif_cbks.append(callback)
+        if callback not in self._notification_callbacks:
+            self._notification_callbacks.append(callback)
 
     def remove_notification_callback(self, callback: NotificationCallback):
-        if callback in self._notif_cbks:
-            self._notif_cbks.remove(callback)
+        if callback in self._notification_callbacks:
+            self._notification_callbacks.remove(callback)
 
     def clear_notification_callbacks(self):
-        self._notif_cbks.clear()
+        self._notification_callbacks.clear()
 
     def get_element_by_key(self, key: str) -> Widget | None:
         results = self._layout.collect_matches(WidgetByKeyGetter(key))
         return results[0] if results else None
 
-    def __on_event(self, event: Event):
-        """
-        Handle a pygame event.
-        """
-        ret = self._event_manager.manage(event)
-        if ret is not None:
-            task_callback = self.on_task.get(type(ret))
-            if task_callback:
-                task_callback(self, ret)
-
     def focus_out(self, widget: Widget | None = None) -> None:
         self._event_manager.focus_out(widget)
+
+    def _manage_task(self, task: VidereTask) -> None:
+        task_callback = self.on_task.get(type(task))
+        assert task_callback is not None
+        task_callback(self, task)
 
     on_task = OnEvent[type[VidereTask]]()
 
@@ -406,11 +350,6 @@ class Window:
         logger.warning("Quit.")
         self._exit_exception = task.exception
         self._stop_running()
-
-    @on_task(SizeTask)
-    def _task_size(self, task: SizeTask):
-        logger.debug(f"Window resized: {task}")
-        self._backend.width, self._backend.height = task.width, task.height
 
     @on_task(EscapeTask)
     def _task_escape(self, task: EscapeTask):
@@ -421,7 +360,7 @@ class Window:
 
     @on_task(NotificationTask)
     def _task_notification(self, task: NotificationTask):
-        task.dispatch(self._notif_cbks)
+        task.dispatch(self._notification_callbacks)
 
     @on_task(CallbackTask)
     def _task_callback(self, task: CallbackTask):

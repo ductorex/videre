@@ -1,9 +1,7 @@
 from typing import Protocol
 
-from videre import MouseButton
-from videre.core.events import MouseEvent
+from videre.core.events import MouseButton, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend.definitions import Event
 from videre.widgets.widget import Widget
 
 
@@ -59,7 +57,7 @@ class EventPropagator:
                 if parent:
                     x = parent.x + event.x
                     y = parent.y + event.y
-                    event = event.with_coordinates(x, y)
+                    event = event.replace(x=x, y=y)
         return None
 
     @classmethod
@@ -101,7 +99,9 @@ class EventPropagator:
         return cls._handle(widget, Widget.handle_mouse_down_canceled, button)
 
     @classmethod
-    def manage_mouse_motion(cls, event: Event, owner: MouseOwnership, previous: Widget):
+    def manage_mouse_motion(
+        cls, m_event: MouseEvent, owner: MouseOwnership, previous: Widget
+    ):
         # Get potential exited widgets
         exited = set(previous.get_lineage())
 
@@ -117,16 +117,12 @@ class EventPropagator:
                 exited.remove(current)
 
                 # in and out => just a mouse over on current
-                if current.handle_mouse_over(
-                    MouseEvent.from_mouse_motion(event, mouse_x, mouse_y)
-                ):
+                if current.handle_mouse_over(m_event.replace(x=mouse_x, y=mouse_y)):
                     # Mouse over captured, stop.
                     break
             else:
                 # just in => mouse enter on current
-                if current.handle_mouse_enter(
-                    MouseEvent.from_mouse_motion(event, mouse_x, mouse_y)
-                ):
+                if current.handle_mouse_enter(m_event.replace(x=mouse_x, y=mouse_y)):
                     # mouse enter captured, stop.
                     break
 

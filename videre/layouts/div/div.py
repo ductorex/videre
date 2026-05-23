@@ -1,8 +1,8 @@
 from typing import Callable, TypeAlias, cast
 
 from videre.colors import Colors
-from videre.core.constants import Alignment, MouseButton
-from videre.core.events import MouseEvent
+from videre.core.constants import Alignment
+from videre.core.events import MouseButton, MouseEvent
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.layouts.container import Container

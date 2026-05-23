@@ -119,23 +119,23 @@ def test_remove_notification_callback(fake_win):
         called.append(n)
 
     fake_win.add_notification_callback(cb)
-    assert len(fake_win._notif_cbks) == 1
+    assert len(fake_win._notification_callbacks) == 1
 
     fake_win.remove_notification_callback(cb)
-    assert len(fake_win._notif_cbks) == 0
+    assert len(fake_win._notification_callbacks) == 0
 
     # Remove again (no-op)
     fake_win.remove_notification_callback(cb)
-    assert len(fake_win._notif_cbks) == 0
+    assert len(fake_win._notification_callbacks) == 0
 
 
 def test_clear_notification_callbacks(fake_win):
     fake_win.add_notification_callback(lambda n: None)
     fake_win.add_notification_callback(lambda n: None)
-    assert len(fake_win._notif_cbks) == 2
+    assert len(fake_win._notification_callbacks) == 2
 
     fake_win.clear_notification_callbacks()
-    assert len(fake_win._notif_cbks) == 0
+    assert len(fake_win._notification_callbacks) == 0
 
 
 # --- force_quit with alert_on_exceptions ---

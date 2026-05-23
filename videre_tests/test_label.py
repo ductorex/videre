@@ -1,8 +1,7 @@
 from types import SimpleNamespace
 
 import videre
-from videre.core.constants import MouseButton
-from videre.core.events import MouseEvent
+from videre.core.events import MouseButton, MouseEvent
 from videre.widgets.empty_widget import EmptyWidget
 
 
@@ -159,7 +158,7 @@ def test_label_mouse_up_event_propagation(fake_win):
     fake_win.render()
 
     # Simulate mouse up on label
-    mouse_event = MouseEvent(x=15, y=25, buttons=[MouseButton.BUTTON_LEFT])
+    mouse_event = MouseEvent(x=15, y=25, buttons=(MouseButton.BUTTON_LEFT,))
     label.handle_mouse_up(mouse_event)
 
     assert events.mouse_up_called is True

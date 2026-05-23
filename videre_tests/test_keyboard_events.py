@@ -1,8 +1,8 @@
 import pygame
 
-from videre.core.constants import MouseButton
-from videre.core.events import KeyboardEntry, MouseEvent
+from videre.core.events import MouseButton, MouseEvent
 from videre.core.pygame_backend.definitions import Event
+from videre.core.pygame_backend.mapping import pygame_to_keyboard_entry
 
 
 class TestKeyboardEntry:
@@ -19,7 +19,7 @@ class TestKeyboardEntry:
             },
         )
 
-        entry = KeyboardEntry(mock_event)
+        entry = pygame_to_keyboard_entry(mock_event)
 
         # Test individual modifier properties
         assert entry.lshift > 0
@@ -49,7 +49,7 @@ class TestKeyboardEntry:
             },
         )
 
-        entry = KeyboardEntry(mock_event)
+        entry = pygame_to_keyboard_entry(mock_event)
 
         # Test individual modifier properties
         assert entry.lshift == 0
@@ -94,23 +94,23 @@ class TestKeyboardEntry:
                 pygame.KEYUP, {"mod": 0, "key": key_code, "unicode": ""}
             )
 
-            entry = KeyboardEntry(mock_event)
+            entry = pygame_to_keyboard_entry(mock_event)
             assert getattr(entry, prop_name) is True
             for other_prop in various_prop_names:
                 if other_prop != prop_name:
                     assert getattr(entry, other_prop) is False
 
     def test_keyboard_entry_repr_no_modifiers(self):
-        """Test KeyboardEntry string representation with no modifiers"""
+        """Test PygameKeyboardEntry string representation with no modifiers"""
         mock_event = pygame.event.Event(
             pygame.KEYDOWN, {"mod": 0, "key": pygame.K_a, "unicode": "a"}
         )
 
-        entry = KeyboardEntry(mock_event)
+        entry = pygame_to_keyboard_entry(mock_event)
         assert repr(entry) == ""
 
     def test_keyboard_entry_repr_with_modifiers(self):
-        """Test KeyboardEntry string representation with modifiers"""
+        """Test PygameKeyboardEntry string representation with modifiers"""
         mock_event = pygame.event.Event(
             pygame.KEYDOWN,
             {
@@ -120,7 +120,7 @@ class TestKeyboardEntry:
             },
         )
 
-        entry = KeyboardEntry(mock_event)
+        entry = pygame_to_keyboard_entry(mock_event)
         repr_str = repr(entry)
         # Should contain both ctrl and shift, order may vary
         assert "ctrl" in repr_str
@@ -133,28 +133,28 @@ class TestMouseEventButtonProperties:
 
     def test_button_left_only(self):
         """Test MouseEvent with only left button pressed"""
-        event = MouseEvent(buttons=[MouseButton.BUTTON_LEFT])
+        event = MouseEvent(buttons=(MouseButton.BUTTON_LEFT,))
         assert event.button_left is True
         assert event.button_middle is False
         assert event.button_right is False
 
     def test_button_middle_only(self):
         """Test MouseEvent with only middle button pressed"""
-        event = MouseEvent(buttons=[MouseButton.BUTTON_MIDDLE])
+        event = MouseEvent(buttons=(MouseButton.BUTTON_MIDDLE,))
         assert event.button_left is False
         assert event.button_middle is True
         assert event.button_right is False
 
     def test_button_right_only(self):
         """Test MouseEvent with only right button pressed"""
-        event = MouseEvent(buttons=[MouseButton.BUTTON_RIGHT])
+        event = MouseEvent(buttons=(MouseButton.BUTTON_RIGHT,))
         assert event.button_left is False
         assert event.button_middle is False
         assert event.button_right is True
 
     def test_multiple_buttons_left_right(self):
         """Test MouseEvent with multiple buttons pressed"""
-        event = MouseEvent(buttons=[MouseButton.BUTTON_LEFT, MouseButton.BUTTON_RIGHT])
+        event = MouseEvent(buttons=(MouseButton.BUTTON_LEFT, MouseButton.BUTTON_RIGHT))
         assert event.button_left is True
         assert event.button_right is True
         assert event.button_middle is False
@@ -162,11 +162,11 @@ class TestMouseEventButtonProperties:
     def test_multiple_buttons_all_three(self):
         """Test MouseEvent with all three buttons pressed"""
         event = MouseEvent(
-            buttons=[
+            buttons=(
                 MouseButton.BUTTON_LEFT,
                 MouseButton.BUTTON_MIDDLE,
                 MouseButton.BUTTON_RIGHT,
-            ]
+            )
         )
         assert event.button_left is True
         assert event.button_middle is True
@@ -174,17 +174,13 @@ class TestMouseEventButtonProperties:
 
     def test_from_mouse_motion_with_buttons(self):
         """Test MouseEvent.from_mouse_motion with various button combinations"""
-        # Mock pygame event with buttons pressed
-        mock_event = pygame.event.Event(
-            pygame.MOUSEMOTION,
-            {
-                "buttons": (1, 0, 1),  # Left and right buttons pressed
-                "pos": (100, 200),
-                "rel": (5, -3),
-            },
+        event = MouseEvent(
+            x=100,
+            y=200,
+            dx=5,
+            dy=-3,
+            buttons=(MouseButton.BUTTON_LEFT, MouseButton.BUTTON_RIGHT),
         )
-
-        event = MouseEvent.from_mouse_motion(mock_event)
 
         assert event.x == 100
         assert event.y == 200
@@ -196,16 +192,7 @@ class TestMouseEventButtonProperties:
 
     def test_from_mouse_motion_no_buttons(self):
         """Test MouseEvent.from_mouse_motion with no buttons pressed"""
-        mock_event = pygame.event.Event(
-            pygame.MOUSEMOTION,
-            {
-                "buttons": (0, 0, 0),  # No buttons pressed
-                "pos": (50, 75),
-                "rel": (0, 0),
-            },
-        )
-
-        event = MouseEvent.from_mouse_motion(mock_event)
+        event = MouseEvent(x=50, y=75)
 
         assert event.x == 50
         assert event.y == 75
@@ -217,16 +204,10 @@ class TestMouseEventButtonProperties:
 
     def test_from_mouse_motion_with_custom_coordinates(self):
         """Test MouseEvent.from_mouse_motion with custom x,y coordinates"""
-        mock_event = pygame.event.Event(
-            pygame.MOUSEMOTION,
-            {
-                "buttons": (0, 1, 0),  # Middle button pressed
-                "pos": (100, 200),
-                "rel": (10, -5),
-            },
+        mock_event = MouseEvent(
+            x=100, y=200, dx=10, dy=-5, buttons=(MouseButton.BUTTON_MIDDLE,)
         )
-
-        event = MouseEvent.from_mouse_motion(mock_event, x=300, y=400)
+        event = mock_event.replace(x=300, y=400)
 
         # Custom coordinates should override event.pos
         assert event.x == 300
@@ -244,10 +225,10 @@ class TestMouseEventButtonProperties:
             y=20,
             dx=5,
             dy=-3,
-            buttons=[MouseButton.BUTTON_LEFT, MouseButton.BUTTON_MIDDLE],
+            buttons=(MouseButton.BUTTON_LEFT, MouseButton.BUTTON_MIDDLE),
         )
 
-        new_event = original_event.with_coordinates(100, 200)
+        new_event = original_event.replace(x=100, y=200)
 
         # New coordinates should be set
         assert new_event.x == 100

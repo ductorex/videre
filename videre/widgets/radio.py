@@ -1,6 +1,6 @@
 from typing import Any
 
-from videre import MouseButton
+from videre.core.events import MouseButton
 from videre.widgets.abstract_check_button import AbstractCheckButton
 from videre.widgets.widget import Widget
 

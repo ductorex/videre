@@ -3,8 +3,7 @@ import sys
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Self
 
-from videre.core.constants import MouseButton
-from videre.core.events import KeyboardEntry, MouseEvent
+from videre.core.events import KeyboardEntry, MouseButton, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
 from videre.core.position_mapping import Position, PositionMapping
 from videre.core.pygame_backend.definitions import Surface
@@ -281,6 +280,7 @@ class Widget:
         self._old = self._new.copy()
         self._old_update = new_update
         self._transient_state.clear()
+        assert self._surface is not None
         return self._surface
 
     @abstractmethod

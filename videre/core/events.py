@@ -1,19 +1,26 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Sequence, TypeAlias
-
-import pygame
-from pygame.event import Event
-
-from videre import MouseButton
+from enum import Enum, auto, unique
+from typing import Any, Callable, Self, Sequence, TypeAlias
 
 
-@dataclass(slots=True)
+@unique
+class MouseButton(Enum):
+    BUTTON_LEFT = auto()
+    BUTTON_MIDDLE = auto()
+    BUTTON_RIGHT = auto()
+    BUTTON_WHEELDOWN = auto()
+    BUTTON_WHEELUP = auto()
+    BUTTON_X1 = auto()
+    BUTTON_X2 = auto()
+
+
+@dataclass(slots=True, frozen=True)
 class MouseEvent:
     x: int = 0
     y: int = 0
     dx: int = 0
     dy: int = 0
-    buttons: Sequence[MouseButton] = field(default_factory=list)
+    buttons: tuple[MouseButton, ...] = field(default_factory=tuple)
 
     @property
     def button(self) -> MouseButton:
@@ -32,76 +39,96 @@ class MouseEvent:
     def button_right(self) -> bool:
         return MouseButton.BUTTON_RIGHT in self.buttons
 
-    @classmethod
-    def from_mouse_motion(cls, event: Event, x=None, y=None):
-        buttons = []
-        if event.buttons[0]:
-            buttons.append(MouseButton.BUTTON_LEFT)
-        if event.buttons[1]:
-            buttons.append(MouseButton.BUTTON_MIDDLE)
-        if event.buttons[2]:
-            buttons.append(MouseButton.BUTTON_RIGHT)
-        return cls(
-            x=event.pos[0] if x is None else x,
-            y=event.pos[1] if y is None else y,
-            dx=event.rel[0],
-            dy=event.rel[1],
-            buttons=buttons,
+    def replace(self, x: int | None = None, y: int | None = None) -> Self:
+        return type(self)(
+            x=self.x if x is None else x,
+            y=self.y if y is None else y,
+            dx=self.dx,
+            dy=self.dy,
+            buttons=tuple(self.buttons),
         )
 
-    def with_coordinates(self, x: int, y: int):
-        return MouseEvent(x=x, y=y, dx=self.dx, dy=self.dy, buttons=list(self.buttons))
+
+@unique
+class KeyMod(Enum):
+    LSHIFT = auto()
+    RSHIFT = auto()
+    LCTRL = auto()
+    RCTRL = auto()
+    RALT = auto()
+    LALT = auto()
+    CAPS = auto()
 
 
+@unique
+class Key(Enum):
+    BACKSPACE = auto()
+    TAB = auto()
+    ENTER = auto()
+    ESCAPE = auto()
+    DELETE = auto()
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    HOME = auto()
+    END = auto()
+    PAGEUP = auto()
+    PAGEDOWN = auto()
+    PRINTSCREEN = auto()
+    SPACE = auto()
+    a = auto()
+    c = auto()
+    v = auto()
+
+
+@dataclass(slots=True, frozen=True)
 class KeyboardEntry:
-    __slots__ = ("_mod", "_key", "unicode")
+    modifiers: frozenset[KeyMod] = field(default_factory=frozenset)
+    key: Key | None = None
+    unicode: str | None = None
 
-    def __init__(self, event: Event):
-        self._mod = event.mod
-        self._key = event.key
-        self.unicode = event.unicode
+    lshift = property(lambda self: KeyMod.LSHIFT in self.modifiers)
+    rshift = property(lambda self: KeyMod.RSHIFT in self.modifiers)
+    lctrl = property(lambda self: KeyMod.LCTRL in self.modifiers)
+    rctrl = property(lambda self: KeyMod.RCTRL in self.modifiers)
+    ralt = property(lambda self: KeyMod.RALT in self.modifiers)
+    lalt = property(lambda self: KeyMod.LALT in self.modifiers)
 
-    lshift = property(lambda self: self._mod & pygame.KMOD_LSHIFT)
-    rshift = property(lambda self: self._mod & pygame.KMOD_RSHIFT)
-    lctrl = property(lambda self: self._mod & pygame.KMOD_LCTRL)
-    rctrl = property(lambda self: self._mod & pygame.KMOD_RCTRL)
-    ralt = property(lambda self: self._mod & pygame.KMOD_RALT)
-    lalt = property(lambda self: self._mod & pygame.KMOD_LALT)
+    backspace = property(lambda self: self.key == Key.BACKSPACE)
+    tab = property(lambda self: self.key == Key.TAB)
+    enter = property(lambda self: self.key == Key.ENTER)
+    escape = property(lambda self: self.key == Key.ESCAPE)
+    delete = property(lambda self: self.key == Key.DELETE)
+    up = property(lambda self: self.key == Key.UP)
+    down = property(lambda self: self.key == Key.DOWN)
+    left = property(lambda self: self.key == Key.LEFT)
+    right = property(lambda self: self.key == Key.RIGHT)
+    home = property(lambda self: self.key == Key.HOME)
+    end = property(lambda self: self.key == Key.END)
+    pageup = property(lambda self: self.key == Key.PAGEUP)
+    pagedown = property(lambda self: self.key == Key.PAGEDOWN)
+    printscreen = property(lambda self: self.key == Key.PRINTSCREEN)
 
-    backspace = property(lambda self: self._key == pygame.K_BACKSPACE)
-    tab = property(lambda self: self._key == pygame.K_TAB)
-    enter = property(lambda self: self._key == pygame.K_RETURN)
-    escape = property(lambda self: self._key == pygame.K_ESCAPE)
-    delete = property(lambda self: self._key == pygame.K_DELETE)
-    up = property(lambda self: self._key == pygame.K_UP)
-    down = property(lambda self: self._key == pygame.K_DOWN)
-    left = property(lambda self: self._key == pygame.K_LEFT)
-    right = property(lambda self: self._key == pygame.K_RIGHT)
-    home = property(lambda self: self._key == pygame.K_HOME)
-    end = property(lambda self: self._key == pygame.K_END)
-    pageup = property(lambda self: self._key == pygame.K_PAGEUP)
-    pagedown = property(lambda self: self._key == pygame.K_PAGEDOWN)
-    printscreen = property(lambda self: self._key == pygame.K_PRINTSCREEN)
-
-    a = property(lambda self: self._key == pygame.K_a)
-    c = property(lambda self: self._key == pygame.K_c)
-    v = property(lambda self: self._key == pygame.K_v)
+    a = property(lambda self: self.key == Key.a)
+    c = property(lambda self: self.key == Key.c)
+    v = property(lambda self: self.key == Key.v)
 
     @property
     def caps(self) -> int:
-        return self._mod & pygame.KMOD_CAPS
+        return KeyMod.CAPS in self.modifiers
 
     @property
     def ctrl(self) -> int:
-        return self._mod & pygame.KMOD_CTRL
+        return KeyMod.LCTRL in self.modifiers or KeyMod.RCTRL in self.modifiers
 
     @property
     def alt(self) -> int:
-        return self._mod & pygame.KMOD_ALT
+        return KeyMod.RALT in self.modifiers or KeyMod.LALT in self.modifiers
 
     @property
     def shift(self) -> int:
-        return self._mod & pygame.KMOD_SHIFT
+        return KeyMod.LSHIFT in self.modifiers or KeyMod.RSHIFT in self.modifiers
 
     def __repr__(self):
         return " + ".join(
@@ -137,19 +164,11 @@ class ExitTask:
 
 
 @dataclass(slots=True, frozen=True)
-class SizeTask:
-    width: int
-    height: int
-
-
-@dataclass(slots=True, frozen=True)
 class EscapeTask:
     pass
 
 
-VidereTask: TypeAlias = (
-    CallbackTask | NotificationTask | ExitTask | SizeTask | EscapeTask
-)
+VidereTask: TypeAlias = CallbackTask | NotificationTask | ExitTask | EscapeTask
 
 
 class CustomTasks:
@@ -161,6 +180,52 @@ class CustomTasks:
     def notification_task(cls, something: Any) -> NotificationTask:
         return NotificationTask(something)
 
-    @classmethod
-    def exit_task(cls, exc: Exception | None = None) -> ExitTask:
-        return ExitTask(exc)
+
+@dataclass(slots=True, frozen=True)
+class MouseWheelEvent:
+    mouse_x: int
+    mouse_y: int
+    wheel_dx: int
+    wheel_dy: int
+    shift: bool
+
+
+@dataclass(slots=True, frozen=True)
+class MouseButtonDownEvent(MouseEvent):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class MouseButtonUpEvent(MouseEvent):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class MouseMotionEvent(MouseEvent):
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class WindowLeaveEvent:
+    pass
+
+
+@dataclass(slots=True, frozen=True)
+class TextInputEvent:
+    text: str
+
+
+@dataclass(slots=True, frozen=True)
+class KeyDownEvent:
+    entry: KeyboardEntry
+
+
+VidereEvent: TypeAlias = (
+    MouseWheelEvent
+    | MouseMotionEvent
+    | MouseButtonDownEvent
+    | MouseButtonUpEvent
+    | TextInputEvent
+    | KeyDownEvent
+    | WindowLeaveEvent
+)

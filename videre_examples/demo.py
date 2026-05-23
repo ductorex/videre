@@ -4,9 +4,9 @@ from typing import Any
 import videre
 from videre.core.clipboard import Clipboard
 from videre.core.framing import FPS
+from videre.core.utils import OnEvent
 from videre.layouts.div.div import Div
 from videre.testing.utils import LOREM_IPSUM
-from videre.windowing.windowutils import OnEvent
 
 logger = logging.getLogger(__name__)
 

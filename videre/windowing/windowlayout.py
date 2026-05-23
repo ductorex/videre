@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
 from videre.colors import Color, Colors
 from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class WindowLayout(AbstractControlsLayout):
@@ -29,7 +34,7 @@ class WindowLayout(AbstractControlsLayout):
         return super().render(window, screen.get_width(), screen.get_height())
 
     def draw(
-        self, window, width: int | None = None, height: int | None = None
+        self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Surface:
         screen = window.get_screen()
 

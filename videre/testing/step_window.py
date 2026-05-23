@@ -29,7 +29,7 @@ class StepWindow(Window):
             raise RuntimeError("render() requires step-mode (`with window`)")
         if not self._is_running():
             raise RuntimeError("Window has already run. Cannot render again.")
-        self._render()
+        self._backend._render()
 
     def screenshot(self) -> io.BytesIO:
         if not self._step_mode:

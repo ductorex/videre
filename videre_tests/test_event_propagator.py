@@ -1,23 +1,8 @@
-import pygame.event
-
-from videre.core.constants import MouseButton
-from videre.core.events import MouseEvent
+from videre.core.events import MouseButton, MouseEvent
 from videre.core.mouse_ownership import MouseOwnership
-from videre.core.pygame_backend.definitions import Event
 from videre.layouts.container import Container
 from videre.widgets.widget import Widget
 from videre.windowing.event_propagator import EventPropagator
-
-
-def _pygame_mouse_motion_event(
-    x, y, rel=(0, 0), button_left=False, button_middle=False, button_right=False
-):
-    return Event(
-        pygame.MOUSEMOTION,
-        pos=(x, y),
-        rel=rel,
-        buttons=(button_left, button_middle, button_right),
-    )
 
 
 class MockWidget(Widget):
@@ -184,8 +169,8 @@ class TestManageMouseMotion:
         ownership = MouseOwnership(widget=child, x_in_parent=10, y_in_parent=20)
         previous = MockWidget(capture_events=False)
 
-        pygame_event = _pygame_mouse_motion_event(100, 200, rel=(5, 5))
-        EventPropagator.manage_mouse_motion(pygame_event, ownership, previous)
+        event = MouseEvent(x=100, y=200, dx=5, dy=5)
+        EventPropagator.manage_mouse_motion(event, ownership, previous)
 
         assert child.events_received[0][0] == "mouse_enter"
         assert root.events_received[0][0] == "mouse_enter"
@@ -198,8 +183,8 @@ class TestManageMouseMotion:
         ownership = MouseOwnership(widget=child, x_in_parent=10, y_in_parent=20)
         previous = MockWidget()  # captures
 
-        pygame_event = _pygame_mouse_motion_event(100, 200)
-        EventPropagator.manage_mouse_motion(pygame_event, ownership, previous)
+        event = MouseEvent(x=100, y=200)
+        EventPropagator.manage_mouse_motion(event, ownership, previous)
 
         assert len(child.events_received) == 1
         assert child.events_received[0][0] == "mouse_enter"
@@ -212,8 +197,8 @@ class TestManageMouseMotion:
         previous_child = MockWidget(parent=shared_parent, capture_events=False)
 
         ownership = MouseOwnership(widget=current_child, x_in_parent=10, y_in_parent=20)
-        pygame_event = _pygame_mouse_motion_event(100, 200)
-        EventPropagator.manage_mouse_motion(pygame_event, ownership, previous_child)
+        event = MouseEvent(x=100, y=200)
+        EventPropagator.manage_mouse_motion(event, ownership, previous_child)
 
         assert current_child.events_received[0][0] == "mouse_enter"
         assert shared_parent.events_received[0][0] == "mouse_over"
@@ -226,8 +211,8 @@ class TestManageMouseMotion:
         previous_child = MockWidget(parent=shared_parent, capture_events=False)
 
         ownership = MouseOwnership(widget=current_child, x_in_parent=10, y_in_parent=20)
-        pygame_event = _pygame_mouse_motion_event(100, 200)
-        EventPropagator.manage_mouse_motion(pygame_event, ownership, previous_child)
+        event = MouseEvent(x=100, y=200)
+        EventPropagator.manage_mouse_motion(event, ownership, previous_child)
 
         assert current_child.events_received[0][0] == "mouse_enter"
         # Shared parent captures mouse_over -> break
@@ -247,8 +232,8 @@ class TestManageMouseMotion:
         ownership = MouseOwnership(widget=child, x_in_parent=10, y_in_parent=20)
         previous = MockWidget(capture_events=False)
 
-        pygame_event = _pygame_mouse_motion_event(300, 400)
-        EventPropagator.manage_mouse_motion(pygame_event, ownership, previous)
+        event = MouseEvent(x=300, y=400)
+        EventPropagator.manage_mouse_motion(event, ownership, previous)
 
         child_event = child.events_received[0][1][0]
         assert child_event.x == 10

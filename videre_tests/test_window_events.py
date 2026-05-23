@@ -5,8 +5,7 @@ from unittest.mock import patch
 
 import pygame
 
-from videre.core.constants import MouseButton
-from videre.core.events import CustomTasks, KeyboardEntry
+from videre.core.events import CustomTasks, KeyboardEntry, MouseButton
 from videre.core.pygame_backend.definitions import Event
 from videre.core.pygame_backend.primitives import Pygame
 from videre.layouts.column import Column
@@ -35,7 +34,7 @@ class TrackerWidget(Widget):
         self.events.append(("text_input", text))
         return True
 
-    def handle_keydown(self, key):
+    def handle_keydown(self, key: KeyboardEntry):
         self.events.append(("keydown", key))
         return self
 
@@ -451,7 +450,7 @@ def test_on_notification(fake_win):
 
 
 def test_on_notification_no_callback(fake_win):
-    assert not fake_win._notif_cbks
+    assert not fake_win._notification_callbacks
     notification_event = CustomTasks.notification_task("Test notification")
     fake_win._post_event(notification_event)
     fake_win.render()  # should not raise
@@ -497,8 +496,8 @@ def test_thread_safety_of_post_event(fake_win):
     for thread in threads:
         thread.join()
 
-    with fake_win._lock:
-        assert len(fake_win._pending_tasks) == 30
+    with fake_win._task_manager._lock:
+        assert len(fake_win._task_manager._pending_tasks) == 30
     assert len(tasks_posted) == 30
 
 
