@@ -37,9 +37,6 @@ class Window:
         "_exit_code",
         "_exit_exception",
         "_layout",
-        "_controls",
-        "_fancybox",
-        "_context",
         "_notification_callbacks",
         "data",
         "_handled_exceptions",
@@ -82,10 +79,6 @@ class Window:
 
         # Videre-specific events
         self._notification_callbacks: list[NotificationCallback] = []
-
-        self._controls: list[Widget] = []
-        self._fancybox: Fancybox | None = None
-        self._context: Context | None = None
 
         self._handled_exceptions = tuple(alert_on_exceptions)
         self._subpixel: bool | None = handle_text_sub_pixels
@@ -131,12 +124,11 @@ class Window:
 
     @property
     def controls(self) -> tuple[Widget, ...]:
-        return tuple(self._controls)
+        return tuple(self._layout.controls)
 
     @controls.setter
     def controls(self, controls: Sequence[Widget]):
-        self._controls = list(controls)
-        self.__refresh_controls()
+        self._layout.controls = list(controls)
 
     @property
     def width(self) -> int:
@@ -175,13 +167,6 @@ class Window:
         if self._exit_exception:
             raise self._exit_exception
         return self._exit_code
-
-    def __refresh_controls(self):
-        self._layout.controls = (
-            self.controls
-            + ((self._fancybox,) if self._fancybox else ())
-            + ((self._context,) if self._context else ())
-        )
 
     def _refresh(self, screen: Surface) -> None:
         self._layout.screen = screen
@@ -235,17 +220,14 @@ class Window:
         buttons: Sequence[Button] = (),
         expand_buttons=True,
     ):
-        assert not self._fancybox
         self._event_manager.focus_out()
-        self._fancybox = Fancybox(content, title, buttons, expand_buttons)
-        self.__refresh_controls()
+        self._layout.set_fancybox(Fancybox(content, title, buttons, expand_buttons))
 
     def clear_fancybox(self):
-        self._fancybox = None
-        self.__refresh_controls()
+        self._layout.set_fancybox(None)
 
     def has_fancybox(self) -> bool:
-        return self._fancybox is not None
+        return self._layout.has_fancybox()
 
     def alert(self, message: str | Text, title: str | Text = "Alert"):
         if isinstance(message, str):
@@ -292,14 +274,12 @@ class Window:
         )
 
     def set_context(self, relative: Widget, control: Widget, x=0, y=0):
-        self._context = Context(relative, control, x=x, y=y)
-        self.__refresh_controls()
+        self._layout.set_context(Context(relative, control, x=x, y=y))
 
     def clear_context(self, relative: Widget | None = None) -> None:
         """Clear current context."""
-        if self.has_context(relative):
-            self._context = None
-            self.__refresh_controls()
+        if self._layout.has_context(relative):
+            self._layout.set_context(None)
 
     def has_context(self, relative: Widget | None = None) -> bool:
         """
@@ -308,9 +288,7 @@ class Window:
             If given, return True only if
             current context is attached to this relative.
         """
-        return self._context is not None and (
-            relative is None or self._context.relative is relative
-        )
+        return self._layout.has_context(relative)
 
     def set_notification_callback(self, callback: NotificationCallback | None):
         if callback is None:
