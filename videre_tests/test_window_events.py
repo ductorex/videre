@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from videre.core.events import Key, KeyboardEntry, KeyMod, MouseButton
+from videre.core.events import Key, KeyMod, KeyboardEntry, MouseButton
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.tasks import CallbackTask, NotificationTask
 from videre.layouts.column import Column
@@ -414,7 +414,7 @@ def test_on_text_input_no_focus(fake_win):
     ],
 )
 def test_on_keydown_with_focus(fake_win, entry):
-    """KeyboardEntry survives the Videre -> pygame -> Videre round trip."""
+    """KeyboardEntry survives the Videre -> backend -> Videre round trip."""
     fake_user = fake_win.user
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
@@ -496,7 +496,7 @@ def test_run_later_method(fake_win):
         data.key = key
 
     fake_win.call_later(test_func, "arg1", "arg2", key="value")
-    # First render pushes manual events to pygame queue
+    # First render pushes manual events to backend queue
     fake_win.render()
     # Second render processes the callback event
     fake_win.render()
