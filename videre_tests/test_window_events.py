@@ -3,7 +3,9 @@ import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from videre.core.events import Key, KeyboardEntry, MouseButton
+import pytest
+
+from videre.core.events import Key, KeyboardEntry, KeyMod, MouseButton
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.tasks import CallbackTask, NotificationTask
 from videre.layouts.column import Column
@@ -400,7 +402,19 @@ def test_on_text_input_no_focus(fake_win):
 # --- Keydown ---
 
 
-def test_on_keydown_with_focus(fake_win):
+@pytest.mark.parametrize(
+    "entry",
+    [
+        KeyboardEntry(key=Key.SPACE, unicode=" "),
+        KeyboardEntry(key=Key.A, modifiers=frozenset([KeyMod.LSHIFT]), unicode="A"),
+        KeyboardEntry(key=Key.C, modifiers=frozenset([KeyMod.LCTRL])),
+        KeyboardEntry(key=Key.V, modifiers=frozenset([KeyMod.LCTRL, KeyMod.LSHIFT])),
+        KeyboardEntry(key=Key.ESCAPE),
+        KeyboardEntry(key=Key.UP),
+    ],
+)
+def test_on_keydown_with_focus(fake_win, entry):
+    """KeyboardEntry survives the Videre -> pygame -> Videre round trip."""
     fake_user = fake_win.user
     tracker = TrackerWidget()
     fake_win.controls = [tracker]
@@ -410,12 +424,12 @@ def test_on_keydown_with_focus(fake_win):
     fake_win.render()
     assert fake_win._event_manager._focus is tracker
 
-    fake_user.key_down(Key.SPACE, unicode=" ")
+    fake_user.key_down(entry.key, modifiers=entry.modifiers, unicode=entry.unicode)
     fake_win.render()
 
-    keydown_events = [e for e in tracker.events if e[0] == "keydown"]
-    assert len(keydown_events) == 1
-    assert isinstance(keydown_events[0][1], KeyboardEntry)
+    keydowns = [e[1] for e in tracker.events if e[0] == "keydown"]
+    (received,) = keydowns
+    assert received == entry
 
 
 def test_on_keydown_no_focus(fake_win):

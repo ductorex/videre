@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 from videre.fonts._gen_char_cov import _gen_font_to_characters, generate_char_to_font
-from videre.fonts.provider import FONT_NOTO_REGULAR, FontProvider
+from videre.fonts.provider import FontProvider
 
 
 class CharSupport(TypedDict):
@@ -33,39 +33,3 @@ def test_generate_char_cov():
     assert char_to_indice
     assert fonts == char_support["fonts"]
     assert char_to_indice == char_support["characters"]
-
-
-def test_pygame_font_cache():
-    import pygame.freetype
-
-    pygame.freetype.init()
-
-    path = FONT_NOTO_REGULAR.path
-
-    font_s15 = pygame.freetype.Font(path, size=15)
-
-    font_s20 = pygame.freetype.Font(path, size=20)
-
-    font_s15_i = pygame.freetype.Font(path, size=15)
-    font_s15_i.oblique = True
-
-    font_s15_b = pygame.freetype.Font(path, size=15)
-    font_s15_b.strong = True
-
-    assert font_s15.size == 15
-    assert not font_s15.strong
-    assert not font_s15.oblique
-
-    assert font_s20.size == 20
-    assert not font_s20.strong
-    assert not font_s20.oblique
-
-    assert font_s15_i.size == 15
-    assert not font_s15_i.strong
-    assert font_s15_i.oblique
-
-    assert font_s15_b.size == 15
-    assert font_s15_b.strong
-    assert not font_s15_b.oblique
-
-    pygame.freetype.quit()

@@ -54,6 +54,7 @@ markers = ["win_params: arguments for fake_win.__init__"]
 [tool.ruff.format]
 # Collapse lines even if they contain commas
 skip-magic-trailing-comma = true
+line-ending = "cr-lf"
 
 [tool.ruff.lint]
 extend-select = ["I"]

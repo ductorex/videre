@@ -62,9 +62,13 @@ class FakeUser:
         """Simulate mouse up at specific coordinates"""
         self._backend.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
-    def mouse_wheel(self, x: int, y: int, shift: bool = False):
+    def mouse_wheel(
+        self, x: int, y: int, shift: bool = False, mouse_x: int = 0, mouse_y: int = 0
+    ):
         self._backend.post_event(
-            MouseWheelEvent(wheel_dx=x, wheel_dy=y, mouse_x=0, mouse_y=0, shift=shift)
+            MouseWheelEvent(
+                wheel_dx=x, wheel_dy=y, mouse_x=mouse_x, mouse_y=mouse_y, shift=shift
+            )
         )
 
     def key_down(self, key: Key, modifiers: Sequence[KeyMod] = (), unicode: str = ""):

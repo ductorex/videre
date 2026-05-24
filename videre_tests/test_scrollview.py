@@ -1,4 +1,3 @@
-import pygame
 import pytest
 
 import videre
@@ -128,19 +127,11 @@ class TestScrollViewInteractions:
         initial_x = scroll._content_x
 
         # Simulate Shift+wheel (horizontal scroll)
-        # This requires mocking the shift key state
+        fake_user.mouse_wheel(x=0, y=-1, shift=True)
+        fake_win.check("scroll_true")
 
-        original_get_mods = pygame.key.get_mods
-        pygame.key.get_mods = lambda: pygame.KMOD_SHIFT  # ty: ignore[invalid-assignment]
-
-        try:
-            fake_user.mouse_wheel(x=0, y=-1)
-            fake_win.check("scroll_true")
-
-            # Content should have moved horizontally
-            assert scroll._content_x < initial_x
-        finally:
-            pygame.key.get_mods = original_get_mods
+        # Content should have moved horizontally
+        assert scroll._content_x < initial_x
 
     @win_hd_parameters()
     def test_wheel_at_scroll_limits(self, fake_win):
@@ -404,21 +395,15 @@ class TestScrollViewEdgeCases:
         fake_win.check("default")
 
         # Mouse wheel should affect the appropriate scrollview based on mouse position
-        original_mouse_pos = pygame.mouse.get_pos
-        try:
-            inner_x = inner_scroll.global_x + 1
-            inner_y = inner_scroll.global_y + 1
-            pygame.mouse.get_pos = lambda: (inner_x, inner_y)  # ty: ignore[invalid-assignment]
-            fake_user.mouse_wheel(x=0, y=-1)
-            fake_win.check("scroll_inner")
+        inner_x = inner_scroll.global_x + 1
+        inner_y = inner_scroll.global_y + 1
+        fake_user.mouse_wheel(x=0, y=-1, mouse_x=inner_x, mouse_y=inner_y)
+        fake_win.check("scroll_inner")
 
-            outer_x = inner_scroll.right + 2
-            outer_y = outer_scroll.global_y + 1
-            pygame.mouse.get_pos = lambda: (outer_x, outer_y)  # ty: ignore[invalid-assignment]
-            fake_user.mouse_wheel(x=0, y=-1)
-            fake_win.check("scroll_outer")
-        finally:
-            pygame.mouse.get_pos = original_mouse_pos
+        outer_x = inner_scroll.right + 2
+        outer_y = outer_scroll.global_y + 1
+        fake_user.mouse_wheel(x=0, y=-1, mouse_x=outer_x, mouse_y=outer_y)
+        fake_win.check("scroll_outer")
 
 
 class TestScrollViewAlgorithms:

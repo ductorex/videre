@@ -134,7 +134,12 @@ class Pygame:
     @_on_post(MouseWheelEvent)
     def _post_mouse_wheel(cls, event: MouseWheelEvent) -> None:
         pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
-        event_data = {"x": event.wheel_dx, "y": event.wheel_dy}
+        event_data = {
+            "x": event.wheel_dx,
+            "y": event.wheel_dy,
+            "mouse_x": event.mouse_x,
+            "mouse_y": event.mouse_y,
+        }
         pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
 
     @classmethod

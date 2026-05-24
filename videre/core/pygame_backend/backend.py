@@ -240,7 +240,13 @@ class PygameBackend(Pygame):
 
     @_on_event(pygame.MOUSEWHEEL)
     def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
-        mouse_x, mouse_y = pygame.mouse.get_pos()
+        # Real OS wheel events have no position; fall back to pygame.mouse.get_pos().
+        # Test-posted events carry mouse_x/mouse_y as custom attributes
+        # (see Pygame._post_mouse_wheel) so they can route to a specific widget.
+        if hasattr(event, "mouse_x"):
+            mouse_x, mouse_y = event.mouse_x, event.mouse_y
+        else:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
         wheel_dx = event.x
         wheel_dy = event.y
         shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)

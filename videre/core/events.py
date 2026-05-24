@@ -110,7 +110,7 @@ class MouseWheelEvent:
 class KeyboardEntry:
     modifiers: frozenset[KeyMod] = field(default_factory=frozenset)
     key: Key | None = None
-    unicode: str | None = None
+    unicode: str = ""
 
     lshift = property(lambda self: KeyMod.LSHIFT in self.modifiers)
     rshift = property(lambda self: KeyMod.RSHIFT in self.modifiers)
