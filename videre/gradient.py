@@ -28,6 +28,11 @@ class Gradient:
         return Color(r, g, b, a)
 
     def generate(self, width: int, height: int) -> Surface:
+        if width < 0:
+            raise ValueError("width cannot be negative")
+        if height < 0:
+            raise ValueError("height cannot be negative")
+
         surface = Pygame.new_surface(width, height)
 
         if len(self._colors) == 1:

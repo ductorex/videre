@@ -1,4 +1,3 @@
-import pygame
 import pytest
 
 from videre.colors import Color, Colors
@@ -123,10 +122,10 @@ def test_gradient_error_cases():
     gradient = Gradient(Colors.red, Colors.blue)
 
     # Test with negative dimensions
-    with pytest.raises(pygame.error):
+    with pytest.raises(ValueError, match="width cannot be negative"):
         gradient.generate(-1, 100)
 
-    with pytest.raises(pygame.error):
+    with pytest.raises(ValueError, match="height cannot be negative"):
         gradient.generate(100, -1)
 
     # zero-dimensions are supported
