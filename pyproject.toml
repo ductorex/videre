@@ -45,6 +45,7 @@ include = ["videre"]
 include = ["videre"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = ["win_params: arguments for fake_win.__init__"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -66,5 +67,5 @@ split-on-trailing-comma = false
 format = "ruff format"
 lint = "ruff check --fix"
 typecheck = """ty check --output-format concise \
-    videre videre_examples videre_tests"""
+    videre videre_examples tests"""
 check = ["format", "lint", "typecheck"]

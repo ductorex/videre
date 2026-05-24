@@ -14,7 +14,7 @@ https://en.wiktionary.org/wiki/videre
 To run unit tests with Pytest + Coverage:
 
 ```
-uv run pytest --cov=videre --cov-report=term-missing --cov-report=html --cov-report=json videre_tests -n auto
+uv run pytest --cov=videre --cov-report=term-missing --cov-report=html --cov-report=json tests -n auto
 ```
 
 To format code with Ruff:

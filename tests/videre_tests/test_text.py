@@ -3,8 +3,8 @@ import itertools
 import pytest
 
 import videre
+from tests.common import win_sd_parameters
 from videre.testing.utils import LOREM_IPSUM
-from videre_tests.common import win_sd_parameters
 
 NB_LINES = (0, 1, 2)
 WRAP = [None] + list(videre.TextWrap)

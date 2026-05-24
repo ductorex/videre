@@ -1,82 +1,13 @@
 import threading
 import time
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 
-from videre.core.events import Key, KeyMod, KeyboardEntry, MouseButton
-from videre.core.pygame_backend.primitives import Pygame
+from tests.common import TrackerWidget
+from videre.core.events import Key, KeyboardEntry, KeyMod, MouseButton
 from videre.core.tasks import CallbackTask, NotificationTask
 from videre.layouts.column import Column
-from videre.widgets.widget import Widget
-
-
-class TrackerWidget(Widget):
-    """Widget that tracks received events for testing."""
-
-    __slots__ = ("events",)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.events = []
-
-    def draw(self, window, width=None, height=None):
-        surface = Pygame.new_surface(width or 50, height or 50)
-        surface.fill((200, 200, 200))
-        return surface
-
-    def handle_mouse_wheel(self, x, y, shift):
-        self.events.append(("mouse_wheel", x, y, shift))
-        return True
-
-    def handle_text_input(self, text):
-        self.events.append(("text_input", text))
-        return True
-
-    def handle_keydown(self, key: KeyboardEntry):
-        self.events.append(("keydown", key))
-        return self
-
-    def handle_focus_in(self):
-        self.events.append(("focus_in",))
-        return self
-
-    def handle_focus_out(self):
-        self.events.append(("focus_out",))
-
-    def handle_click(self, button):
-        self.events.append(("click", button))
-        return self
-
-    def handle_mouse_enter(self, event):
-        self.events.append(("mouse_enter",))
-        return self
-
-    def handle_mouse_over(self, event):
-        self.events.append(("mouse_over",))
-        return self
-
-    def handle_mouse_exit(self):
-        self.events.append(("mouse_exit",))
-        return self
-
-    def handle_mouse_down(self, event):
-        self.events.append(("mouse_down",))
-        return self
-
-    def handle_mouse_up(self, event):
-        self.events.append(("mouse_up",))
-        return self
-
-    def handle_mouse_down_move(self, event):
-        self.events.append(("mouse_down_move",))
-        return self
-
-    def handle_mouse_down_canceled(self, button):
-        self.events.append(("mouse_down_canceled", button))
-        return self
-
 
 # --- Quit ---
 
@@ -527,29 +458,6 @@ def test_thread_safety_of_post_event(fake_win):
     with fake_win._task_manager._lock:
         assert len(fake_win._task_manager._pending_tasks) == 30
     assert len(tasks_posted) == 30
-
-
-# --- Default mouse over (synthetic MOUSEMOTION) ---
-
-
-def test_window_default_mouse_over_no(fake_win):
-    """In headless mode, get_focused() returns False: no synthetic mouse motion."""
-    tracker = TrackerWidget()
-    fake_win.controls = [tracker]
-    fake_win.render()
-    assert fake_win._event_manager._motion is None
-
-
-def test_window_default_mouse_over(fake_win):
-    """When get_focused() returns True, a synthetic MOUSEMOTION is created."""
-    tracker = TrackerWidget()
-    fake_win.controls = [tracker]
-    fake_win.render()
-
-    with patch("pygame.mouse.get_focused", return_value=True):
-        fake_win.render()
-
-    assert fake_win._event_manager._motion is tracker
 
 
 # --- Async ---

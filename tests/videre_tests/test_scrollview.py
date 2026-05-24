@@ -1,8 +1,8 @@
 import pytest
 
 import videre
+from tests.common import win_hd_parameters, win_parameters
 from videre import Column, Container, ScrollView, Text
-from videre_tests.common import win_hd_parameters, win_parameters
 
 
 class TestScrollViewRendering:

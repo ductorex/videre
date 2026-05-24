@@ -10,16 +10,16 @@ Videre is a Python GUI framework built on Pygame. It provides a widget/layout sy
 
 ```bash
 # Run all tests in parallel (pytest-xdist)
-uv run pytest -n auto videre_tests
+uv run pytest -n auto tests
 
 # Run all tests with coverage
-uv run pytest -n auto --cov=videre --cov-report=term-missing videre_tests
+uv run pytest -n auto --cov=videre --cov-report=term-missing tests
 
 # Run a single test file
-uv run pytest videre_tests/test_file.py
+uv run pytest tests/videre_tests/test_file.py
 
 # Run a single test
-uv run pytest videre_tests/test_file.py::test_name
+uv run pytest tests/videre_tests/test_file.py::test_name
 
 # Format code
 uv run ruff format
@@ -37,7 +37,7 @@ uv run poe typecheck
 uv run poe check
 ```
 
-The `poe` tasks are defined in `pyproject.toml` under `[tool.poe.tasks]`. `typecheck` runs `ty check` against `videre`, `videre_examples`, and `videre_tests`.
+The `poe` tasks are defined in `pyproject.toml` under `[tool.poe.tasks]`. `typecheck` runs `ty check` against `videre`, `videre_examples`, and `tests`.
 
 ## Architecture
 
@@ -87,7 +87,7 @@ Layouts form a clear inheritance chain:
 - `PygameTextRendering`: Text rendering pipeline using `pygame.freetype`.
 - `font_factory_utils.py`: Text layout, wrapping, and measurement.
 
-### Testing (`videre/testing/`, `videre_tests/`)
+### Testing (`videre/testing/`, `tests/`)
 
 - `StepWindow`: Headless window using context manager (`with StepWindow() as win`). Supports `render()`, `snapshot()`, `screenshot()` for step-by-step testing without an event loop.
 - `FakeUser`: Simulates user interactions (click, keyboard, mouse events) by posting real pygame events. Prefer `FakeUser` + `fake_win.render()` over mocking for event-related tests.
