@@ -2,15 +2,15 @@ import pytest
 
 from videre import Text
 from videre.core.rendering_result import Rendering
-from videre.widgets.empty_widget import EmptyWidget as Widget
+from videre.widgets.empty_widget import EmptyWidget
 
 
 class TestWidgetAdvanced:
     """Test advanced Widget functionality and edge cases"""
 
     def test_widget_parent_child_relationships(self):
-        parent = Widget()
-        child = Widget()
+        parent = EmptyWidget()
+        child = EmptyWidget()
 
         assert child._parent is None
 
@@ -19,7 +19,7 @@ class TestWidgetAdvanced:
         assert child._parent is parent
 
         # Change parent
-        new_parent = Widget()
+        new_parent = EmptyWidget()
         child.with_parent(new_parent)
         assert child._parent is new_parent
 
@@ -28,7 +28,7 @@ class TestWidgetAdvanced:
         assert child._parent is new_parent
 
     def test_widget_wprop_getters_setters(self):
-        widget = Widget()
+        widget = EmptyWidget()
 
         widget._set_wprop("weight", 5)
         assert widget._get_wprop("weight") == 5
@@ -39,7 +39,7 @@ class TestWidgetAdvanced:
         ):
             widget._set_wprops(weight=10, custom_prop=42)
 
-        class CustomWidget(Widget):
+        class CustomWidget(EmptyWidget):
             __wprops__ = {"custom_prop"}
 
         widget = CustomWidget()
@@ -79,11 +79,11 @@ class TestWidgetAdvanced:
         assert widget._old != initial_old_state
 
     def test_widget_key_property(self):
-        widget1 = Widget()
+        widget1 = EmptyWidget()
         assert widget1._key == str(id(widget1))
 
-        widget2 = Widget(key="my_custom_key")
+        widget2 = EmptyWidget(key="my_custom_key")
         assert widget2._key == "my_custom_key"
 
-        widget3 = Widget()
+        widget3 = EmptyWidget()
         assert widget1._key != widget3._key

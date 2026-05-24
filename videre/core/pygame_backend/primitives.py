@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Sequence, TypeAlias
 
 import pygame
+import pygame.event
 import pygame.gfxdraw
 from PIL.Image import Image
 
@@ -44,7 +45,8 @@ class PygameRendering(Rendering):
         return Color(color.r, color.g, color.b, color.a)
 
 
-def deref(rendering: Rendering) -> Surface:
+def _deref(rendering: Rendering) -> Surface:
+    """Dereference a Rendering object into a Pygame surface."""
     assert isinstance(rendering, PygameRendering), type(rendering)
     return rendering.surface
 
@@ -53,7 +55,7 @@ class Pygame:
     __slots__ = ()
 
     @classmethod
-    def new_surface(cls, width: int | float, height: int | float) -> PygameRendering:
+    def new_surface(cls, width: int | float, height: int | float) -> Rendering:
         return PygameRendering(Surface((width, height), flags=pygame.SRCALPHA))
 
     @classmethod
@@ -72,14 +74,14 @@ class Pygame:
     def fill(
         cls, surface: Rendering, color: Color, rectangle: Rectangle | None = None
     ) -> None:
-        deref(surface).fill(
+        _deref(surface).fill(
             cls.new_color(color),
             cls.new_rect(rectangle) if rectangle is not None else None,
         )
 
     @classmethod
     def blit(cls, dst: Rendering, src: Rendering, position: _Position) -> None:
-        deref(dst).blit(deref(src), position)
+        _deref(dst).blit(_deref(src), position)
 
     @classmethod
     def line(
@@ -89,37 +91,37 @@ class Pygame:
         # loops (gradients trace hundreds of lines per frame) and supports
         # a `width` parameter if we ever need thicker strokes. `gfxdraw`
         # only offers pixel-exact non-AA single-pixel lines.
-        pygame.draw.line(deref(surface), Pygame.new_color(color), start, end)
+        pygame.draw.line(_deref(surface), Pygame.new_color(color), start, end)
 
     @classmethod
     def rectangle(cls, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
         pygame.gfxdraw.rectangle(
-            deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
+            _deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
         )
 
     @classmethod
     def box(cls, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
         pygame.gfxdraw.box(
-            deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
+            _deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
         )
 
     @classmethod
     def filled_polygon(
         cls, surface: Rendering, points: Sequence[_Position], color: Color
     ) -> None:
-        pygame.gfxdraw.filled_polygon(deref(surface), points, Pygame.new_color(color))
+        pygame.gfxdraw.filled_polygon(_deref(surface), points, Pygame.new_color(color))
 
     @classmethod
     def smoothscale(
         cls, surface: Rendering, width: int | float, height: int | float
     ) -> Rendering:
         return PygameRendering(
-            pygame.transform.smoothscale(deref(surface), (width, height))
+            pygame.transform.smoothscale(_deref(surface), (width, height))
         )
 
     @classmethod
     def copy(cls, surface: Rendering) -> Rendering:
-        return PygameRendering(deref(surface).copy())
+        return PygameRendering(_deref(surface).copy())
 
     @classmethod
     def image(cls, image: Image) -> Rendering:

@@ -1,6 +1,6 @@
 import bisect
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, cast
 
 from cursword import get_next_word_end_position, get_previous_word_start_position
 
@@ -328,7 +328,7 @@ class PygameTextRendering:
                 wx = lx + word.x
                 for ch in word.tasks:
                     ch.font.render_to(
-                        out.surface,
+                        cast(PygameRendering, out).surface,
                         (wx + ch.x, ly),
                         ch.el,
                         size=size,
