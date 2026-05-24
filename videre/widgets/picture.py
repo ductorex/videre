@@ -2,14 +2,16 @@ import io
 import logging
 import sys
 from pathlib import Path
-from typing import BinaryIO
+from typing import TYPE_CHECKING, BinaryIO
 
 from PIL import Image
 
-from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rendering_result import Rendering
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 ImageSourceType = str | Path | bytes | bytearray | BinaryIO
 
@@ -41,14 +43,14 @@ class Picture(Widget):
     def alt(self, alt: str):
         self._set_wprop("alt", alt or "image")
 
-    def _src_to_surface(self):
+    def _src_to_surface(self, window: "Window"):
         src = self.src
         try:
             if isinstance(src, (bytes, bytearray)):
                 src = io.BytesIO(src)
             assert isinstance(src, (str, Path, io.BytesIO))
             image = Image.open(src).convert("RGBA")
-            return Pygame.image(image)
+            return window.backend.image(image)
 
         except Exception as exc:
             print(f"Cannot load an image: {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -57,7 +59,7 @@ class Picture(Widget):
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Rendering:
-        surface = self._src_to_surface()
+        surface = self._src_to_surface(window)
         if surface is None:
             surface = Text(self.alt).render(window, width, height)
         return surface

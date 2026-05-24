@@ -2,7 +2,6 @@ from typing import Sequence
 
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.layouts.abstractlayout import AbstractLayout
@@ -70,6 +69,8 @@ class Fancybox(AbstractLayout):
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Rendering:
+        backend = window.backend
+
         assert width is not None
         assert height is not None
         dialog_part = 0.8
@@ -79,13 +80,13 @@ class Fancybox(AbstractLayout):
         dialog_surface = dialog.render(window, dialog_width, dialog_height)
         dialog_x = (width - dialog_width) // 2
         dialog_y = (height - dialog_height) // 2
-        surface = Pygame.new_surface(width, height)
-        Pygame.fill(surface, Color(0, 0, 0, 64))
-        Pygame.fill(
+        surface = backend.new_surface(width, height)
+        backend.fill(surface, Color(0, 0, 0, 64))
+        backend.fill(
             surface,
             Colors.white,
             Rectangle(dialog_x, dialog_y, dialog_width, dialog_height),
         )
-        Pygame.blit(surface, dialog_surface, (dialog_x, dialog_y))
+        backend.blit(surface, dialog_surface, (dialog_x, dialog_y))
         self._set_child_position(dialog, dialog_x, dialog_y)
         return surface

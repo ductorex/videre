@@ -1,7 +1,7 @@
 from typing import Self
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.pygame_backend.primitives import Pygame
+from videre.core.abstract_backend import AbstractBackend
 from videre.core.rendering_result import Rendering
 
 
@@ -27,16 +27,16 @@ class Gradient:
         a = int(color1.a + (color2.a - color1.a) * factor)
         return Color(r, g, b, a)
 
-    def generate(self, width: int, height: int) -> Rendering:
+    def generate(self, backend: AbstractBackend, width: int, height: int) -> Rendering:
         if width < 0:
             raise ValueError("width cannot be negative")
         if height < 0:
             raise ValueError("height cannot be negative")
 
-        surface = Pygame.new_surface(width, height)
+        surface = backend.new_surface(width, height)
 
         if len(self._colors) == 1:
-            Pygame.fill(surface, self._colors[0])
+            backend.fill(surface, self._colors[0])
             return surface
 
         if self._vertical:
@@ -59,7 +59,7 @@ class Gradient:
                 )
 
                 # Draw a horizontal line
-                Pygame.line(surface, color, (0, i), (width - 1, i))
+                backend.line(surface, color, (0, i), (width - 1, i))
         else:
             # Horizontal gradient
             for i in range(width):
@@ -80,7 +80,7 @@ class Gradient:
                 )
 
                 # Draw a vertical line
-                Pygame.line(surface, color, (i, 0), (i, height - 1))
+                backend.line(surface, color, (i, 0), (i, height - 1))
 
         return surface
 

@@ -5,7 +5,6 @@ from typing import cast
 import videre
 from videre.colors import Color
 from videre.core.framing import FPR, FPS
-from videre.core.pygame_backend.primitives import Pygame
 from videre.widgets.abstractanimation import AbstractAnimation
 
 
@@ -213,8 +212,8 @@ class TestAbstractAnimation:
             def draw(self, window, width: int | None = None, height: int | None = None):
                 # Simple implementation for testing
 
-                surface = Pygame.new_surface(100, 50)
-                Pygame.fill(surface, Color(255, 255, 255))
+                surface = window.backend.new_surface(100, 50)
+                window.backend.fill(surface, Color(255, 255, 255))
                 return surface
 
         animation = TestAnimation(framing=FPS(30))  # 30 FPS
@@ -246,7 +245,7 @@ class TestAbstractAnimation:
 
             def draw(self, window, width=None, height=None):
 
-                return Pygame.new_surface(50, 50)
+                return window.backend.new_surface(50, 50)
 
         # No framing specified should use default FPS
         animation = TestAnimation()
@@ -268,7 +267,7 @@ class TestAbstractAnimation:
 
             def draw(self, window, width=None, height=None):
 
-                return Pygame.new_surface(50, 50)
+                return window.backend.new_surface(50, 50)
 
         # Use FPR framing - every 2 window frames
         animation = TestAnimation(framing=FPR(2))

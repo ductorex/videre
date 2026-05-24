@@ -6,7 +6,6 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
-from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, Rendering
 from videre.layouts.abstractlayout import AbstractLayout
@@ -339,8 +338,9 @@ class TextInput(AbstractLayout):
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Rendering:
+        backend = window.backend
         text_surface = self._control.render(window, width, height)
-        surface = Pygame.copy(text_surface)
+        surface = backend.copy(text_surface)
 
         # Draw cursor if focused. Read the pixel caret from the
         # navigation state so it's unambiguous at LTR/RTL boundaries
@@ -350,6 +350,6 @@ class TextInput(AbstractLayout):
         if self._has_focus():
             caret = self._ensure_state().pixel
             cursor_rect = self._get_cursor_rect(caret)
-            Pygame.box(surface, cursor_rect, Colors.black)
+            backend.box(surface, cursor_rect, Colors.black)
 
         return surface

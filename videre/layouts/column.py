@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
@@ -51,6 +50,8 @@ class Column(AbstractControlsLayout):
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Rendering:
+        backend = window.backend
+
         w_hint = width if self.expand_horizontal else None
         max_width = 0
         total_height = 0
@@ -122,7 +123,7 @@ class Column(AbstractControlsLayout):
             height = total_height + total_space
         else:
             height = min(height, total_height + space * max(0, nb_rendered - 1))
-        column = Pygame.new_surface(width, height)
+        column = backend.new_surface(width, height)
         y = 0
         for i, render in enumerate(rendered):
             if render:
@@ -130,7 +131,7 @@ class Column(AbstractControlsLayout):
                 size_i = sizes[i]
                 assert size_i is not None
                 x = self._align_dim(width, surface.get_width(), alignment)
-                Pygame.blit(column, surface, (x, y))
+                backend.blit(column, surface, (x, y))
                 self._set_child_position(ctrl, x, y)
                 y += size_i + space
             else:

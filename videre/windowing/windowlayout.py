@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from videre.colors import Color, Colors
 from videre.core.events import KeyboardEntry
-from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
@@ -104,12 +103,13 @@ class WindowLayout(AbstractControlsLayout):
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Rendering:
+        backend = window.backend
         screen = self.screen
 
         screen_width, screen_height = screen.get_width(), screen.get_height()
-        Pygame.fill(screen, self.background)
+        backend.fill(screen, self.background)
         for control in self._controls():
             surface = control.render(window, screen_width, screen_height)
-            Pygame.blit(screen, surface, (control.x, control.y))
+            backend.blit(screen, surface, (control.x, control.y))
 
         return screen

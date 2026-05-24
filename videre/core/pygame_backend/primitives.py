@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence, TypeAlias
+from typing import Sequence
 
 import pygame
 import pygame.event
@@ -7,6 +7,7 @@ import pygame.gfxdraw
 from PIL.Image import Image
 
 from videre.colors import Color
+from videre.core.abstract_backend import AbstractBackend, _Position
 from videre.core.events import (
     ExitEvent,
     KeyDownEvent,
@@ -26,8 +27,6 @@ from videre.core.pygame_backend.mapping import (
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.core.utils import OnEvent
-
-_Position: TypeAlias = tuple[int | float, int | float]
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +50,7 @@ def _deref(rendering: Rendering) -> Surface:
     return rendering.surface
 
 
-class Pygame:
+class Pygame(AbstractBackend):
     __slots__ = ()
 
     @classmethod
