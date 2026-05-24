@@ -12,6 +12,8 @@ from videre.core.events import (
     MouseMotionEvent,
     MouseWheelEvent,
     TextInputEvent,
+    WindowLeaveEvent,
+    WindowResizeEvent,
 )
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.pygame_backend.mapping import pygame_to_mouse_buttons
@@ -101,3 +103,9 @@ class FakeUser:
     def quit(self):
         """Simulate quitting the application"""
         self._backend.post_event(ExitEvent())
+
+    def leave(self):
+        self._backend.post_event(WindowLeaveEvent())
+
+    def resize(self, width: int, height: int):
+        self._backend.post_event(WindowResizeEvent(width=width, height=height))

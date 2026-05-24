@@ -6,7 +6,6 @@ from unittest.mock import patch
 import pygame
 
 from videre.core.events import Key, KeyboardEntry, MouseButton
-from videre.core.pygame_backend.definitions import Event
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.tasks import CallbackTask, NotificationTask
 from videre.layouts.column import Column
@@ -342,7 +341,7 @@ def test_on_window_leave(fake_win):
     assert fake_win._event_manager._motion is tracker
 
     # Window leave
-    pygame.event.post(Event(pygame.WINDOWLEAVE))
+    fake_user.leave()
     fake_win.render()
 
     assert ("mouse_exit",) in tracker.events
@@ -352,7 +351,7 @@ def test_on_window_leave(fake_win):
 def test_on_window_leave_no_motion(fake_win):
     fake_win.render()
     assert fake_win._event_manager._motion is None
-    pygame.event.post(Event(pygame.WINDOWLEAVE))
+    fake_win.user.leave()
     fake_win.render()
     assert fake_win._event_manager._motion is None
 
@@ -368,7 +367,7 @@ def test_on_window_resized(fake_win):
     x = 1024
     y = 768
     fake_win._backend._screen = pygame.display.set_mode((x, y), pygame.RESIZABLE)
-    pygame.event.post(Event(pygame.WINDOWRESIZED, x=x, y=y))
+    fake_win.user.resize(x, y)
     fake_win.render()
     assert fake_win.width == x
     assert fake_win.height == y
