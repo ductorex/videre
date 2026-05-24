@@ -68,4 +68,5 @@ format = "ruff format"
 lint = "ruff check --fix"
 typecheck = """ty check --output-format concise \
     videre examples tests"""
-check = ["format", "lint", "typecheck"]
+imports = "python tools/import_all.py"
+check = ["format", "lint", "typecheck", "imports"]
