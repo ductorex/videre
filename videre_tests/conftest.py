@@ -21,7 +21,8 @@ class FakeWindow(StepWindow):
         kwargs = {}
         if basename:
             kwargs["basename"] = f"{self._node_name}_{basename}"
-        self._image_check(self.snapshot(), **kwargs)
+        self.render()
+        self._image_check(self.screenshot(), **kwargs)
 
 
 @pytest.fixture

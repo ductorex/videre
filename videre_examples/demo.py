@@ -246,6 +246,7 @@ class Demo:
                 ),
                 buttons=[videre.Button("yes"), videre.Button("NO!")],
             )
+
         return videre.Button("My big beautiful button", on_click=_on_click)
 
     @on_demo("alert")

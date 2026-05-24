@@ -118,7 +118,17 @@ class PygameBackend(Pygame):
         data.flush()
         return data
 
-    def __enter__(self):
+    def run(self) -> None:
+        try:
+            self.start()
+            clock = pygame.time.Clock()
+            while self._running:
+                self.step()
+                clock.tick(self._fps)
+        finally:
+            self.stop()
+
+    def start(self) -> None:
         flags = pygame.RESIZABLE
         if self._hide:
             flags |= pygame.HIDDEN
@@ -132,19 +142,11 @@ class PygameBackend(Pygame):
         # so I tried here to set empiric values so that key repeat
         # is the most like textinput repeat.
         pygame.key.set_repeat(500, 35)
-        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def stop(self):
         pygame.quit()
 
-    def run(self) -> None:
-        with self:
-            clock = pygame.time.Clock()
-            while self._running:
-                self._render()
-                clock.tick(self._fps)
-
-    def _render(self):
+    def step(self):
         # Handle interface events.
         # Also check if we got a mouse motion event.
         has_mouse_motion = False
