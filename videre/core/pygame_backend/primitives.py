@@ -21,6 +21,7 @@ from videre.core.pygame_backend.mapping import (
     keyboard_entry_to_pygame_dict,
     mouse_button_to_pygame,
 )
+from videre.core.rectangle import Rectangle
 from videre.core.utils import OnEvent
 
 _Position: TypeAlias = tuple[int | float, int | float]
@@ -42,8 +43,17 @@ class Pygame:
         return PygameColor(color.r, color.g, color.b, color.a)
 
     @classmethod
-    def fill(cls, surface: Surface, color: Color) -> None:
-        surface.fill(cls.new_color(color))
+    def new_rect(cls, rectangle: Rectangle) -> Rect:
+        return Rect(rectangle.left, rectangle.top, rectangle.width, rectangle.height)
+
+    @classmethod
+    def fill(
+        cls, surface: Surface, color: Color, rectangle: Rectangle | None = None
+    ) -> None:
+        surface.fill(
+            cls.new_color(color),
+            cls.new_rect(rectangle) if rectangle is not None else None,
+        )
 
     @classmethod
     def blit(cls, dst: Surface, src: Surface, position: _Position) -> None:
@@ -60,12 +70,14 @@ class Pygame:
         pygame.draw.line(surface, Pygame.new_color(color), start, end)
 
     @classmethod
-    def rectangle(cls, surface: Surface, rectangle: Rect, color: Color) -> None:
-        pygame.gfxdraw.rectangle(surface, rectangle, Pygame.new_color(color))
+    def rectangle(cls, surface: Surface, rectangle: Rectangle, color: Color) -> None:
+        pygame.gfxdraw.rectangle(
+            surface, cls.new_rect(rectangle), Pygame.new_color(color)
+        )
 
     @classmethod
-    def box(cls, surface: Surface, rectangle: Rect, color: Color) -> None:
-        pygame.gfxdraw.box(surface, rectangle, Pygame.new_color(color))
+    def box(cls, surface: Surface, rectangle: Rectangle, color: Color) -> None:
+        pygame.gfxdraw.box(surface, cls.new_rect(rectangle), Pygame.new_color(color))
 
     @classmethod
     def filled_polygon(

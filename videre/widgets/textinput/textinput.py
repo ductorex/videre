@@ -6,8 +6,9 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
-from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
@@ -327,12 +328,12 @@ class TextInput(AbstractLayout):
                     self._text.text = out_text
                     self._set_cursor_to_pos(insert_at + len(inserted))
 
-    def _get_cursor_rect(self, caret: CaretPosition):
+    def _get_cursor_rect(self, caret: CaretPosition) -> Rectangle:
         container = self._container
         margin = container.padding + container.border.margin()
         cursor_width = 2
         cursor_height = caret.y_bottom - caret.y_top
-        return Rect(
+        return Rectangle(
             margin.left + caret.x, margin.top + caret.y_top, cursor_width, cursor_height
         )
 

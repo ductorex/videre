@@ -1,6 +1,7 @@
 from videre.colors import Colors
-from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rectangle import Rectangle
 from videre.widgets.widget import Widget
 
 
@@ -28,7 +29,7 @@ class ProgressBar(Widget):
         inner_w = int((bg_w - 2) * self.value)
         inner_h = bg_h - 2
         bg = Pygame.new_surface(bg_w, bg_h)
-        Pygame.rectangle(bg, Rect(0, 0, bg_w, bg_h), Colors.black)
+        Pygame.rectangle(bg, Rectangle(0, 0, bg_w, bg_h), Colors.black)
         if inner_w:
-            Pygame.box(bg, Rect(1, 1, inner_w, inner_h), Colors.black)
+            Pygame.box(bg, Rectangle(1, 1, inner_w, inner_h), Colors.black)
         return bg

@@ -1,14 +1,16 @@
+from abc import ABC, abstractmethod
 from typing import Protocol
 
 from videre.core.caret_position import CaretPosition
-from videre.core.pygame_backend.definitions import Rect, Surface
+from videre.core.pygame_backend.definitions import Surface
+from videre.core.rectangle import Rectangle
 
 
 class RenderingResult(Protocol):
     surface: Surface
 
 
-class CursorState(Protocol):
+class CursorState(ABC):
     """Backend-owned navigation state for a TextInput cursor. Carries
     whatever internal info the backend needs to keep arrow-key
     movement unambiguous in mixed bidi.
@@ -31,18 +33,22 @@ class CursorState(Protocol):
       `prev_visual`, so the caret painted on screen matches exactly
       where the next arrow press will move from.
     """
+    __slots__ = ()
 
     @property
+    @abstractmethod
     def pos(self) -> int: ...
 
     @property
+    @abstractmethod
     def visual_pos(self) -> int: ...
 
     @property
+    @abstractmethod
     def pixel(self) -> CaretPosition: ...
 
 
-class TextRenderingResult(Protocol):
+class TextRenderingResult(ABC):
     """Common surface that the cursor / hit-test code in `TextInput` relies on.
 
     Visual navigation uses a `CursorState` object each backend owns.
@@ -53,11 +59,15 @@ class TextRenderingResult(Protocol):
     shaped backend; the state-based path is the reliable one for
     arrow / mouse navigation.
     """
+    __slots__ = ()
 
+    @abstractmethod
     def pos_to_pixel(self, pos: int) -> CaretPosition: ...
 
+    @abstractmethod
     def pixel_to_pos(self, x: int, y: int) -> int: ...
 
+    @abstractmethod
     def visual_state(self, pos: int) -> CursorState:
         """Build an initial visual navigation state anchored on a
         source position. At a bidi boundary the backend picks a
@@ -65,26 +75,31 @@ class TextRenderingResult(Protocol):
         source pos)."""
         ...
 
+    @abstractmethod
     def visual_state_at(self, visual_pos: int) -> CursorState:
         """Build a navigation state anchored on a visual position.
         Inverse of reading `state.visual_pos`. Used when restoring a
         selection endpoint from a stored visual index."""
         ...
 
+    @abstractmethod
     def visual_state_at_pixel(self, x: int, y: int) -> CursorState:
         """Build a navigation state from a pixel coordinate. Read the
         derived source position from `state.pos`."""
         ...
 
+    @abstractmethod
     def next_visual(self, state: CursorState) -> CursorState:
         """One visual glyph-step to the right. Clamps at end of
         document (returns an equal state)."""
         ...
 
+    @abstractmethod
     def prev_visual(self, state: CursorState) -> CursorState:
         """Symmetric to `next_visual`."""
         ...
 
+    @abstractmethod
     def next_visual_word(self, state: CursorState, text: str) -> CursorState:
         """Next word boundary visually to the right. `text` is the
         source string the backend can use to compute word boundaries
@@ -92,10 +107,12 @@ class TextRenderingResult(Protocol):
         layout."""
         ...
 
+    @abstractmethod
     def prev_visual_word(self, state: CursorState, text: str) -> CursorState:
         """Symmetric to `next_visual_word`."""
         ...
 
+    @abstractmethod
     def visual_range_to_source_set(self, start: int, end: int) -> frozenset[int]:
         """Source indices covered by the half-open visual range
         `[start, end)`. For LTR-only content the result is
@@ -104,12 +121,14 @@ class TextRenderingResult(Protocol):
         editing (delete, copy)."""
         ...
 
-    def visual_selection_rects(self, start: int, end: int) -> list[Rect]:
+    @abstractmethod
+    def visual_selection_rects(self, start: int, end: int) -> list[Rectangle]:
         """Pixel rectangles to paint for a contiguous visual selection
         `[start, end)`. One rectangle per visual line touched by the
         range. Used by the selection-highlight pass."""
         ...
 
+    @abstractmethod
     def total_visual_count(self) -> int:
         """Number of visual positions in the rendered text — the
         upper bound that a `visual_pos` can take. Used by `TextInput`

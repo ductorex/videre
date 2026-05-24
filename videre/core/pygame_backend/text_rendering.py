@@ -7,12 +7,7 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
-from videre.core.pygame_backend.definitions import (
-    PygameColor,
-    PygameRendered,
-    Rect,
-    Surface,
-)
+from videre.core.pygame_backend.definitions import PygameColor, PygameRendered, Surface
 from videre.core.pygame_backend.font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_backend.font_factory_utils import (
     AbstractTextElement,
@@ -23,6 +18,8 @@ from videre.core.pygame_backend.font_factory_utils import (
     align_words,
 )
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rectangle import Rectangle
+from videre.core.rendering_result import CursorState, TextRenderingResult
 
 
 class FontSizes:
@@ -48,7 +45,7 @@ class FontSizes:
 
 
 @dataclass(slots=True, frozen=True)
-class _LegacyCursorState:
+class _LegacyCursorState(CursorState):
     """`CursorState` implementation for the legacy renderer. The
     backend has no bidi awareness, so `pos == visual_pos`: the source
     sequence and the visual sequence are the same. `pixel` is the
@@ -64,7 +61,7 @@ class _LegacyCursorState:
 
 
 @dataclass(slots=True)
-class RenderedText:
+class PygameTextRenderingResult(TextRenderingResult):
     _rendered_lines: list[Line[WordTask]]
     _rendered_font_sizes: FontSizes
 
@@ -150,33 +147,29 @@ class RenderedText:
         exit caches both together."""
         return _LegacyCursorState(pos=pos, pixel=self.pos_to_pixel(pos))
 
-    def visual_state(self, pos: int) -> _LegacyCursorState:
+    def visual_state(self, pos: int) -> CursorState:
         return self._make_legacy_state(pos)
 
-    def visual_state_at(self, visual_pos: int) -> _LegacyCursorState:
+    def visual_state_at(self, visual_pos: int) -> CursorState:
         # Legacy backend: visual_pos == source pos. Clamp.
         return self._make_legacy_state(min(max(0, visual_pos), self._text_length()))
 
     def total_visual_count(self) -> int:
         return self._text_length()
 
-    def visual_state_at_pixel(self, x: int, y: int) -> _LegacyCursorState:
+    def visual_state_at_pixel(self, x: int, y: int) -> CursorState:
         return self._make_legacy_state(self.pixel_to_pos(x, y))
 
-    def next_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+    def next_visual(self, state: CursorState) -> CursorState:
         return self._make_legacy_state(min(state.pos + 1, self._text_length()))
 
-    def prev_visual(self, state: _LegacyCursorState) -> _LegacyCursorState:
+    def prev_visual(self, state: CursorState) -> CursorState:
         return self._make_legacy_state(max(state.pos - 1, 0))
 
-    def next_visual_word(
-        self, state: _LegacyCursorState, text: str
-    ) -> _LegacyCursorState:
+    def next_visual_word(self, state: CursorState, text: str) -> CursorState:
         return self._make_legacy_state(get_next_word_end_position(text, state.pos))
 
-    def prev_visual_word(
-        self, state: _LegacyCursorState, text: str
-    ) -> _LegacyCursorState:
+    def prev_visual_word(self, state: CursorState, text: str) -> CursorState:
         return self._make_legacy_state(
             get_previous_word_start_position(text, state.pos)
         )
@@ -201,7 +194,7 @@ class RenderedText:
             return frozenset()
         return frozenset(range(start, end))
 
-    def visual_selection_rects(self, start: int, end: int) -> list[Rect]:
+    def visual_selection_rects(self, start: int, end: int) -> list[Rectangle]:
         """Pixel rectangles for a contiguous selection. Same algorithm
         as `PygameTextRendering._get_selection_rects` but driven by the
         rendered lines we already hold — accessible after rendering so
@@ -209,7 +202,7 @@ class RenderedText:
         changes without forcing a full re-render."""
         if start >= end:
             return []
-        rects: list[Rect] = []
+        rects: list[Rectangle] = []
         for line in self._rendered_lines:
             if not line.elements:
                 continue
@@ -241,8 +234,9 @@ class RenderedText:
                 assert end_x is not None
             else:
                 end_x = int(line.elements[-1].x + line.elements[-1].width)
+            assert start_x is not None
             rects.append(
-                Rect(
+                Rectangle(
                     start_x,
                     int(line.y - self._rendered_font_sizes.ascender),
                     end_x - start_x,
@@ -299,7 +293,7 @@ class PygameTextRendering:
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[RenderedText, PygameRendered]:
+    ) -> tuple[PygameTextRenderingResult, PygameRendered]:
         compact = self._compact
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
@@ -309,7 +303,9 @@ class PygameTextRendering:
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return RenderedText(lines, self._font_sizes), PygameRendered(surface)
+        return PygameTextRenderingResult(lines, self._font_sizes), PygameRendered(
+            surface
+        )
 
     def _render_word_lines(
         self,
@@ -359,7 +355,7 @@ class PygameTextRendering:
 
     def _get_selection_rects(
         self, lines: list[Line[WordTask]], selection: tuple[int, int] | None
-    ) -> list[Rect]:
+    ) -> list[Rectangle]:
         if selection is None:
             return []
 
@@ -368,7 +364,7 @@ class PygameTextRendering:
             return []
         assert start < end
 
-        rects = []
+        rects: list[Rectangle] = []
         for line in lines:
             if not line.elements:
                 continue
@@ -407,7 +403,7 @@ class PygameTextRendering:
                 end_x = line.elements[-1].x + line.elements[-1].width
 
             # Create selection rectangle for this line
-            rect = Rect(
+            rect = Rectangle(
                 start_x,
                 line.y - self._font_sizes.ascender,
                 end_x - start_x,
