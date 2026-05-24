@@ -13,7 +13,6 @@ from videre.core.events import (
     MouseWheelEvent,
     TextInputEvent,
     WindowLeaveEvent,
-    WindowResizeEvent,
 )
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.pygame_backend.mapping import pygame_to_mouse_buttons
@@ -108,4 +107,4 @@ class FakeUser:
         self._backend.post_event(WindowLeaveEvent())
 
     def resize(self, width: int, height: int):
-        self._backend.post_event(WindowResizeEvent(width=width, height=height))
+        self._backend.resize_screen(width, height)

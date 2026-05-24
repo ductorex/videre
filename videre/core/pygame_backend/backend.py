@@ -146,6 +146,13 @@ class PygameBackend(Pygame):
     def stop(self):
         pygame.quit()
 
+    def resize_screen(self, width: int, height: int) -> None:
+        flags = pygame.RESIZABLE
+        if self._hide:
+            flags |= pygame.HIDDEN
+        self._screen = pygame.display.set_mode((width, height), flags=flags)
+        pygame.event.post(Event(pygame.WINDOWRESIZED, x=width, y=height))
+
     def step(self):
         # Handle interface events.
         # Also check if we got a mouse motion event.
@@ -218,11 +225,13 @@ class PygameBackend(Pygame):
 
     @_on_event(pygame.QUIT)
     def _quit(self, event: Event) -> None:
+        # This method immediately handles event without dispatching to videre event manager.
         logger.warning("Quit Pygame.")
         self._running = False
 
     @_on_event(pygame.WINDOWRESIZED)
     def _resize_window(self, event: Event) -> None:
+        # This method immediately handles event without dispatching to videre event manager.
         width, height = event.x, event.y
         if self._screen is not None:
             assert self._screen.get_width() == width

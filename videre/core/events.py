@@ -180,12 +180,6 @@ class ExitEvent:
     pass
 
 
-@dataclass(slots=True, frozen=True)
-class WindowResizeEvent:
-    width: int
-    height: int
-
-
 VidereEvent: TypeAlias = (
     MouseWheelEvent
     | MouseMotionEvent
@@ -195,5 +189,4 @@ VidereEvent: TypeAlias = (
     | KeyDownEvent
     | WindowLeaveEvent
     | ExitEvent
-    | WindowResizeEvent
 )

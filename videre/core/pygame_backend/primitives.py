@@ -15,7 +15,6 @@ from videre.core.events import (
     TextInputEvent,
     VidereEvent,
     WindowLeaveEvent,
-    WindowResizeEvent,
 )
 from videre.core.pygame_backend.definitions import Event, PygameColor, Rect, Surface
 from videre.core.pygame_backend.mapping import (
@@ -91,16 +90,16 @@ class Pygame:
     @classmethod
     def post_event(cls, event: VidereEvent) -> None:
         event_type = type(event)
-        callback = cls.on_post.get(type(event))
+        callback = cls._on_post.get(type(event))
         if callback is None:
             raise NotImplementedError(event_type, event)
         callback(cls, event)
 
-    on_post = OnEvent[type[VidereEvent]]()
+    _on_post = OnEvent[type[VidereEvent]]()
 
     @classmethod
-    @on_post(MouseButtonDownEvent)
-    def on_mouse_button_down(cls, event: MouseButtonDownEvent) -> None:
+    @_on_post(MouseButtonDownEvent)
+    def _post_mouse_button_down(cls, event: MouseButtonDownEvent) -> None:
         event_data = {
             "pos": (event.x, event.y),
             "button": mouse_button_to_pygame(event.button),
@@ -108,8 +107,8 @@ class Pygame:
         pygame.event.post(Event(pygame.MOUSEBUTTONDOWN, event_data))
 
     @classmethod
-    @on_post(MouseButtonUpEvent)
-    def on_mouse_button_up(cls, event: MouseButtonUpEvent) -> None:
+    @_on_post(MouseButtonUpEvent)
+    def _post_mouse_button_up(cls, event: MouseButtonUpEvent) -> None:
         event_data = {
             "pos": (event.x, event.y),
             "button": mouse_button_to_pygame(event.button),
@@ -117,8 +116,8 @@ class Pygame:
         pygame.event.post(Event(pygame.MOUSEBUTTONUP, event_data))
 
     @classmethod
-    @on_post(MouseMotionEvent)
-    def on_mouse_motion(cls, event: MouseMotionEvent) -> None:
+    @_on_post(MouseMotionEvent)
+    def _post_mouse_motion(cls, event: MouseMotionEvent) -> None:
         event_data = {
             "pos": (event.x, event.y),
             "rel": (event.dx, event.dy),
@@ -132,36 +131,31 @@ class Pygame:
         pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
 
     @classmethod
-    @on_post(MouseWheelEvent)
-    def on_mouse_wheel(cls, event: MouseWheelEvent) -> None:
+    @_on_post(MouseWheelEvent)
+    def _post_mouse_wheel(cls, event: MouseWheelEvent) -> None:
         pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
         event_data = {"x": event.wheel_dx, "y": event.wheel_dy}
         pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
 
     @classmethod
-    @on_post(KeyDownEvent)
-    def on_key_down(cls, event: KeyDownEvent) -> None:
+    @_on_post(KeyDownEvent)
+    def _post_key_down(cls, event: KeyDownEvent) -> None:
         pygame.event.post(
             Event(pygame.KEYDOWN, keyboard_entry_to_pygame_dict(event.entry))
         )
 
     @classmethod
-    @on_post(TextInputEvent)
-    def on_text_input(cls, event: TextInputEvent) -> None:
+    @_on_post(TextInputEvent)
+    def _post_text_input(cls, event: TextInputEvent) -> None:
         event_data = {"text": event.text}
         pygame.event.post(Event(pygame.TEXTINPUT, event_data))
 
     @classmethod
-    @on_post(WindowLeaveEvent)
-    def on_window_leave(cls, event: WindowLeaveEvent) -> None:
+    @_on_post(WindowLeaveEvent)
+    def _post_window_leave(cls, event: WindowLeaveEvent) -> None:
         pygame.event.post(Event(pygame.WINDOWLEAVE))
 
     @classmethod
-    @on_post(ExitEvent)
-    def on_exit(cls, event: ExitEvent) -> None:
+    @_on_post(ExitEvent)
+    def _post_exit(cls, event: ExitEvent) -> None:
         pygame.event.post(Event(pygame.QUIT))
-
-    @classmethod
-    @on_post(WindowResizeEvent)
-    def on_window_resize(cls, event: WindowResizeEvent) -> None:
-        pygame.event.post(Event(pygame.WINDOWRESIZED, x=event.width, y=event.height))

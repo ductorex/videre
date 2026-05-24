@@ -3,8 +3,6 @@ import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import pygame
-
 from videre.core.events import Key, KeyboardEntry, MouseButton
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.tasks import CallbackTask, NotificationTask
@@ -366,7 +364,6 @@ def test_on_window_resized(fake_win):
 
     x = 1024
     y = 768
-    fake_win._backend._screen = pygame.display.set_mode((x, y), pygame.RESIZABLE)
     fake_win.user.resize(x, y)
     fake_win.render()
     assert fake_win.width == x
