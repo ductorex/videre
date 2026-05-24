@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 
@@ -50,7 +50,7 @@ class Row(AbstractControlsLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         h_hint = height if self.expand_vertical else None
         max_height = 0
         total_width = 0
@@ -58,7 +58,7 @@ class Row(AbstractControlsLayout):
 
         space = self.space
 
-        rendered: list[tuple[Widget, Surface] | None] = [None] * len(controls)
+        rendered: list[tuple[Widget, Rendering] | None] = [None] * len(controls)
         sizes: list[int | None] = [None] * len(controls)
 
         total_space = space * max(0, len(controls) - 1)
@@ -116,8 +116,11 @@ class Row(AbstractControlsLayout):
         if height is None:
             height = max_height
         else:
-            choice = min if alignment == Alignment.START else max
-            height = choice(height, max_height)
+            height = (
+                min(height, max_height)
+                if alignment == Alignment.START
+                else max(height, max_height)
+            )
         row = Pygame.new_surface(width, height)
         x = 0
         for i, render in enumerate(rendered):

@@ -71,10 +71,10 @@ def test_render_text(wrap_words, using_pygame_freetype):
     )
 
     def ff_render_text(text):
-        return tr_compact.render_text(text, wrap_words=wrap_words)[1].surface
+        return tr_compact.render_text(text, wrap_words=wrap_words)[1]
 
     def ff_render_text_full(text):
-        return tr_full.render_text(text, wrap_words=wrap_words)[1].surface
+        return tr_full.render_text(text, wrap_words=wrap_words)[1]
 
     s = ff_render_text("")
     assert s.get_width() == 0

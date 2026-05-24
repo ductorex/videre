@@ -2,8 +2,7 @@ from typing import Any
 
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.pygame_backend.definitions import Surface
-from videre.core.rendering_result import TextRenderingResult
+from videre.core.rendering_result import Rendering, TextRenderingResult
 from videre.widgets.widget import Widget
 
 
@@ -152,7 +151,7 @@ class Text(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         wrap = self.wrap
         text_ret, surface_ret = self._text_rendering(window).render_text(
             text=self.text,
@@ -163,4 +162,4 @@ class Text(Widget):
             selection=self.selection,
         )
         self._rendered = text_ret
-        return surface_ret.surface
+        return surface_ret

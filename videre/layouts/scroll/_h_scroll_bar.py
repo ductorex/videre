@@ -1,7 +1,7 @@
 from videre.colors import Color
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.layouts.scroll._scroll_background import _ScrollBackground
 from videre.widgets.widget import Widget
 from videre.widgets.widget_utils import MouseOwnership
@@ -136,7 +136,7 @@ class _HScrollBar(Widget):
 
     def _compute(
         self, window, view_width: int, view_height: int
-    ) -> tuple[Surface, tuple[int, int]]:
+    ) -> tuple[Rendering, tuple[int, int]]:
         thickness = self.thickness
         h_scroll_x, h_scroll_width = self._compute_scroll_metrics(
             view_width,
@@ -145,7 +145,7 @@ class _HScrollBar(Widget):
             scrollbar_length=(max(0, view_width - thickness) if self.both else None),
         )
         h_scroll = Pygame.new_surface(h_scroll_width, thickness)
-        h_scroll.fill(Pygame.new_color(self.color))
+        Pygame.fill(h_scroll, self.color)
         pos = (h_scroll_x, view_height - thickness)
         return h_scroll, pos
 
@@ -161,7 +161,7 @@ class _HScrollBar(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         # NB: here, width is view width, and height is view height.
         assert width and height
         scroll, pos = self._compute(window, width, height)

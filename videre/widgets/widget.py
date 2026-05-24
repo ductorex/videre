@@ -1,11 +1,11 @@
 import logging
 import sys
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Self
 
 from videre.core.events import KeyboardEntry, MouseButton, MouseEvent
 from videre.core.position_mapping import Position, PositionMapping
-from videre.core.pygame_backend.definitions import Surface
+from videre.core.rendering_result import Rendering
 from videre.widgets.widget_utils import MouseOwnership
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Widget:
+class Widget(ABC):
     __wprops__ = ("weight",)
 
     __slots__ = (
@@ -52,7 +52,7 @@ class Widget:
         self._new = new
         self._old_update: tuple[Window, int | None, int | None] | None = None
         self._transient_state = {}
-        self._surface: Surface | None = None
+        self._surface: Rendering | None = None
         self._rc = 0
         self.data = data
 
@@ -136,7 +136,7 @@ class Widget:
             return self._parent.global_y + self.y
         return self.y
 
-    def _assert_rendered(self) -> Surface:
+    def _assert_rendered(self) -> Rendering:
         if not self._surface:
             raise RuntimeError(f"{self} not yet drawn")
         return self._surface
@@ -267,7 +267,7 @@ class Widget:
 
     def render(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         new_update = (window, width, height)
         if (
             self._surface is None
@@ -286,7 +286,7 @@ class Widget:
     @abstractmethod
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         raise NotImplementedError()
 
     def handle_mouse_wheel(self, x: int, y: int, shift: bool):

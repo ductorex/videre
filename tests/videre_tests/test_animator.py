@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import videre
+from videre.colors import Color
 from videre.core.framing import FPR, FPS
 from videre.core.pygame_backend.primitives import Pygame
 from videre.widgets.abstractanimation import AbstractAnimation
@@ -213,7 +214,7 @@ class TestAbstractAnimation:
                 # Simple implementation for testing
 
                 surface = Pygame.new_surface(100, 50)
-                surface.fill((255, 255, 255))
+                Pygame.fill(surface, Color(255, 255, 255))
                 return surface
 
         animation = TestAnimation(framing=FPS(30))  # 30 FPS

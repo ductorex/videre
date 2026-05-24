@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Sequence
 
 from videre.colors import Color, Colors
 from videre.core.events import KeyboardEntry
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 from videre.windowing.context import Context
@@ -25,7 +25,7 @@ class WindowLayout(AbstractControlsLayout):
         self._user_controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
         self._context: Context | None = None
-        self._screen: Surface | None = None
+        self._screen: Rendering | None = None
 
     @property
     def background(self) -> Color:
@@ -36,13 +36,13 @@ class WindowLayout(AbstractControlsLayout):
         self._set_wprop("background", value or self._FILL)
 
     @property
-    def screen(self) -> Surface:
+    def screen(self) -> Rendering:
         if self._screen is None:
             raise RuntimeError(f"{self} requires a screen")
         return self._screen
 
     @screen.setter
-    def screen(self, screen: Surface):
+    def screen(self, screen: Rendering):
         self._screen = screen
 
     def has_fancybox(self) -> bool:
@@ -97,17 +97,17 @@ class WindowLayout(AbstractControlsLayout):
 
     def render(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         screen = self.screen
         return super().render(window, screen.get_width(), screen.get_height())
 
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         screen = self.screen
 
         screen_width, screen_height = screen.get_width(), screen.get_height()
-        screen.fill(Pygame.new_color(self.background))
+        Pygame.fill(screen, self.background)
         for control in self._controls():
             surface = control.render(window, screen_width, screen_height)
             Pygame.blit(screen, surface, (control.x, control.y))

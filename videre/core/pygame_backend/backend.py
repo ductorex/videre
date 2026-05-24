@@ -22,8 +22,9 @@ from videre.core.pygame_backend.mapping import (
     pygame_to_mouse_button,
     pygame_to_mouse_buttons,
 )
-from videre.core.pygame_backend.primitives import Pygame
+from videre.core.pygame_backend.primitives import Pygame, PygameRendering
 from videre.core.pygame_backend.text_rendering import PygameTextRendering
+from videre.core.rendering_result import Rendering
 from videre.core.tasks import TaskManager, VidereTask
 from videre.core.utils import OnEvent
 
@@ -54,7 +55,7 @@ class PygameBackend(Pygame):
         height: int,
         title: str,
         event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[Surface], None],
+        render_manager: Callable[[Rendering], None],
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
@@ -184,7 +185,7 @@ class PygameBackend(Pygame):
 
         # Refresh screen.
         assert self._screen is not None
-        self._render_manager(self._screen)
+        self._render_manager(PygameRendering(self._screen))
         pygame.display.flip()
         self._nb_frames += 1
 

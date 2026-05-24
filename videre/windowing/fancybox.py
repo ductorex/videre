@@ -2,9 +2,9 @@ from typing import Sequence
 
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rectangle import Rectangle
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.column import Column
 from videre.layouts.container import Container
@@ -69,7 +69,7 @@ class Fancybox(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         assert width is not None
         assert height is not None
         dialog_part = 0.8

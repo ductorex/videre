@@ -7,7 +7,7 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
-from videre.core.pygame_backend.definitions import PygameColor, PygameRendered, Surface
+from videre.core.pygame_backend.definitions import PygameColor
 from videre.core.pygame_backend.font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_backend.font_factory_utils import (
     AbstractTextElement,
@@ -17,9 +17,9 @@ from videre.core.pygame_backend.font_factory_utils import (
     WordTask,
     align_words,
 )
-from videre.core.pygame_backend.primitives import Pygame
+from videre.core.pygame_backend.primitives import Pygame, PygameRendering
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import CursorState, TextRenderingResult
+from videre.core.rendering_result import CursorState, Rendering, TextRenderingResult
 
 
 class FontSizes:
@@ -277,12 +277,12 @@ class PygameTextRendering:
 
         self._compact = compact
 
-    def render_char(self, c: str, color: Color | None = None) -> Surface:
+    def render_char(self, c: str, color: Color | None = None) -> Rendering:
         fgcolor = None if color is None else Pygame.new_color(color)
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
         ).render(c, size=self._size, fgcolor=fgcolor)
-        return surface
+        return PygameRendering(surface)
 
     def render_text(
         self,
@@ -293,7 +293,7 @@ class PygameTextRendering:
         align: TextAlign | None = None,
         wrap_words: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[PygameTextRenderingResult, PygameRendered]:
+    ) -> tuple[TextRenderingResult, Rendering]:
         compact = self._compact
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)
@@ -303,9 +303,7 @@ class PygameTextRendering:
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return PygameTextRenderingResult(lines, self._font_sizes), PygameRendered(
-            surface
-        )
+        return PygameTextRenderingResult(lines, self._font_sizes), surface
 
     def _render_word_lines(
         self,
@@ -315,7 +313,7 @@ class PygameTextRendering:
         align: TextAlign | None,
         color: Color | None,
         selection: tuple[int, int] | None = None,
-    ) -> Surface:
+    ) -> Rendering:
         align_words(lines, width, align)
         size = self._size
         out = Pygame.new_surface(width, height)
@@ -330,7 +328,11 @@ class PygameTextRendering:
                 wx = lx + word.x
                 for ch in word.tasks:
                     ch.font.render_to(
-                        out, (wx + ch.x, ly), ch.el, size=size, fgcolor=pygame_color
+                        out.surface,
+                        (wx + ch.x, ly),
+                        ch.el,
+                        size=size,
+                        fgcolor=pygame_color,
                     )
         return out
 
@@ -414,7 +416,7 @@ class PygameTextRendering:
         return rects
 
     def _draw_underline(
-        self, line: Line[WordTask], out: Surface, color: PygameColor | None
+        self, line: Line[WordTask], out: Rendering, color: PygameColor | None
     ):
         if self._underline and line:
             c = "_"
@@ -427,7 +429,7 @@ class PygameTextRendering:
             us = surface.convert_alpha()
             width = x2 - x1
             height = box.height
-            underline = Pygame.smoothscale(us, width, height)
+            underline = Pygame.smoothscale(PygameRendering(us), width, height)
             Pygame.blit(out, underline, (x1, line.y - box.y))
 
     def _get_char_tasks(

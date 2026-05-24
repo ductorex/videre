@@ -5,7 +5,7 @@ from typing import Any, Callable, Sequence
 from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.constants import Alignment
 from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.pygame_backend.definitions import Surface
+from videre.core.rendering_result import Rendering
 from videre.core.tasks import (
     CallbackTask,
     ExitTask,
@@ -167,7 +167,7 @@ class Window:
             raise self._exit_exception
         return self._exit_code
 
-    def _refresh(self, screen: Surface) -> None:
+    def _refresh(self, screen: Rendering) -> None:
         self._layout.screen = screen
         self._layout.render(self)
 

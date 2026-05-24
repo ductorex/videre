@@ -1,7 +1,7 @@
 import logging
 
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstractlayout import AbstractLayout, get_top_mouse_wheel_owner
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 from videre.layouts.scroll._v_scroll_bar import _VScrollBar
@@ -202,7 +202,7 @@ class ScrollView(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         thickness = self.scroll_thickness
         c_w_hint = width if self.wrap_horizontal else None
         c_h_hint = height if self.wrap_vertical else None
@@ -222,6 +222,7 @@ class ScrollView(AbstractLayout):
         ):
             return content
 
+        assert width is not None
         self._content_x, has_h_scroll = self._update_content_pos(
             width,
             content_w,
@@ -276,7 +277,12 @@ class ScrollView(AbstractLayout):
 
     @classmethod
     def _update_content_pos(
-        cls, view_length, content_length, content_pos, step_count, scroll_allowed
+        cls,
+        view_length: int,
+        content_length: int,
+        content_pos: int,
+        step_count: int | None,
+        scroll_allowed: bool,
     ) -> tuple[int, bool]:
         if content_length <= view_length:
             content_pos = 0

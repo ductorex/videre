@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 
@@ -50,13 +50,13 @@ class Column(AbstractControlsLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         w_hint = width if self.expand_horizontal else None
         max_width = 0
         total_height = 0
         controls = self.controls
         space = self.space
-        rendered: list[tuple[Widget, Surface] | None] = [None] * len(controls)
+        rendered: list[tuple[Widget, Rendering] | None] = [None] * len(controls)
         sizes: list[int | None] = [None] * len(controls)
 
         total_space = space * max(0, len(controls) - 1)
@@ -113,8 +113,11 @@ class Column(AbstractControlsLayout):
         if width is None:
             width = max_width
         else:
-            choice = min if alignment == Alignment.START else max
-            width = choice(width, max_width)
+            width = (
+                min(width, max_width)
+                if alignment == Alignment.START
+                else max(width, max_width)
+            )
         if height is None:
             height = total_height + total_space
         else:

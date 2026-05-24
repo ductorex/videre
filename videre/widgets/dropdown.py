@@ -3,7 +3,7 @@ from typing import Any, Self
 from videre import Style, StyleDef
 from videre.core.constants import Alignment
 from videre.core.events import MouseEvent
-from videre.core.pygame_backend.definitions import Surface
+from videre.core.rendering_result import Rendering
 from videre.core.sides.border import Border
 from videre.layouts.column import Column
 from videre.layouts.container import Container
@@ -139,6 +139,6 @@ class Dropdown(Div):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         self._container().width = self._compute_width(window)
         return super().draw(window, width, None)

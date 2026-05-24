@@ -6,8 +6,8 @@ from typing import BinaryIO
 
 from PIL import Image
 
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
 
@@ -48,8 +48,7 @@ class Picture(Widget):
                 src = io.BytesIO(src)
             assert isinstance(src, (str, Path, io.BytesIO))
             image = Image.open(src).convert("RGBA")
-            surface = Pygame.image(image)
-            return surface.convert_alpha()
+            return Pygame.image(image)
 
         except Exception as exc:
             print(f"Cannot load an image: {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -57,7 +56,7 @@ class Picture(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         surface = self._src_to_surface()
         if surface is None:
             surface = Text(self.alt).render(window, width, height)

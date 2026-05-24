@@ -1,6 +1,6 @@
 import pytest
 
-from videre.colors import ColorDef
+from videre.colors import Color, ColorDef
 from videre.core.events import KeyboardEntry
 from videre.core.pygame_backend.primitives import Pygame
 from videre.testing.utils import HD, SD
@@ -42,7 +42,7 @@ class TrackerWidget(Widget):
 
     def draw(self, window, width=None, height=None):
         surface = Pygame.new_surface(width or 50, height or 50)
-        surface.fill((200, 200, 200))
+        Pygame.fill(surface, Color(200, 200, 200))
         return surface
 
     def handle_mouse_wheel(self, x, y, shift):

@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from videre.core.framing import FPS, AbstractFraming
-from videre.core.pygame_backend.definitions import Surface
+from videre.core.rendering_result import Rendering
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.widgets.widget import Widget
 
@@ -58,7 +58,7 @@ class Animator(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         control = self.control
         on_frame = self.on_frame
         if on_frame:

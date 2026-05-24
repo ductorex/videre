@@ -1,5 +1,5 @@
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.widgets.widget import Widget
 
 
@@ -9,5 +9,5 @@ class EmptyWidget(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         return Pygame.new_surface(0, 0)

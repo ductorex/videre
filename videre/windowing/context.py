@@ -1,6 +1,6 @@
 from videre.colors import Colors
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.core.sides.border import Border
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
@@ -30,7 +30,7 @@ class Context(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         self._relative._assert_rendered()
         (container,) = self._controls()
         x = self._relative.global_x + self._x

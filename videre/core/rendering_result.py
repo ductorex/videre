@@ -1,13 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Protocol
 
+from videre.colors import Color
 from videre.core.caret_position import CaretPosition
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.rectangle import Rectangle
 
 
-class RenderingResult(Protocol):
-    surface: Surface
+class Rendering(ABC):
+    __slots__ = ()
+
+    @abstractmethod
+    def get_width(self) -> int: ...
+
+    @abstractmethod
+    def get_height(self) -> int: ...
+
+    @abstractmethod
+    def get_at(self, position: tuple[int, int]) -> Color:
+        """Return the color of pixel at given position."""
+        ...
 
 
 class CursorState(ABC):
@@ -33,6 +43,7 @@ class CursorState(ABC):
       `prev_visual`, so the caret painted on screen matches exactly
       where the next arrow press will move from.
     """
+
     __slots__ = ()
 
     @property
@@ -59,6 +70,7 @@ class TextRenderingResult(ABC):
     shaped backend; the state-based path is the reliable one for
     arrow / mouse navigation.
     """
+
     __slots__ = ()
 
     @abstractmethod

@@ -1,7 +1,7 @@
 from videre.colors import Colors
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
 from videre.core.rectangle import Rectangle
+from videre.core.rendering_result import Rendering
 from videre.widgets.widget import Widget
 
 
@@ -23,7 +23,7 @@ class ProgressBar(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         bg_w = 102 if width is None else max(width, 2)
         bg_h = window.font_height
         inner_w = int((bg_w - 2) * self.value)

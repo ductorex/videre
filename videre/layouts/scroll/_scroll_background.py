@@ -1,6 +1,6 @@
 from videre.colors import Color
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.widgets.widget import Widget
 
 
@@ -19,7 +19,7 @@ class _ScrollBackground(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         assert width and height
 
         thickness = self._get_wprop("thickness")
@@ -39,7 +39,5 @@ class _ScrollBackground(Widget):
         self._parent._set_child_position(self, x, y)
 
         surface = Pygame.new_surface(b_width, b_height)
-        surface.fill(
-            Pygame.new_color(self._COLOR_HOVER if hover else self._COLOR_NORMAL)
-        )
+        Pygame.fill(surface, self._COLOR_HOVER if hover else self._COLOR_NORMAL)
         return surface

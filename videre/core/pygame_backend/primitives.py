@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Sequence, TypeAlias
 
 import pygame
@@ -22,21 +23,42 @@ from videre.core.pygame_backend.mapping import (
     mouse_button_to_pygame,
 )
 from videre.core.rectangle import Rectangle
+from videre.core.rendering_result import Rendering
 from videre.core.utils import OnEvent
 
 _Position: TypeAlias = tuple[int | float, int | float]
+
+
+@dataclass(frozen=True, slots=True)
+class PygameRendering(Rendering):
+    surface: Surface
+
+    def get_width(self) -> int:
+        return self.surface.get_width()
+
+    def get_height(self) -> int:
+        return self.surface.get_height()
+
+    def get_at(self, position: tuple[int, int]) -> Color:
+        color = self.surface.get_at(position)
+        return Color(color.r, color.g, color.b, color.a)
+
+
+def deref(rendering: Rendering) -> Surface:
+    assert isinstance(rendering, PygameRendering), type(rendering)
+    return rendering.surface
 
 
 class Pygame:
     __slots__ = ()
 
     @classmethod
-    def new_surface(cls, width: int | float, height: int | float) -> Surface:
-        return Surface((width, height), flags=pygame.SRCALPHA)
+    def new_surface(cls, width: int | float, height: int | float) -> PygameRendering:
+        return PygameRendering(Surface((width, height), flags=pygame.SRCALPHA))
 
     @classmethod
-    def zero(cls) -> Surface:
-        return Surface((0, 0), flags=pygame.SRCALPHA)
+    def zero(cls) -> Rendering:
+        return cls.new_surface(0, 0)
 
     @classmethod
     def new_color(cls, color: Color) -> PygameColor:
@@ -48,56 +70,69 @@ class Pygame:
 
     @classmethod
     def fill(
-        cls, surface: Surface, color: Color, rectangle: Rectangle | None = None
+        cls, surface: Rendering, color: Color, rectangle: Rectangle | None = None
     ) -> None:
-        surface.fill(
+        deref(surface).fill(
             cls.new_color(color),
             cls.new_rect(rectangle) if rectangle is not None else None,
         )
 
     @classmethod
-    def blit(cls, dst: Surface, src: Surface, position: _Position) -> None:
-        dst.blit(src, position)
+    def blit(cls, dst: Rendering, src: Rendering, position: _Position) -> None:
+        deref(dst).blit(deref(src), position)
 
     @classmethod
     def line(
-        cls, surface: Surface, color: Color, start: _Position, end: _Position
+        cls, surface: Rendering, color: Color, start: _Position, end: _Position
     ) -> None:
         # `pygame.draw.line` over `pygame.gfxdraw.line`: faster on tight
         # loops (gradients trace hundreds of lines per frame) and supports
         # a `width` parameter if we ever need thicker strokes. `gfxdraw`
         # only offers pixel-exact non-AA single-pixel lines.
-        pygame.draw.line(surface, Pygame.new_color(color), start, end)
+        pygame.draw.line(deref(surface), Pygame.new_color(color), start, end)
 
     @classmethod
-    def rectangle(cls, surface: Surface, rectangle: Rectangle, color: Color) -> None:
+    def rectangle(cls, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
         pygame.gfxdraw.rectangle(
-            surface, cls.new_rect(rectangle), Pygame.new_color(color)
+            deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
         )
 
     @classmethod
-    def box(cls, surface: Surface, rectangle: Rectangle, color: Color) -> None:
-        pygame.gfxdraw.box(surface, cls.new_rect(rectangle), Pygame.new_color(color))
+    def box(cls, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
+        pygame.gfxdraw.box(
+            deref(surface), cls.new_rect(rectangle), Pygame.new_color(color)
+        )
 
     @classmethod
     def filled_polygon(
-        cls, surface: Surface, points: Sequence[_Position], color: Color
+        cls, surface: Rendering, points: Sequence[_Position], color: Color
     ) -> None:
-        pygame.gfxdraw.filled_polygon(surface, points, Pygame.new_color(color))
+        pygame.gfxdraw.filled_polygon(deref(surface), points, Pygame.new_color(color))
 
     @classmethod
     def smoothscale(
-        cls, surface: Surface, width: int | float, height: int | float
-    ) -> Surface:
-        return pygame.transform.smoothscale(surface, (width, height))
+        cls, surface: Rendering, width: int | float, height: int | float
+    ) -> Rendering:
+        return PygameRendering(
+            pygame.transform.smoothscale(deref(surface), (width, height))
+        )
 
     @classmethod
-    def image(cls, image: Image) -> Surface:
+    def copy(cls, surface: Rendering) -> Rendering:
+        return PygameRendering(deref(surface).copy())
+
+    @classmethod
+    def image(cls, image: Image) -> Rendering:
         # `frombytes` copies the buffer; `frombuffer` would share it and
         # require the PIL image to stay alive for as long as the Surface
         # exists. A self-contained Surface is safer at this boundary and
         # the copy cost is dwarfed by the upstream PIL decode + tobytes.
-        return pygame.image.frombytes(image.tobytes(), image.size, "RGBA")
+
+        # NB: convert_alpha() changes the pixel format of image
+        # to match the display while preserving transparency (alpha).
+        return PygameRendering(
+            pygame.image.frombytes(image.tobytes(), image.size, "RGBA").convert_alpha()
+        )
 
     @classmethod
     def post_event(cls, event: VidereEvent) -> None:

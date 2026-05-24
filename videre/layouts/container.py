@@ -1,6 +1,6 @@
 from videre.core.constants import Alignment
-from videre.core.pygame_backend.definitions import Surface
 from videre.core.pygame_backend.primitives import Pygame
+from videre.core.rendering_result import Rendering
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.gradient import ColoringDefinition, Gradient
@@ -122,7 +122,7 @@ class Container(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Surface:
+    ) -> Rendering:
         square = self.square
         width = _resolve_size(self.width, width)
         height = _resolve_size(self.height, height)
