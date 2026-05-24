@@ -37,7 +37,7 @@ uv run poe typecheck
 uv run poe check
 ```
 
-The `poe` tasks are defined in `pyproject.toml` under `[tool.poe.tasks]`. `typecheck` runs `ty check` against `videre`, `videre_examples`, and `tests`.
+The `poe` tasks are defined in `pyproject.toml` under `[tool.poe.tasks]`. `typecheck` runs `ty check` against `videre`, `examples`, and `tests`.
 
 ## Architecture
 

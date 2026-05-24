@@ -67,5 +67,5 @@ split-on-trailing-comma = false
 format = "ruff format"
 lint = "ruff check --fix"
 typecheck = """ty check --output-format concise \
-    videre videre_examples tests"""
+    videre examples tests"""
 check = ["format", "lint", "typecheck"]
