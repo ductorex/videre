@@ -23,6 +23,8 @@ Scenarios
                     (cumulative blits across the tree).
 - text_heavy      : long wrapped paragraph
                     (freetype rasterization + text layout cost).
+- scroll_images   : ScrollView of composite rows (image thumbnail + text)
+                    (real list-view pattern: images, scrolling, deep compose).
 
 The static_* scenarios are near zero on the current architecture thanks to
 dirty tracking (cached surfaces are reused). They still serve as baselines:
@@ -45,10 +47,24 @@ import argparse
 import statistics
 import time
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Callable
 
+from PIL import Image
+
 import videre
-from videre import Border, Column, Container, Padding, ProgressBar, Row, Text, TextWrap
+from videre import (
+    Border,
+    Column,
+    Container,
+    Padding,
+    Picture,
+    ProgressBar,
+    Row,
+    ScrollView,
+    Text,
+    TextWrap,
+)
 from videre.testing.step_window import StepWindow
 
 # -----------------------------------------------------------------------------
@@ -140,6 +156,42 @@ def setup_text_heavy() -> Setup:
     return root, None
 
 
+def setup_scroll_images(count: int = 30) -> Setup:
+    # Compact stand-in for the old benchmark.py: a scrollable list of composite
+    # rows, each a thumbnail image beside wrapped text. Exercises Picture
+    # (image blit), ScrollView (clipped composition) and deep nesting at once.
+    buffer = BytesIO()
+    Image.new("RGB", (160, 90), (90, 90, 90)).save(buffer, format="PNG")
+    thumbnail = buffer.getvalue()
+
+    def item(i: int) -> Container:
+        return Container(
+            Row(
+                [
+                    Picture(thumbnail),
+                    Column(
+                        [
+                            Text(f"Item {i} title", strong=True),
+                            Text("/a/long/path/to/file.ext", wrap=TextWrap.CHAR),
+                            Text(
+                                "metadata line with several words that wrap",
+                                wrap=TextWrap.WORD,
+                            ),
+                        ],
+                        space=2,
+                        weight=1,
+                    ),
+                ],
+                space=6,
+            ),
+            padding=Padding.axis(vertical=8),
+            background_color=(240, 240, 240) if i % 2 else None,
+        )
+
+    root = ScrollView(Column([item(i) for i in range(count)]), wrap_horizontal=True)
+    return root, None
+
+
 SCENARIOS: dict[str, Callable[[], Setup]] = {
     "static_simple": setup_static_simple,
     "static_complex": setup_static_complex,
@@ -147,6 +199,7 @@ SCENARIOS: dict[str, Callable[[], Setup]] = {
     "dirty_many": setup_dirty_many,
     "deep_nesting": setup_deep_nesting,
     "text_heavy": setup_text_heavy,
+    "scroll_images": setup_scroll_images,
 }
 
 
