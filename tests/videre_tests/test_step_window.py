@@ -7,7 +7,7 @@ from videre.testing.step_window import StepWindow
 
 def test_run_raises_in_step_mode():
     with StepWindow() as win:
-        with pytest.raises(RuntimeError, match="step mode"):
+        with pytest.raises(RuntimeError, match=r"Cannot run\(\) on a step window"):
             win.run()
 
 
@@ -23,21 +23,12 @@ def test_screenshot_outside_step_mode():
         win.screenshot()
 
 
-def test_enter_after_run():
-    import threading
-    import time
-
+def test_enter_after_close():
     win = StepWindow()
-    fake_user = win.user
 
-    def stop():
-        time.sleep(0.3)
-        fake_user.quit()
-
-    t = threading.Thread(target=stop)
-    t.start()
-    win.run()
-    t.join()
+    with win:
+        pass
 
     with pytest.raises(RuntimeError, match="already run"):
-        win.__enter__()
+        with win:
+            pass

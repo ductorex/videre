@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
+from videre.core.constants import TextAlign
 from videre.core.rectangle import Rectangle
 
 
@@ -146,3 +147,22 @@ class TextRenderingResult(ABC):
         upper bound that a `visual_pos` can take. Used by `TextInput`
         for Ctrl+A (select-all)."""
         ...
+
+
+class AbstractTextRendering(ABC):
+    __slots__ = ()
+
+    @abstractmethod
+    def render_char(self, c: str, color: Color | None = None) -> Rendering: ...
+
+    @abstractmethod
+    def render_text(
+        self,
+        text: str,
+        width: int | None = None,
+        *,
+        color: Color | None = None,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        selection: tuple[int, int] | None = None,
+    ) -> tuple[TextRenderingResult, Rendering]: ...

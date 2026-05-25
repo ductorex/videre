@@ -1,7 +1,10 @@
+from typing import cast
+
 import pygame
 import pygame.freetype
 import pytest
 
+from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.pygame_backend.font_factory import PygameFontFactory
 from videre.core.pygame_backend.text_rendering import PygameTextRendering
 from videre.fonts.font_utils import FontUtils
@@ -50,7 +53,7 @@ def test_pygame_font_cache(using_pygame_freetype):
 
 
 @pytest.mark.parametrize("wrap_words", (False, True))
-def test_render_text(wrap_words, using_pygame_freetype):
+def test_render_text(fake_win, wrap_words, using_pygame_freetype):
     size = 24
     height_delta = 2
     ff = PygameFontFactory()
@@ -64,10 +67,18 @@ def test_render_text(wrap_words, using_pygame_freetype):
     assert descender == 8
 
     tr_compact = PygameTextRendering(
-        ff, size=size, height_delta=height_delta, compact=True
+        cast(PygameBackend, fake_win.backend),
+        ff,
+        size=size,
+        height_delta=height_delta,
+        compact=True,
     )
     tr_full = PygameTextRendering(
-        ff, size=size, height_delta=height_delta, compact=False
+        cast(PygameBackend, fake_win.backend),
+        ff,
+        size=size,
+        height_delta=height_delta,
+        compact=False,
     )
 
     def ff_render_text(text):

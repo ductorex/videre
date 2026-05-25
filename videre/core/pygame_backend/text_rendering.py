@@ -1,13 +1,13 @@
 import bisect
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
 
 from cursword import get_next_word_end_position, get_previous_word_start_position
 
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign
-from videre.core.pygame_backend.definitions import PygameColor
+from videre.core.pygame_backend.definitions import PygameColor, PygameRendering
 from videre.core.pygame_backend.font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_backend.font_factory_utils import (
     AbstractTextElement,
@@ -17,9 +17,16 @@ from videre.core.pygame_backend.font_factory_utils import (
     WordTask,
     align_words,
 )
-from videre.core.pygame_backend.primitives import Pygame, PygameRendering
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import CursorState, Rendering, TextRenderingResult
+from videre.core.rendering_result import (
+    AbstractTextRendering,
+    CursorState,
+    Rendering,
+    TextRenderingResult,
+)
+
+if TYPE_CHECKING:
+    from videre.core.pygame_backend.backend import PygameBackend
 
 
 class FontSizes:
@@ -249,9 +256,10 @@ class PygameTextRenderingResult(TextRenderingResult):
         return rects
 
 
-class PygameTextRendering:
+class PygameTextRendering(AbstractTextRendering):
     def __init__(
         self,
+        backend: "PygameBackend",
         fonts: PygameFontFactory,
         size: int,
         strong=False,
@@ -266,6 +274,7 @@ class PygameTextRendering:
         italic = bool(italic)
         base = fonts.get_char_measures(" ", size, strong, italic)
 
+        self._backend = backend
         self._fonts = fonts
         self._size: int = size
         self._strong: bool = strong
@@ -278,7 +287,7 @@ class PygameTextRendering:
         self._compact = compact
 
     def render_char(self, c: str, color: Color | None = None) -> Rendering:
-        fgcolor = None if color is None else Pygame.new_color(color)
+        fgcolor = None if color is None else self._backend.new_color(color)
         surface, box = self._fonts.get_font(
             c, strong=self._strong, italic=self._italic
         ).render(c, size=self._size, fgcolor=fgcolor)
@@ -316,10 +325,10 @@ class PygameTextRendering:
     ) -> Rendering:
         align_words(lines, width, align)
         size = self._size
-        out = Pygame.new_surface(width, height)
+        out = self._backend.new_surface(width, height)
         for rect in self._get_selection_rects(lines, selection):
-            Pygame.box(out, rect, Color(100, 100, 255, 100))
-        pygame_color = None if color is None else Pygame.new_color(color)
+            self._backend.box(out, rect, Color(100, 100, 255, 100))
+        pygame_color = None if color is None else self._backend.new_color(color)
         for line in lines:
             self._draw_underline(line, out, pygame_color)
             ly = line.y
@@ -429,8 +438,8 @@ class PygameTextRendering:
             us = surface.convert_alpha()
             width = x2 - x1
             height = box.height
-            underline = Pygame.smoothscale(PygameRendering(us), width, height)
-            Pygame.blit(out, underline, (x1, line.y - box.y))
+            underline = self._backend.smoothscale(PygameRendering(us), width, height)
+            self._backend.blit(out, underline, (x1, line.y - box.y))
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool

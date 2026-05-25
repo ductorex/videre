@@ -1,5 +1,6 @@
 from typing import Sequence
 
+from videre.core.abstract_backend import AbstractBackend
 from videre.core.events import (
     ExitEvent,
     Key,
@@ -14,7 +15,6 @@ from videre.core.events import (
     TextInputEvent,
     WindowLeaveEvent,
 )
-from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.pygame_backend.mapping import pygame_to_mouse_buttons
 from videre.widgets.widget import Widget
 
@@ -22,7 +22,7 @@ from videre.widgets.widget import Widget
 class FakeUser:
     __slots__ = ("_backend",)
 
-    def __init__(self, backend: PygameBackend):
+    def __init__(self, backend: AbstractBackend):
         self._backend = backend
 
     def click(self, button: Widget):

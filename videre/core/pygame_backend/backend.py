@@ -1,11 +1,17 @@
 import io
 import logging
 from collections.abc import Callable
+from typing import Sequence
 
 import pygame
+import pygame.gfxdraw
+from PIL.Image import Image
 
+from videre.colors import Color
+from videre.core.abstract_backend import AbstractBackend, _Position
 from videre.core.constants import WINDOW_FPS
 from videre.core.events import (
+    ExitEvent,
     KeyDownEvent,
     MouseButtonDownEvent,
     MouseButtonUpEvent,
@@ -15,39 +21,179 @@ from videre.core.events import (
     VidereEvent,
     WindowLeaveEvent,
 )
-from videre.core.pygame_backend.definitions import Event, Surface
+from videre.core.pygame_backend.definitions import (
+    Event,
+    PygameColor,
+    PygameRendering,
+    Rect,
+    Surface,
+)
 from videre.core.pygame_backend.font_factory import PygameFontFactory
 from videre.core.pygame_backend.mapping import (
+    keyboard_entry_to_pygame_dict,
+    mouse_button_to_pygame,
     pygame_to_keyboard_entry,
     pygame_to_mouse_button,
     pygame_to_mouse_buttons,
 )
-from videre.core.pygame_backend.primitives import Pygame, PygameRendering
 from videre.core.pygame_backend.text_rendering import PygameTextRendering
-from videre.core.rendering_result import Rendering
+from videre.core.rectangle import Rectangle
+from videre.core.rendering_result import AbstractTextRendering, Rendering
 from videre.core.tasks import TaskManager, VidereTask
 from videre.core.utils import OnEvent
 
 logger = logging.getLogger(__name__)
 
 
+class Pygame(AbstractBackend):
+    __slots__ = ()
+
+    def new_color(self, color: Color) -> PygameColor:
+        return PygameColor(color.r, color.g, color.b, color.a)
+
+    def new_rect(self, rectangle: Rectangle) -> Rect:
+        return Rect(rectangle.left, rectangle.top, rectangle.width, rectangle.height)
+
+    def new_surface(self, width: int | float, height: int | float) -> Rendering:
+        return PygameRendering(Surface((width, height), flags=pygame.SRCALPHA))
+
+    def fill(
+        self, surface: Rendering, color: Color, rectangle: Rectangle | None = None
+    ) -> None:
+        _deref(surface).fill(
+            self.new_color(color),
+            self.new_rect(rectangle) if rectangle is not None else None,
+        )
+
+    def blit(self, dst: Rendering, src: Rendering, position: _Position) -> None:
+        _deref(dst).blit(_deref(src), position)
+
+    def line(
+        self, surface: Rendering, color: Color, start: _Position, end: _Position
+    ) -> None:
+        # `pygame.draw.line` over `pygame.gfxdraw.line`: faster on tight
+        # loops (gradients trace hundreds of lines per frame) and supports
+        # a `width` parameter if we ever need thicker strokes. `gfxdraw`
+        # only offers pixel-exact non-AA single-pixel lines.
+        pygame.draw.line(_deref(surface), self.new_color(color), start, end)
+
+    def rectangle(self, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
+        pygame.gfxdraw.rectangle(
+            _deref(surface), self.new_rect(rectangle), self.new_color(color)
+        )
+
+    def box(self, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
+        pygame.gfxdraw.box(
+            _deref(surface), self.new_rect(rectangle), self.new_color(color)
+        )
+
+    def filled_polygon(
+        self, surface: Rendering, points: Sequence[_Position], color: Color
+    ) -> None:
+        pygame.gfxdraw.filled_polygon(_deref(surface), points, self.new_color(color))
+
+    def smoothscale(
+        self, surface: Rendering, width: int | float, height: int | float
+    ) -> Rendering:
+        return PygameRendering(
+            pygame.transform.smoothscale(_deref(surface), (width, height))
+        )
+
+    def copy(self, surface: Rendering) -> Rendering:
+        return PygameRendering(_deref(surface).copy())
+
+    def image(self, image: Image) -> Rendering:
+        # `frombytes` copies the buffer; `frombuffer` would share it and
+        # require the PIL image to stay alive for as long as the Surface
+        # exists. A self-contained Surface is safer at this boundary and
+        # the copy cost is dwarfed by the upstream PIL decode + tobytes.
+
+        # NB: convert_alpha() changes the pixel format of image
+        # to match the display while preserving transparency (alpha).
+        return PygameRendering(
+            pygame.image.frombytes(image.tobytes(), image.size, "RGBA").convert_alpha()
+        )
+
+    def post_event(self, event: VidereEvent) -> None:
+        event_type = type(event)
+        callback = self._on_post.get(type(event))
+        if callback is None:
+            raise NotImplementedError(event_type, event)
+        callback(self, event)
+
+    _on_post = OnEvent[type[VidereEvent]]()
+
+    @classmethod
+    @_on_post(MouseButtonDownEvent)
+    def _post_mouse_button_down(cls, event: MouseButtonDownEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "button": mouse_button_to_pygame(event.button),
+        }
+        pygame.event.post(Event(pygame.MOUSEBUTTONDOWN, event_data))
+
+    @classmethod
+    @_on_post(MouseButtonUpEvent)
+    def _post_mouse_button_up(cls, event: MouseButtonUpEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "button": mouse_button_to_pygame(event.button),
+        }
+        pygame.event.post(Event(pygame.MOUSEBUTTONUP, event_data))
+
+    @classmethod
+    @_on_post(MouseMotionEvent)
+    def _post_mouse_motion(cls, event: MouseMotionEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "rel": (event.dx, event.dy),
+            "touch": False,
+            "buttons": (
+                int(event.button_left),
+                int(event.button_middle),
+                int(event.button_right),
+            ),
+        }
+        pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
+
+    @classmethod
+    @_on_post(MouseWheelEvent)
+    def _post_mouse_wheel(cls, event: MouseWheelEvent) -> None:
+        pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
+        event_data = {
+            "x": event.wheel_dx,
+            "y": event.wheel_dy,
+            "mouse_x": event.mouse_x,
+            "mouse_y": event.mouse_y,
+        }
+        pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
+
+    @classmethod
+    @_on_post(KeyDownEvent)
+    def _post_key_down(cls, event: KeyDownEvent) -> None:
+        pygame.event.post(
+            Event(pygame.KEYDOWN, keyboard_entry_to_pygame_dict(event.entry))
+        )
+
+    @classmethod
+    @_on_post(TextInputEvent)
+    def _post_text_input(cls, event: TextInputEvent) -> None:
+        event_data = {"text": event.text}
+        pygame.event.post(Event(pygame.TEXTINPUT, event_data))
+
+    @classmethod
+    @_on_post(WindowLeaveEvent)
+    def _post_window_leave(cls, event: WindowLeaveEvent) -> None:
+        pygame.event.post(Event(pygame.WINDOWLEAVE))
+
+    @classmethod
+    @_on_post(ExitEvent)
+    def _post_exit(cls, event: ExitEvent) -> None:
+        pygame.event.post(Event(pygame.QUIT))
+
+
 class PygameBackend(Pygame):
-    __slots__ = (
-        "__default_cursor",
-        "__text_cursor",
-        "_title",
-        "_hide",
-        "_width",
-        "_height",
-        "_screen",
-        "_fonts",
-        "_fps",
-        "_running",
-        "_nb_frames",
-        "_event_dispatcher",
-        "_task_manager",
-        "_render_manager",
-    )
+    __slots__ = ("__default_cursor", "__text_cursor", "_screen", "_fonts", "_clock")
 
     def __init__(
         self,
@@ -60,57 +206,31 @@ class PygameBackend(Pygame):
         hide: bool = False,
         fps: int = WINDOW_FPS,
     ) -> None:
+        super().__init__(
+            width=width,
+            height=height,
+            title=title,
+            event_manager=event_manager,
+            render_manager=render_manager,
+            task_manager=task_manager,
+            hide=hide,
+            fps=fps,
+        )
+
         # Init pygame here.
         pygame.init()
 
         self.__default_cursor = pygame.mouse.get_cursor()
         self.__text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
         self._fonts = PygameFontFactory()
-        self._width = width
-        self._height = height
-        self._title = title
-        self._hide = hide
-        self._fps = fps
         self._screen: Surface | None = None
-        self._running: bool = True
-        self._nb_frames: int = 0
+        self._clock: pygame.time.Clock | None = None
 
-        self._event_dispatcher = event_manager
-        self._render_manager = render_manager
-        self._task_manager = task_manager
-
-    @property
-    def nb_frames(self) -> int:
-        return self._nb_frames
-
-    @property
-    def width(self) -> int:
-        return self._width
-
-    @property
-    def height(self) -> int:
-        return self._height
-
-    @property
-    def title(self) -> str:
-        return self._title
-
-    @property
-    def running(self) -> bool:
-        return self._running
-
-    @running.setter
-    def running(self, running: bool) -> None:
-        self._running = running
-
-    def set_text_cursor(self):
+    def _set_text_cursor(self) -> None:
         pygame.mouse.set_cursor((8, 16), (0, 0), *self.__text_cursor)
 
-    def set_default_cursor(self):
+    def _set_default_cursor(self) -> None:
         pygame.mouse.set_cursor(*self.__default_cursor)
-
-    def cursor_is_default(self) -> bool:
-        return pygame.mouse.get_cursor() == self.__default_cursor
 
     def screenshot(self) -> io.BytesIO:
         assert self._screen is not None
@@ -118,16 +238,6 @@ class PygameBackend(Pygame):
         pygame.image.save(self._screen, data)
         data.flush()
         return data
-
-    def run(self) -> None:
-        try:
-            self.start()
-            clock = pygame.time.Clock()
-            while self._running:
-                self.step()
-                clock.tick(self._fps)
-        finally:
-            self.stop()
 
     def start(self) -> None:
         flags = pygame.RESIZABLE
@@ -144,7 +254,9 @@ class PygameBackend(Pygame):
         # is the most like textinput repeat.
         pygame.key.set_repeat(500, 35)
 
-    def stop(self):
+        self._clock = pygame.time.Clock()
+
+    def stop(self) -> None:
         pygame.quit()
 
     def resize_screen(self, width: int, height: int) -> None:
@@ -154,7 +266,7 @@ class PygameBackend(Pygame):
         self._screen = pygame.display.set_mode((width, height), flags=flags)
         pygame.event.post(Event(pygame.WINDOWRESIZED, x=width, y=height))
 
-    def step(self):
+    def _step(self, fps: int | None = None) -> None:
         # Handle interface events.
         # Also check if we got a mouse motion event.
         has_mouse_motion = False
@@ -187,10 +299,15 @@ class PygameBackend(Pygame):
         assert self._screen is not None
         self._render_manager(PygameRendering(self._screen))
         pygame.display.flip()
-        self._nb_frames += 1
 
         # Process pending tasks.
         self._task_manager.manage_tasks()
+
+        if fps is None:
+            fps = self._fps
+        if fps > 0:
+            assert self._clock is not None
+            self._clock.tick(fps)
 
     def __on_event(self, event: Event):
         """Handle a pygame event."""
@@ -205,8 +322,9 @@ class PygameBackend(Pygame):
         italic: bool = False,
         underline: bool = False,
         height_delta: int | None = None,
-    ) -> PygameTextRendering:
+    ) -> AbstractTextRendering:
         return PygameTextRendering(
+            self,
             self._fonts,
             size=size,
             strong=strong,
@@ -228,7 +346,7 @@ class PygameBackend(Pygame):
     def _quit(self, event: Event) -> None:
         # This method immediately handles event without dispatching to videre event manager.
         logger.warning("Quit Pygame.")
-        self._running = False
+        self._handle_exit()
 
     @_on_event(pygame.WINDOWRESIZED)
     def _resize_window(self, event: Event) -> None:
@@ -237,7 +355,7 @@ class PygameBackend(Pygame):
         if self._screen is not None:
             assert self._screen.get_width() == width
             assert self._screen.get_height() == height
-        self._width, self._height = width, height
+        self._handle_resize(width, height)
 
     @_on_event(pygame.MOUSEWHEEL)
     def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
@@ -296,3 +414,9 @@ class PygameBackend(Pygame):
     @_on_event(pygame.KEYDOWN)
     def _on_keydown(self, event: Event) -> VidereTask | None:
         return self._event_dispatcher(KeyDownEvent(pygame_to_keyboard_entry(event)))
+
+
+def _deref(rendering: Rendering) -> Surface:
+    """Dereference a Rendering object into a Pygame surface."""
+    assert isinstance(rendering, PygameRendering), type(rendering)
+    return rendering.surface

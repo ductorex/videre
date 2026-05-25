@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 import videre
-from videre.testing.step_window import StepWindow
+from videre import Window
+from videre.testing.fake_user import FakeUser
 
 
 def test_window_change_background(fake_win):
@@ -47,8 +48,8 @@ def test_window_notify(fake_win):
 
 
 def test_window_run():
-    win = StepWindow(title="Test Window", width=200, height=200)
-    fake_user = win.user
+    win = Window(title="Test Window", width=200, height=200, hide=True)
+    fake_user = FakeUser(win.backend)
 
     def stop_window():
         time.sleep(0.5)

@@ -3,7 +3,8 @@ import logging
 from typing import Any, Callable, Sequence
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.constants import Alignment
+from videre.core.abstract_backend import AbstractBackend
+from videre.core.constants import WINDOW_FPS, Alignment
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.rendering_result import Rendering
 from videre.core.tasks import (
@@ -57,6 +58,7 @@ class Window:
         hide=False,
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
+        fps: int = WINDOW_FPS,
     ):
         self._layout = WindowLayout(parse_color(background or Colors.white))
         self._event_manager = WindowEventManager(self._layout)
@@ -69,6 +71,7 @@ class Window:
             event_manager=self._event_manager.manage,
             render_manager=self._refresh,
             task_manager=self._task_manager,
+            fps=fps,
         )
         self._font_size_pts = font_size
         self._font_height: int | None = None
@@ -94,7 +97,7 @@ class Window:
         return f"[{type(self).__name__}][{id(self)}]"
 
     @property
-    def backend(self) -> PygameBackend:
+    def backend(self) -> AbstractBackend:
         return self._backend
 
     @property
