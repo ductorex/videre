@@ -75,6 +75,16 @@ class TextRenderingResult(ABC):
     __slots__ = ()
 
     @abstractmethod
+    def get_width(self) -> int:
+        """Get width of text rendering surface"""
+        ...
+
+    @abstractmethod
+    def get_height(self) -> int:
+        """Get height of text rendering surface"""
+        ...
+
+    @abstractmethod
     def pos_to_pixel(self, pos: int) -> CaretPosition: ...
 
     @abstractmethod
