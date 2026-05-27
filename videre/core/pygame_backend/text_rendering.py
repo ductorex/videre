@@ -71,6 +71,14 @@ class _LegacyCursorState(CursorState):
 class PygameTextRenderingResult(TextRenderingResult):
     _rendered_lines: list[Line[WordTask]]
     _rendered_font_sizes: FontSizes
+    _rendered_width: int
+    _rendered_height: int
+
+    def get_width(self) -> int:
+        return self._rendered_width
+
+    def get_height(self) -> int:
+        return self._rendered_height
 
     def pos_to_pixel(self, pos: int) -> CaretPosition:
         """Caret position for a logical source character position.
@@ -312,7 +320,10 @@ class PygameTextRendering(AbstractTextRendering):
         surface = self._render_word_lines(
             new_width, height, lines, align, color, selection
         )
-        return PygameTextRenderingResult(lines, self._font_sizes), surface
+        result = PygameTextRenderingResult(
+            lines, self._font_sizes, surface.get_width(), surface.get_height()
+        )
+        return result, surface
 
     def _render_word_lines(
         self,

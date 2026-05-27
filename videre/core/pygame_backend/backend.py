@@ -114,6 +114,12 @@ class Pygame(AbstractBackend):
             pygame.image.frombytes(image.tobytes(), image.size, "RGBA").convert_alpha()
         )
 
+    def image_from_bytes(self, data: bytes, size: tuple[int, int]) -> Rendering:
+        # No `convert_alpha()` here (unlike `image`): keep this independent of
+        # the display so glyph rasterization works before a display mode is
+        # set. The source buffer is straight RGBA with alpha.
+        return PygameRendering(pygame.image.frombytes(data, size, "RGBA"))
+
     def post_event(self, event: VidereEvent) -> None:
         event_type = type(event)
         callback = self._on_post.get(type(event))
