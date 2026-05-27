@@ -1,7 +1,9 @@
+import numpy as np
 import pytest
 
 from videre.colors import Color, ColorDef
 from videre.core.events import KeyboardEntry
+from videre.core.rendering_result import Rendering
 from videre.testing.utils import HD, SD
 from videre.widgets.widget import Widget
 
@@ -94,3 +96,37 @@ class TrackerWidget(Widget):
     def handle_mouse_down_canceled(self, button):
         self.events.append(("mouse_down_canceled", button))
         return self
+
+
+def _channel(rendering: Rendering, attr: str) -> np.ndarray:
+    """Backend-agnostic replacement for ``pygame.surfarray.pixels_*``.
+
+    Reads a single color channel of ``rendering`` through ``get_at`` and
+    returns an ``[x][y]`` int array, matching pygame surfarray's
+    (width, height) shape and indexing so callers' assertions are
+    unchanged. Slow (per-pixel), but tests only.
+    """
+    width, height = rendering.get_width(), rendering.get_height()
+    return np.array(
+        [
+            [getattr(rendering.get_at((x, y)), attr) for y in range(height)]
+            for x in range(width)
+        ],
+        dtype=int,
+    )
+
+
+def pixels_alpha(rendering: Rendering) -> np.ndarray:
+    return _channel(rendering, "a")
+
+
+def pixels_red(rendering: Rendering) -> np.ndarray:
+    return _channel(rendering, "r")
+
+
+def pixels_green(rendering: Rendering) -> np.ndarray:
+    return _channel(rendering, "g")
+
+
+def pixels_blue(rendering: Rendering) -> np.ndarray:
+    return _channel(rendering, "b")
