@@ -1,5 +1,4 @@
 import sys
-from typing import Sequence
 from unicodedata import category, unidata_version
 
 import unicodedataplus  # ty: ignore
@@ -61,7 +60,7 @@ class Unicode:
         return unicodedataplus.block(c)
 
     @classmethod
-    def blocks(cls) -> dict[str, Sequence[str]]:
+    def blocks(cls) -> dict[str, list[str]]:
         blocks = {}
         for c in cls.characters():
             blocks.setdefault(cls.block(c), []).append(c)
