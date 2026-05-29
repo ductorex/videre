@@ -12,6 +12,7 @@ import pytest
 
 from tests.common import pixels_alpha, pixels_red
 from videre.colors import Color
+from videre.core.constants import TextAlign
 from videre.core.shaping import ShapedTextRendering
 from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import line_metrics, underline_metrics
@@ -108,6 +109,36 @@ def test_empty_text_reserves_one_line_slot(
     )[1]
     assert s.get_width() == 1
     assert s.get_height() == asc + 2 + desc
+
+
+# -- Result dims match the paired surface (TextRenderingResult contract) ----
+
+
+@pytest.mark.parametrize(
+    "text, init_kwargs, render_kwargs",
+    [
+        ("Hello", {}, {}),  # single line, intrinsic width
+        ("", {}, {}),  # empty: no line_layouts to derive from
+        ("L1\nL2\nL3", {}, {}),  # multi-line
+        ("Hello world foo bar baz quux", {}, {"width": 80}),  # cluster wrap
+        ("Hi", {}, {"width": 200, "align": TextAlign.RIGHT}),  # box wider than ink
+        ("Bonjour", {"size": 24, "bold": True}, {}),  # synthetic bold
+    ],
+)
+def test_result_dims_match_surface(
+    fake_win, text: str, init_kwargs: dict, render_kwargs: dict
+) -> None:
+    """`ShapedRenderedText.get_width/get_height` report the exact pixel size
+    of the surface returned alongside it. The size is not derivable from
+    `line_layouts` alone — empty text has no layout, and an explicit `width`
+    with RIGHT/CENTER alignment makes the surface wider than the inked
+    content — so the result stores the surface dimensions verbatim.
+    """
+    result, surface = ShapedTextRendering(fake_win.backend, **init_kwargs).render_text(
+        text, color=Color(0, 0, 0), **render_kwargs
+    )
+    assert result.get_width() == surface.get_width()
+    assert result.get_height() == surface.get_height()
 
 
 # -- Underline doesn't change the line box ----------------------------------

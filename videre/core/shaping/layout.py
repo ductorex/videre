@@ -155,19 +155,24 @@ class ShapedRenderedText(TextRenderingResult):
     Carries font metrics that consumers need to size cursors /
     selection rectangles, and the per-line layout used by the
     `pos_to_pixel` / `pixel_to_pos` helpers. The rendered bitmap is
-    returned as the second item from `render_text`.
+    returned as the second item from `render_text`; its pixel size is
+    also recorded here as `width` / `height`.
     """
 
     font_metrics: FontMetrics
     line_layouts: tuple[_LineLayout, ...]
+    # Pixel size of the surface `render_text` paired with this result.
+    # `render_text` always sets these to the real surface dimensions; the
+    # 0 defaults exist only for hand-built layouts in tests, which exercise
+    # the caret / hit-test helpers and never call `get_width` / `get_height`.
+    width: int = 0
+    height: int = 0
 
     def get_width(self) -> int:
-        # todo
-        raise NotImplementedError()
+        return self.width
 
     def get_height(self) -> int:
-        # todo
-        raise NotImplementedError()
+        return self.height
 
     def pos_to_pixel(self, pos: int) -> CaretPosition:
         """Caret position for a logical source `pos`.

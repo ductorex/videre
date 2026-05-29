@@ -286,9 +286,13 @@ class ShapedTextRendering(AbstractTextRendering):
             # Empty input: still produce a surface of one full line so
             # downstream layout reserves the right vertical slot.
             total_height = first_baseline + self._descender
-            empty_surface = self._backend.new_surface(1, max(total_height, 1))
+            surface_h = max(total_height, 1)
+            empty_surface = self._backend.new_surface(1, surface_h)
             return ShapedRenderedText(
-                font_metrics=self.font_metrics, line_layouts=()
+                font_metrics=self.font_metrics,
+                line_layouts=(),
+                width=1,
+                height=surface_h,
             ), empty_surface
 
         # Two-pass rendering for JUSTIFY: a first pass measures each line
@@ -354,10 +358,15 @@ class ShapedTextRendering(AbstractTextRendering):
                 )
             )
 
-        out = self._backend.new_surface(max(target_width, 1), max(total_height, 1))
+        surface_w = max(target_width, 1)
+        surface_h = max(total_height, 1)
+        out = self._backend.new_surface(surface_w, surface_h)
 
         rendered_text = ShapedRenderedText(
-            font_metrics=self.font_metrics, line_layouts=tuple(line_layouts)
+            font_metrics=self.font_metrics,
+            line_layouts=tuple(line_layouts),
+            width=surface_w,
+            height=surface_h,
         )
 
         # Pass 1: paint the selection background (translucent) BEFORE
