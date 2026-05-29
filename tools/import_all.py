@@ -9,7 +9,9 @@ module"). Importing every module forces those to surface. Wired into
 ``examples`` is intentionally excluded: demo modules may open a window on import.
 """
 
+import enum
 import importlib
+import os
 import pkgutil
 import sys
 import traceback
@@ -20,10 +22,41 @@ import videre
 failures: list[str] = []
 
 
-def _color(text: str, code: str, stream: TextIO) -> str:
-    # Emit ANSI color only on a TTY, so redirected/piped output stays plain —
-    # same discipline `ruff`/`ty` apply.
-    return f"\033[{code}m{text}\033[0m" if stream.isatty() else text
+class Ansi(enum.StrEnum):
+    """SGR (Select Graphic Rendition) parameters for terminal styling.
+
+    Each member holds the raw numeric parameter; `_style` wraps them in the
+    ``ESC[…m`` envelope. Being a ``StrEnum``, members interpolate as their
+    value, so several can be combined with ``;`` (e.g. bold + a color).
+    """
+
+    RESET = "0"
+    BOLD = "1"
+    RED = "31"
+    GREEN = "32"
+
+
+def _supports_color(stream: TextIO) -> bool:
+    """Whether to emit ANSI styling on ``stream``.
+
+    Honors the conventions `ruff`/`ty` and most CLI tools follow: a non-empty
+    ``NO_COLOR`` disables color (https://no-color.org/), a non-empty
+    ``FORCE_COLOR`` forces it on even when output is redirected, and otherwise
+    color is emitted only on a real TTY. ``NO_COLOR`` wins if both are set.
+    """
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    return stream.isatty()
+
+
+def _style(text: str, *codes: Ansi, stream: TextIO) -> str:
+    """Wrap ``text`` in the given SGR ``codes`` (joined with ``;``) plus a
+    reset, but only when ``stream`` supports color."""
+    if not codes or not _supports_color(stream):
+        return text
+    return f"\033[{';'.join(codes)}m{text}\033[{Ansi.RESET}m"
 
 
 def _on_error(name: str) -> None:
@@ -43,10 +76,10 @@ for module in pkgutil.walk_packages(videre.__path__, f"{videre.__name__}.", _on_
 
 if failures:
     header = f"\n{len(failures)} module(s) failed to import:"
-    print(_color(header, "1;31", sys.stderr), file=sys.stderr)
+    print(_style(header, Ansi.BOLD, Ansi.RED, stream=sys.stderr), file=sys.stderr)
     for name in failures:
         print(f"  - {name}", file=sys.stderr)
     sys.exit(1)
 
 message = f"OK: all '{videre.__name__}' submodules import cleanly."
-print(_color(message, "1;32", sys.stdout))
+print(_style(message, Ansi.BOLD, Ansi.GREEN, stream=sys.stdout))
