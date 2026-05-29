@@ -13,7 +13,7 @@ import pytest
 from tests.common import pixels_alpha, pixels_red
 from videre.colors import Color
 from videre.core.shaping import ShapedTextRendering
-from videre.core.shaping.textutils import get_font_provider
+from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import line_metrics, underline_metrics
 
 

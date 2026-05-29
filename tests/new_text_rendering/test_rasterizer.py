@@ -15,7 +15,7 @@ from tests.common import pixels_alpha
 from videre.colors import Color
 from videre.core.shaping import GlyphRasterizer, ShapedTextRendering, Shaper
 from videre.core.shaping.rasterizer import _bgra_to_numpy_array
-from videre.core.shaping.textutils import get_font_provider
+from videre.core.shaping.text_partition.partition_func import get_font_provider
 
 
 @pytest.fixture(scope="module", autouse=True)

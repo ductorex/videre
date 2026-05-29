@@ -2,7 +2,7 @@ from typing import Iterator
 
 from videre.core.shaping.shaped import ShapedLine, ShapedRun, ShapedWord
 from videre.core.shaping.shaper import Shaper
-from videre.core.shaping.textutils import split_text_to_renderable
+from videre.core.shaping.text_partition.partition_func import split_text_to_renderable
 
 
 def shape_text(
@@ -14,7 +14,7 @@ def shape_text(
     bold: bool = False,
     italic: bool = False,
 ) -> Iterator[ShapedLine]:
-    """Pipeline: textutils segmentation -> HarfBuzz shaping.
+    """Pipeline: text_partition segmentation -> HarfBuzz shaping.
 
     For each input line, splits into `RenderableText` (one per word) via
     `split_text_to_renderable`. Each `RenderablePiece` of a word becomes a

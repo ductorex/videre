@@ -43,7 +43,7 @@ class ShapedGlyph:
 class ShapedRun:
     """One contiguous run of glyphs that share the same font and script.
 
-    Mirrors a `RenderablePiece` from `textutils` after shaping: the text
+    Mirrors a `RenderablePiece` from `partition_repr` after shaping: the text
     was already split so that this run uses a single font, single script
     and single bidi level. `bold` / `italic` record whether synthetic
     bold or slant was applied during shaping; the rasterizer needs them
@@ -73,7 +73,7 @@ class ShapedRun:
 class ShapedWord:
     """One word's worth of shaped runs.
 
-    Mirrors a `RenderableText` from `textutils` after shaping. A word is
+    Mirrors a `RenderableText` from `partition_repr` after shaping. A word is
     typically a single run, but multi-font (or multi-script) words become
     several runs grouped under one `ShapedWord`. Multi-script words are
     rare but legal here: UAX#29 word boundaries do not always coincide

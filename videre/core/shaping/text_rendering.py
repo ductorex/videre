@@ -13,7 +13,7 @@ from videre.core.shaping.pipeline import shape_text
 from videre.core.shaping.rasterizer import Glyph, GlyphArea, GlyphRasterizer
 from videre.core.shaping.shaped import ShapedLine, ShapedWord
 from videre.core.shaping.shaper import Shaper
-from videre.core.shaping.textutils import get_font_provider
+from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     line_metrics,

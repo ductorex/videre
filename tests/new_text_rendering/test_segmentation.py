@@ -1,4 +1,4 @@
-"""Direct tests for the textutils private segmentation helpers.
+"""Direct tests for the partition_func private segmentation helpers.
 
 `test_wrap.py` exercises segmentation
 indirectly through `split_text_to_renderable` / `shape_text` /
@@ -9,11 +9,7 @@ ambiguous quotes, lead-block + CJK fusion, multi-font runs).
 
 import pytest
 
-from videre.core.shaping.textutils import (
-    BidiRun,
-    RenderableLine,
-    RenderablePiece,
-    RenderableText,
+from videre.core.shaping.text_partition.partition_func import (
     _split_by_bidi,
     _split_by_font,
     _split_by_level,
@@ -21,6 +17,12 @@ from videre.core.shaping.textutils import (
     _split_by_word,
     _strip_bidi_controls,
     split_text_to_renderable,
+)
+from videre.core.shaping.text_partition.partition_repr import (
+    BidiRun,
+    RenderableLine,
+    RenderablePiece,
+    RenderableText,
 )
 
 ARAB_ALEF = chr(0x0623)  # Arabic letter Alef with Hamza Above
