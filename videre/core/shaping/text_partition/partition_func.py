@@ -10,7 +10,6 @@ from bidi.algorithm import get_empty_storage as _bidi_get_empty_storage
 from bidi.algorithm import resolve_implicit_levels as _bidi_resolve_implicit_levels
 from bidi.algorithm import resolve_neutral_types as _bidi_resolve_neutral_types
 from bidi.algorithm import resolve_weak_types as _bidi_resolve_weak_types
-from fontTools.unicodedata import script as _script_of
 from uniseg.linebreak import line_break as _line_break
 from uniseg.wordbreak import words as _word_segments
 
@@ -26,9 +25,7 @@ from videre.core.shaping.text_partition.partition_repr import (
 )
 from videre.core.shaping.utils import load_freetype_face
 from videre.fonts.provider import FontProvider
-from videre.fonts.unicode_utils import NEUTRAL_CHARACTERS, Unicode
-
-_NEUTRAL_SCRIPTS = ("Zyyy", "Zinh")  # Common, Inherited - inherit from neighbor
+from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, Unicode, get_character
 
 # Line_Break (UAX#14) classes used to classify uniseg word-segmentation tokens
 # without enumerating scripts. See https://www.unicode.org/reports/tr14/.
@@ -386,20 +383,20 @@ def _split_by_script(text: str) -> list[TextScript]:
     if not text:
         return []
 
-    resolved = [_script_of(c) for c in text]
+    resolved = [get_character(c).script for c in text]
 
     last_real: str | None = None
     for i, sc in enumerate(resolved):
-        if sc not in _NEUTRAL_SCRIPTS:
+        if sc not in NEUTRAL_SCRIPTS:
             last_real = sc
         elif last_real is not None:
             resolved[i] = last_real
 
-    if resolved[0] in _NEUTRAL_SCRIPTS:
-        first_real = next((sc for sc in resolved if sc not in _NEUTRAL_SCRIPTS), None)
+    if resolved[0] in NEUTRAL_SCRIPTS:
+        first_real = next((sc for sc in resolved if sc not in NEUTRAL_SCRIPTS), None)
         if first_real is not None:
             for i in range(len(resolved)):
-                if resolved[i] in _NEUTRAL_SCRIPTS:
+                if resolved[i] in NEUTRAL_SCRIPTS:
                     resolved[i] = first_real
                 else:
                     break
@@ -458,7 +455,7 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
     anchor_name: str
     anchor_path: str
     for c in text:
-        if c not in NEUTRAL_CHARACTERS:
+        if not get_character(c).script_is_neutral:
             anchor_name, anchor_path = provider.get_font_info(c)
             break
     else:
@@ -468,7 +465,7 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
     chars: list[str] = []
     name, path = anchor_name, anchor_path
     for c in text:
-        if c in NEUTRAL_CHARACTERS and _font_supports(path, c):
+        if get_character(c).script_is_neutral and _font_supports(path, c):
             chars.append(c)
         else:
             c_name, c_path = provider.get_font_info(c)

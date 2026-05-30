@@ -1,8 +1,10 @@
+import functools
 import sys
+from dataclasses import dataclass
 from unicodedata import category, unidata_version
 
 import unicodedataplus  # ty: ignore
-from fontTools.unicodedata import script as get_script
+from fontTools import unicodedata as ft_unicodedata
 
 Cc = "Cc"  # control characters
 Co = "Co"  # private use
@@ -31,6 +33,11 @@ _BIDI_FORMATTERS: frozenset[str] = frozenset(
         0x2069,  # PDI - Pop Directional Isolate
     )
 )
+
+
+_COMMON_SCRIPT = "Zyyy"
+_INHERITED_SCRIPT = "Zinh"
+NEUTRAL_SCRIPTS = (_COMMON_SCRIPT, _INHERITED_SCRIPT)
 
 
 class Unicode:
@@ -67,14 +74,36 @@ class Unicode:
         return blocks
 
 
-_COMMON_SCRIPT = "Zyyy"
-_INHERITED_SCRIPT = "Zinh"
+@dataclass(slots=True, frozen=True)
+class Character:
+    c: str
+    # Four-letter script code assigned to the Unicode character
+    script: str
+    script_is_rtl: bool
+    script_is_neutral: bool
+    is_european_number: bool
+    is_arabic_number: bool
 
 
-def _get_characters_for_script(*scripts: str) -> frozenset[str]:
-    return frozenset(c for c in Unicode.characters() if get_script(c) in scripts)
+@functools.cache
+def get_character(c: str) -> Character:
+    if len(c) != 1:
+        raise ValueError(f"Character {c!r} is not a single character")
 
-
-NEUTRAL_CHARACTERS: frozenset[str] = _get_characters_for_script(
-    _COMMON_SCRIPT, _INHERITED_SCRIPT
-)
+    script = ft_unicodedata.script(c)
+    script_is_rtl = (
+        str(ft_unicodedata.script_horizontal_direction(script, default="LTR")) == "RTL"
+    )
+    # Number: European number (EN), arabic number (AN).
+    bidirectional = ft_unicodedata.bidirectional(c)
+    is_european_number = bidirectional == "EN"
+    is_arabic_number = bidirectional == "AN"
+    neutral = script in NEUTRAL_SCRIPTS
+    return Character(
+        c,
+        script=script,
+        script_is_rtl=script_is_rtl,
+        script_is_neutral=neutral,
+        is_european_number=is_european_number,
+        is_arabic_number=is_arabic_number,
+    )
