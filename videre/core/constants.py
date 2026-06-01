@@ -1,11 +1,19 @@
-from enum import Enum, unique
+from enum import Enum, auto, unique
 
 
 @unique
 class TextWrap(Enum):
-    CHAR = 1
-    WORD = 2
-    # WORD_THEN_CHAR = 3  # todo
+    CHAR = auto()
+    WORD = auto()
+    # WORD_THEN_CHAR = auto()  # todo
+
+
+@unique
+class TextSpacePolicy(Enum):
+    # AUTO (default) policy: **collapse** only if TextWrap.WORD, preserve otherwise.
+    AUTO = auto()
+    COLLAPSE = auto()
+    PRESERVE = auto()
 
 
 @unique

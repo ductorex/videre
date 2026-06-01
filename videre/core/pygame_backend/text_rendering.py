@@ -6,7 +6,7 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
-from videre.core.constants import TextAlign
+from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.pygame_backend.definitions import PygameColor, PygameRendering
 from videre.core.pygame_backend.font_factory import CharMeasures, PygameFontFactory
 from videre.core.pygame_backend.font_factory_utils import (
@@ -309,8 +309,11 @@ class PygameTextRendering(AbstractTextRendering):
         color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         selection: tuple[int, int] | None = None,
     ) -> tuple[TextRenderingResult, Rendering]:
+        # todo handle space_policy
+
         compact = self._compact
         if width is None or not wrap_words:
             new_width, height, char_lines = self._get_char_tasks(text, width, compact)

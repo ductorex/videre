@@ -64,7 +64,7 @@ def test_cursor_move_by_keyboard(fake_win):
     # so line contains only 1 word embedding full string.
     assert ti._text._rendered is not None
 
-    caret_pos = ti._text._rendered.pos_to_pixel(5)
+    caret_pos = ti._text._rendered.visual_state(5).pixel
     fake_user.click_at(ti.global_x + caret_pos.x, ti.global_y + 1)
     fake_win.check("cursor_5")
     assert ti._get_cursor() == 5
@@ -178,7 +178,7 @@ def test_cursor_move_by_mouse(fake_win):
     assert rendered is not None
 
     def x_for_pos(pos: int) -> int:
-        return ti.global_x + rendered.pos_to_pixel(pos).x
+        return ti.global_x + rendered.visual_state(pos).pixel.x
 
     # Click
     x = x_for_pos(5)

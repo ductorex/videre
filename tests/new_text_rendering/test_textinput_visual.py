@@ -350,7 +350,7 @@ def test_visual_selection_rects_pure_ltr_returns_one_contiguous_rect(fake_win) -
     """LTR text: one rectangle covering [item[start].x_start,
     item[end-1].x_end]."""
     out, _ = _render(fake_win, "hello world")
-    rects = out.visual_selection_rects(0, 5)
+    rects = out._selection_rects(0, 5)
     assert len(rects) == 1
     assert rects[0].width > 0
 
@@ -360,7 +360,7 @@ def test_visual_selection_rects_across_bidi_boundary_is_single_ribbon(fake_win) 
     selection, the rectangle is a single ribbon (no gaps)."""
     text = "ab" + ARAB + "cd"
     out, _ = _render(fake_win, text)
-    rects = out.visual_selection_rects(1, 5)  # spans from 'b' to ARAB middle
+    rects = out._selection_rects(1, 5)  # spans from 'b' to ARAB middle
     assert len(rects) == 1
 
 

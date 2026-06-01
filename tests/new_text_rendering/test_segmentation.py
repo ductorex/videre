@@ -1,10 +1,8 @@
 """Direct tests for the partition_func private segmentation helpers.
 
-`test_wrap.py` exercises segmentation
-indirectly through `split_text_to_renderable` / `shape_text` /
-`render_text`. This file pins the per-helper edge cases that those
-high-level paths happen not to hit (empty inputs, all-neutral text,
-ambiguous quotes, lead-block + CJK fusion, multi-font runs).
+This file pins the per-helper edge cases that the high-level rendering
+paths happen not to hit (empty inputs, all-neutral text, ambiguous
+quotes, lead-block + CJK fusion, multi-font runs, bidi level resolution).
 """
 
 import pytest
@@ -16,14 +14,8 @@ from videre.core.shaping.text_partition.partition_func import (
     _split_by_script,
     _split_by_word,
     _strip_bidi_controls,
-    split_text_to_renderable,
 )
-from videre.core.shaping.text_partition.partition_repr import (
-    BidiRun,
-    RenderableLine,
-    RenderablePiece,
-    RenderableText,
-)
+from videre.core.shaping.text_partition.partition_repr import BidiRun
 
 ARAB_ALEF = chr(0x0623)  # Arabic letter Alef with Hamza Above
 ARAB_BA = chr(0x0628)  # Arabic letter Ba
@@ -63,20 +55,6 @@ def test_split_by_word_spaces_only_returns_empty() -> None:
 
 def test_split_by_font_empty_returns_empty() -> None:
     assert _split_by_font("", "Latn") == []
-
-
-def test_renderable_line_is_empty() -> None:
-    assert RenderableLine(elements=()).is_empty() is True
-
-
-def test_renderable_line_non_empty() -> None:
-    """Sanity check on the non-empty branch (a one-element line)."""
-
-    rt = RenderableText(
-        atomic=True,
-        pieces=(RenderablePiece(text="x", font_name="", font_path="", script="Latn"),),
-    )
-    assert RenderableLine(elements=(rt,)).is_empty() is False
 
 
 # -- All-neutral text --------------------------------------------------------
@@ -358,92 +336,3 @@ def test_split_by_level_three_runs_alternating() -> None:
 def test_split_by_level_asserts_len_mismatch() -> None:
     with pytest.raises(AssertionError):
         _split_by_level("ab", [0])
-
-
-# -- split_text_to_renderable: bidi propagation -----------------------------
-
-
-def _collect_pieces(text: str, split_words: bool = True) -> list:
-    """Flatten a `split_text_to_renderable` result to a list of pieces."""
-    return [
-        piece
-        for line in split_text_to_renderable(text, split_words=split_words)
-        for element in line.elements
-        for piece in element.pieces
-    ]
-
-
-def test_pipeline_pure_ltr_pieces_all_level_zero() -> None:
-    pieces = _collect_pieces("hello world")
-    assert all(p.bidi_level == 0 for p in pieces)
-    assert all(p.right_to_left is False for p in pieces)
-
-
-def test_pipeline_pure_rtl_pieces_all_level_one() -> None:
-    pieces = _collect_pieces(ARAB_WORD)
-    assert all(p.bidi_level == 1 for p in pieces)
-    assert all(p.right_to_left is True for p in pieces)
-
-
-def test_pipeline_mixed_ltr_then_rtl_then_ltr() -> None:
-    """An LTR-RTL-LTR sentence yields pieces whose levels follow the
-    UAX#9 resolution, not the per-script direction. In particular,
-    neutrals between LTR and RTL stay at the LTR paragraph level."""
-    pieces = _collect_pieces("hi " + ARAB_WORD + " bye")
-    levels = [p.bidi_level for p in pieces]
-    # Exactly one RTL run (level 1), surrounded by LTR (level 0).
-    assert 1 in levels
-    assert 0 in levels
-    rtl_pieces = [p for p in pieces if p.bidi_level == 1]
-    assert len(rtl_pieces) == 1
-    assert rtl_pieces[0].text == ARAB_WORD
-
-
-def test_pipeline_turc_ottoman_style_neutrals_stay_ltr() -> None:
-    """`fr : <arabe> / en`: the colon, the slash and the surrounding
-    spaces are neutrals; in an LTR paragraph they get level 0, NOT
-    level 1, so they belong to LTR pieces, not the Arabic piece."""
-    pieces = _collect_pieces("fr : " + ARAB_WORD + " / en")
-    rtl_pieces = [p for p in pieces if p.right_to_left]
-    assert len(rtl_pieces) == 1
-    assert rtl_pieces[0].text == ARAB_WORD
-    # The colon and slash are in LTR pieces.
-    ltr_text = "".join(p.text for p in pieces if not p.right_to_left)
-    assert ":" in ltr_text
-    assert "/" in ltr_text
-
-
-def test_pipeline_rtl_context_lifts_ltr_run_to_level_two() -> None:
-    """When the paragraph base is RTL, an inserted LTR run gets
-    level 2 (one above the base) — exposes that bidi levels are
-    recursive, not just a boolean."""
-    pieces = _collect_pieces(ARAB_WORD + " Paris " + ARAB_WORD)
-    levels = sorted({p.bidi_level for p in pieces})
-    assert levels == [1, 2]
-    level_two = [p for p in pieces if p.bidi_level == 2]
-    assert len(level_two) == 1
-    assert level_two[0].text == "Paris"
-
-
-def test_pipeline_space_before_preserved_across_bidi_boundary() -> None:
-    """The space between `hi` and the Arabic word is real source
-    whitespace; the bidi pre-segmentation must not break `space_before`
-    on the Arabic Word."""
-    lines = list(split_text_to_renderable("hi " + ARAB_WORD, split_words=True))
-    assert len(lines) == 1
-    elements = lines[0].elements
-    # Two words: "hi" (no space before, first), then Arabic (space before).
-    assert len(elements) == 2
-    assert elements[0].pieces[0].text == "hi"
-    assert elements[0].space_before is False
-    assert elements[1].pieces[0].text == ARAB_WORD
-    assert elements[1].space_before is True
-
-
-def test_pipeline_bidi_controls_stripped_silently() -> None:
-    """If the source text carries explicit bidi controls (LRE/PDF/...),
-    they are filtered out before bidi resolution so positions stay
-    consistent with the rendered glyphs."""
-    pieces = _collect_pieces(f"hi{LRE}there{PDF}", split_words=False)
-    text = "".join(p.text for p in pieces)
-    assert text == "hithere"  # bidi controls gone, rest intact

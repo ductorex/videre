@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Iterator
 
 from bidi.algorithm import (
     explicit_embed_and_overrides as _bidi_explicit_embed_and_overrides,
@@ -16,16 +15,13 @@ from uniseg.wordbreak import words as _word_segments
 from videre.core.shaping.text_partition.partition_repr import (
     BidiRun,
     PerFont,
-    RenderableLine,
-    RenderablePiece,
-    RenderableText,
     TextLine,
     TextScript,
     Word,
 )
 from videre.core.shaping.utils import load_freetype_face
 from videre.fonts.provider import FontProvider
-from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, Unicode, get_character
+from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, get_character
 
 # Line_Break (UAX#14) classes used to classify uniseg word-segmentation tokens
 # without enumerating scripts. See https://www.unicode.org/reports/tr14/.
@@ -80,96 +76,6 @@ neighbour."""
 @lru_cache(maxsize=1)
 def get_font_provider() -> FontProvider:
     return FontProvider()
-
-
-def split_text_to_renderable(
-    text: str, split_words: bool = False
-) -> Iterator[RenderableLine]:
-    """Split text into blocks of renderable characters.
-
-    Two modes, parameterized by ``split_words``:
-
-    - ``split_words=True`` (used by the rendering pipeline whenever a
-      width is given to enable wrapping): segmentation order is
-      **line → bidi → word → level → script → font**. UAX#9 levels are
-      resolved on the whole line once (so neutrals like ``:`` and ``/``
-      pick up their direction from the surrounding paragraph context);
-      ``_split_by_word`` then runs on the whole line (UAX#29 word
-      boundaries are multi-script aware) so ``"Hello世界"`` produces two
-      distinct Words even though no whitespace separates them, and
-      ``Word.space_before`` records whether a real source whitespace
-      preceded each Word. Each Word is finally re-segmented per bidi
-      level (rare: only matters when UAX#29 lets a single linguistic
-      word straddle two bidi levels), per script and per font.
-
-    - ``split_words=False`` (default, used when no width is given):
-      segmentation order is **line → bidi → level → script → font**,
-      with the entire line wrapped into one non-atomic Word per bidi
-      level run. Whitespace stays inside the piece text and is
-      rasterized as glyphs; ``space_before`` is always False in this
-      mode and the renderer never inserts a virtual gap.
-    """
-    lines = _split_by_line(text)
-    for line in lines:
-        elements: list[RenderableText] = []
-
-        # Strip unprintable characters and bidi controls before bidi
-        # resolution so the resolved levels align 1:1 with `line_text`.
-        line_text = _strip_bidi_controls(
-            "".join(c for c in line.text if Unicode.printable(c))
-        )
-        base_level, line_levels = _split_by_bidi(line_text)
-
-        if split_words:
-            words = _split_by_word(line_text)
-        elif line_text:
-            words = [Word(text=line_text, atomic=False, space_before=False)]
-        else:
-            words = []
-
-        # Walk the words in source order, tracking each one's start
-        # offset in `line_text` so we can slice `line_levels`. Words
-        # produced by `_split_by_word` are emitted in source order and
-        # their `.text` is a literal slice of `line_text` (fusions like
-        # `((+CJK+))` keep all the original characters), so a single
-        # forward scan with `str.find` is enough.
-        cursor = 0
-        for word in words:
-            word_start = line_text.find(word.text, cursor)
-            assert word_start != -1, (
-                f"Cannot locate word {word.text!r} in {line_text!r} "
-                f"from offset {cursor}"
-            )
-            word_end = word_start + len(word.text)
-            word_levels = line_levels[word_start:word_end]
-            cursor = word_end
-
-            # A single Word may span several bidi levels, several scripts,
-            # or several fonts. The hierarchy is uniform per piece:
-            # one `RenderablePiece` per (level, script, font) combination,
-            # all sharing the parent Word's `atomic` / `space_before`.
-            pieces: list[RenderablePiece] = []
-            for level_run in _split_by_level(word.text, word_levels):
-                for script in _split_by_script(level_run.text):
-                    for per_font in _split_by_font(script.text, script.script):
-                        pieces.append(
-                            RenderablePiece(
-                                text=per_font.text,
-                                font_name=per_font.font_name,
-                                font_path=per_font.font_path,
-                                script=_shaping_script(per_font.text),
-                                bidi_level=level_run.level,
-                            )
-                        )
-            elements.append(
-                RenderableText(
-                    atomic=word.atomic,
-                    pieces=tuple(pieces),
-                    space_before=word.space_before,
-                )
-            )
-
-        yield RenderableLine(elements=tuple(elements), bidi_base_level=base_level)
 
 
 def _split_by_line(text: str) -> list[TextLine]:

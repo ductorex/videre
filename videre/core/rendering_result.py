@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
-from videre.core.constants import TextAlign
-from videre.core.rectangle import Rectangle
+from videre.core.constants import TextAlign, TextSpacePolicy
 
 
 class Rendering(ABC):
@@ -61,34 +60,35 @@ class CursorState(ABC):
 
 
 class TextRenderingResult(ABC):
-    """Common surface that the cursor / hit-test code in `TextInput` relies on.
+    """Cursor / hit-test + size contract that `TextInput` and the Drawer
+    sizing path rely on.
 
-    Visual navigation uses a `CursorState` object each backend owns.
-    TextInput stores it next to the source-position cursor and feeds
-    it back unchanged to `next_visual` / `prev_visual` etc. Direct
-    source-position queries (`pos_to_pixel`, `pixel_to_pos`) don't
-    take a state and may be ambiguous at LTR/RTL boundaries on a
-    shaped backend; the state-based path is the reliable one for
-    arrow / mouse navigation.
+    Navigation is state-based: obtain a `CursorState` (via `visual_state` /
+    `visual_state_at` / `visual_state_at_pixel`), feed it back unchanged to
+    `next_visual` / `prev_visual` / `next_visual_word` / `prev_visual_word`,
+    and read `pos` / `visual_pos` / `pixel` off it. The state-based path keeps
+    navigation unambiguous at LTR/RTL boundaries on a bidi-aware backend.
+    `get_width` / `get_height` give the rendered extent — needed by the
+    surface-less sizing path (`Drawer` / text_sizing), where there is no
+    `Rendering` to measure.
+
+    Deliberately NOT part of this contract (only ever used internally by an
+    implementation, never through the interface): the source<->pixel mapping
+    that fills `CursorState.pixel`, and the selection-rectangle computation
+    (each backend paints the highlight itself inside `render_text`).
     """
 
     __slots__ = ()
 
     @abstractmethod
     def get_width(self) -> int:
-        """Get width of text rendering surface"""
+        """Rendered width in pixels (used by the surface-less sizing path)."""
         ...
 
     @abstractmethod
     def get_height(self) -> int:
-        """Get height of text rendering surface"""
+        """Rendered height in pixels (used by the surface-less sizing path)."""
         ...
-
-    @abstractmethod
-    def pos_to_pixel(self, pos: int) -> CaretPosition: ...
-
-    @abstractmethod
-    def pixel_to_pos(self, x: int, y: int) -> int: ...
 
     @abstractmethod
     def visual_state(self, pos: int) -> CursorState:
@@ -145,13 +145,6 @@ class TextRenderingResult(ABC):
         ...
 
     @abstractmethod
-    def visual_selection_rects(self, start: int, end: int) -> list[Rectangle]:
-        """Pixel rectangles to paint for a contiguous visual selection
-        `[start, end)`. One rectangle per visual line touched by the
-        range. Used by the selection-highlight pass."""
-        ...
-
-    @abstractmethod
     def total_visual_count(self) -> int:
         """Number of visual positions in the rendered text — the
         upper bound that a `visual_pos` can take. Used by `TextInput`
@@ -174,5 +167,6 @@ class AbstractTextRendering(ABC):
         color: Color | None = None,
         align: TextAlign | None = None,
         wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         selection: tuple[int, int] | None = None,
     ) -> tuple[TextRenderingResult, Rendering]: ...
