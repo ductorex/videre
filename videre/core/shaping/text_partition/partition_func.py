@@ -157,7 +157,7 @@ def split_text_to_renderable(
                                 text=per_font.text,
                                 font_name=per_font.font_name,
                                 font_path=per_font.font_path,
-                                script=script.script,
+                                script=_shaping_script(per_font.text),
                                 bidi_level=level_run.level,
                             )
                         )
@@ -415,6 +415,27 @@ def _split_by_script(text: str) -> list[TextScript]:
             chars = [c]
     result.append(TextScript(text="".join(chars), script=current_script))
     return result
+
+
+def _shaping_script(text: str) -> str:
+    """Script to hand HarfBuzz for `text`, derived from its real content.
+
+    `_split_by_script` recasts neutral characters (punctuation, spaces) to
+    a neighbour's script so they stay grouped for font routing. But the
+    script also selects HarfBuzz's shaping engine, and a piece made only of
+    neutrals routed to a font for a *different* script — e.g. a lone `(`
+    recast to "Arab" yet rendered with the Latin font — would trigger that
+    script's complex fallback shaper on a font without those tables, making
+    HarfBuzz probe hundreds of absent glyphs (every Arabic letter and
+    presentation form). Anchoring on the first non-neutral character
+    (Common when there is none) keeps the engine consistent with what the
+    piece actually contains. Mirrored-bracket bidi behavior is unaffected:
+    it keys off the run direction, not the script.
+    """
+    for c in text:
+        if not get_character(c).script_is_neutral:
+            return get_character(c).script
+    return "Zyyy"  # Common: HarfBuzz default shaper, no complex fallback
 
 
 def _is_whitespace_token(token: str) -> bool:
