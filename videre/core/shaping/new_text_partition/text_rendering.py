@@ -11,6 +11,7 @@ from videre.colors import Color
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.shaping.env import use_shaped_subpixel
 from videre.core.shaping.new_text_partition.layout import FontMetrics, RenderedText
 from videre.core.shaping.new_text_partition.render import (
     font_metrics,
@@ -44,7 +45,7 @@ class ShapedTextRendering(AbstractTextRendering):
         underline: bool = False,
         height_delta: int = 2,
         compact: bool = True,
-        subpixel: bool = False,
+        subpixel: bool | None = None,
         *,
         shaper: Shaper | None = None,
         rasterizer: GlyphRasterizer | None = None,
@@ -56,9 +57,10 @@ class ShapedTextRendering(AbstractTextRendering):
         self._underline = underline
         self._height_delta = height_delta
         self._compact = compact
-        # todo: sub-pixel positioning is not wired into the flat pipeline yet
-        # (render uses pixel-aligned `render_single_glyph`); kept for API parity.
-        self._subpixel = subpixel
+        # Sub-pixel glyph positioning. An explicit bool wins; None follows the
+        # VIDERE_USE_SHAPED_SUBPIXEL env flag, so a run can toggle it without
+        # code changes. `render_text` threads it down to `_paint_line`.
+        self._subpixel = use_shaped_subpixel() if subpixel is None else subpixel
         self._shaper = shaper or Shaper()
         self._rasterizer = rasterizer or GlyphRasterizer()
 
@@ -107,5 +109,6 @@ class ShapedTextRendering(AbstractTextRendering):
             underline=self._underline,
             height_delta=self._height_delta,
             compact=self._compact,
+            subpixel=self._subpixel,
             selection=selection,
         )

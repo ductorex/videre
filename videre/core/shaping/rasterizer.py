@@ -1,6 +1,5 @@
 """Glyph rasterizer. Independent from surface rendering backend, only based on freetype."""
 
-import math
 from dataclasses import dataclass
 
 import freetype as ft
@@ -8,11 +7,9 @@ import numpy as np
 from freetype.raw import FT_Outline_Embolden
 
 from videre.colors import Color, Colors
-from videre.core.shaping.shaped import ShapedRun
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
-    TOP_GLYPH_MARGIN_PX,
     load_freetype_face,
 )
 
@@ -47,6 +44,21 @@ _FT_LOAD_TARGET_LIGHT = 1 << 16
 _SUBPIXEL_PHASES = 4
 
 
+def subpixel_split(origin_x: float, subpixel: bool) -> tuple[int, int]:
+    """Split a float pen origin into an integer pixel x and a phase index.
+
+    Pixel mode: round to the nearest pixel, phase 0. Sub-pixel mode: quantize
+    `origin_x * _SUBPIXEL_PHASES` to an int, then split into an integer pixel
+    and a phase in `[0, _SUBPIXEL_PHASES)`; a fraction near 1.0 rolls over into
+    the next pixel with phase 0, which is exactly the canonical pixel-aligned
+    variant. Used by the flat pipeline's `_paint_line` to place each glyph.
+    """
+    if subpixel:
+        q = int(round(origin_x * _SUBPIXEL_PHASES))
+        return q // _SUBPIXEL_PHASES, q % _SUBPIXEL_PHASES
+    return int(round(origin_x)), 0
+
+
 def _italic_transform() -> tuple[ft.Matrix, ft.Vector]:
     matrix = ft.Matrix(
         _FT_FIXED_16_16,
@@ -76,14 +88,6 @@ class Glyph:
 _GLYPH_ZERO = Glyph(None, 0, 0, 0, 0)
 
 
-@dataclass(slots=True, frozen=True)
-class GlyphArea:
-    width: int
-    height: int
-    baseline_y: int
-    glyphs: tuple[tuple[Glyph, int, int], ...]
-
-
 class GlyphRasterizer:
     """Rasterize HarfBuzz glyph IDs to Glyph objects via freetype-py.
 
@@ -110,6 +114,9 @@ class GlyphRasterizer:
         italic: bool,
         glyph_id: int,
         color: Color = Colors.black,
+        *,
+        subpixel: bool = False,
+        phase: int = 0,
     ) -> Glyph:
         """Rasterize a single glyph to a `Glyph`.
 
@@ -119,98 +126,18 @@ class GlyphRasterizer:
         which `empty()` is True. The returned `Glyph` is the cached
         instance; it is frozen and its underlying numpy buffer must be
         treated as read-only.
+
+        `subpixel` / `phase` select a horizontally shifted bitmap for
+        sub-pixel positioning: the caller computes them with
+        `subpixel_split(origin_x, subpixel)` and blits at the returned
+        integer pixel. With the defaults (`subpixel=False, phase=0`) the
+        bitmap is the canonical pixel-aligned, full-hinted one.
         """
         if glyph_id == 0:
             return _GLYPH_ZERO
-        return self._get_glyph(font_path, size_px, bold, italic, glyph_id, color)
-
-    def render_run(
-        self,
-        run: ShapedRun,
-        size_px: int,
-        color: Color = Colors.black,
-        *,
-        subpixel: bool = False,
-    ) -> GlyphArea:
-        """Rasterize a whole shaped run into a `GlyphArea`.
-
-        The area carries the run's pixel `width` and `height`, the
-        `baseline_y` (y-coordinate of the typographic baseline inside
-        that box), and the per-glyph blit instructions
-        (`Glyph`, blit_x, blit_y). The caller materializes the area
-        into its own coordinate system, positioning it so the
-        baseline aligns with the line's global baseline.
-
-        When `subpixel=True`, each glyph is positioned using a
-        pre-rendered bitmap for the nearest of `_SUBPIXEL_PHASES`
-        horizontal phases (0.00, 0.25, 0.50, 0.75 px), so that the
-        fractional part of the pen position (from kerning / GPOS marks
-        / synthetic slant) survives the integer blit. The per-glyph
-        cache grows by `_SUBPIXEL_PHASES` since the sub-pixel bitmaps
-        are LIGHT-hinted and not interchangeable with the full-hinted
-        ones used when `subpixel=False`.
-        """
-        face = load_freetype_face(run.font_path)
-        face.set_pixel_sizes(0, size_px)
-        # `+ TOP_GLYPH_MARGIN_PX` reserves one extra row above the
-        # typographic ascender for diacritic-heavy glyphs whose bitmap
-        # exceeds it (see the constant's comment in `utils.py`). It must
-        # match `line_metrics()` in `utils.py` so that `text_rendering`
-        # blits this surface at the right y-offset; `abs()` mirrors the
-        # same defensive convention there (FreeType's spec allows the
-        # signed values to deviate from the usual +ascender / -descender,
-        # though no font in the bundle does so today).
-        ascender = abs(face.size.ascender / 64) + TOP_GLYPH_MARGIN_PX
-        descender = abs(face.size.descender / 64)
-        line_height = int(ascender + descender) + 1
-
-        total_advance = sum(g.x_advance for g in run.glyphs)
-        # Tail glyphs may extend past their last advance (overhang); reserve
-        # extra width based on max bitmap_left + width of all glyphs.
-        rendered: list[tuple[Glyph, int, int]] = []
-        pen_x = 0.0
-        max_right = 0
-        for g in run.glyphs:
-            # Pen origin for this glyph, in float pixels. In sub-pixel
-            # mode we quantize `origin_x * _SUBPIXEL_PHASES` to an int
-            # then split into an integer pixel position and a phase
-            # index in [0, _SUBPIXEL_PHASES); a fraction near 1.0 rolls
-            # over into the next pixel with phase 0, which is exactly
-            # the canonical pixel-aligned variant. In pixel mode the
-            # fraction is just discarded by round-to-nearest.
-            origin_x = pen_x + g.x_offset
-            origin_y = -g.y_offset
-            if subpixel:
-                q = int(round(origin_x * _SUBPIXEL_PHASES))
-                int_origin_x = q // _SUBPIXEL_PHASES
-                phase = q % _SUBPIXEL_PHASES
-            else:
-                int_origin_x = int(round(origin_x))
-                phase = 0
-            sprite = self._get_glyph(
-                run.font_path,
-                size_px,
-                run.bold,
-                run.italic,
-                g.glyph_id,
-                color,
-                subpixel,
-                phase,
-            )
-            blit_x = int_origin_x + sprite.bitmap_left
-            blit_y = int(round(origin_y)) - sprite.bitmap_top
-            rendered.append((sprite, blit_x, blit_y))
-            max_right = max(max_right, blit_x + sprite.width)
-            pen_x += g.x_advance
-
-        # `ceil` so a fractional advance (eg. 12.7) becomes 13, big
-        # enough to fit the bitmap; the previous `int(...) + 1` was
-        # an unconditional +1 that padded every run by one pixel and
-        # cumulatively decalibrated multi-run layout (the wrap engine
-        # measures by advances + ink overhang, not surface width).
-        width = max(math.ceil(max(total_advance, max_right)), 1)
-        baseline_y = int(ascender)
-        return GlyphArea(width, line_height, baseline_y, tuple(rendered))
+        return self._get_glyph(
+            font_path, size_px, bold, italic, glyph_id, color, subpixel, phase
+        )
 
     def _get_glyph(
         self,

@@ -3,6 +3,7 @@ the flat pipeline): render_text returns (caret, surface), render_char returns a
 tight glyph bitmap, and styling flags reach the pipeline.
 """
 
+import numpy as np
 import pygame
 import pygame.freetype
 import pytest
@@ -58,3 +59,32 @@ def test_bold_renders_wider_than_regular(fake_win) -> None:
     w_bold = bold.render_text("Hello", color=BLACK)[1].get_width()
     # Synthetic bold grows advances, so bold text is at least as wide.
     assert w_bold >= w_regular
+
+
+# -- Sub-pixel positioning --------------------------------------------------
+
+
+def test_subpixel_changes_pixels_not_size(fake_win) -> None:
+    """Sub-pixel positioning shifts glyph bitmaps within the line but doesn't
+    touch advances, so the surface keeps the same size while the painted
+    coverage differs from the pixel-aligned render."""
+    pixel = ShapedTextRendering(fake_win.backend, size=16, subpixel=False)
+    sub = ShapedTextRendering(fake_win.backend, size=16, subpixel=True)
+    _, surf_pixel = pixel.render_text("Hello world", color=BLACK)
+    _, surf_sub = sub.render_text("Hello world", color=BLACK)
+    assert surf_sub.get_width() == surf_pixel.get_width()
+    assert surf_sub.get_height() == surf_pixel.get_height()
+    assert not np.array_equal(pixels_alpha(surf_pixel), pixels_alpha(surf_sub))
+
+
+def test_subpixel_default_follows_env(fake_win, monkeypatch) -> None:
+    """With no explicit `subpixel`, the constructor follows the
+    VIDERE_USE_SHAPED_SUBPIXEL env flag; an explicit bool overrides it."""
+    monkeypatch.setenv("VIDERE_USE_SHAPED_SUBPIXEL", "1")
+    assert ShapedTextRendering(fake_win.backend, size=16)._subpixel is True
+    monkeypatch.delenv("VIDERE_USE_SHAPED_SUBPIXEL", raising=False)
+    assert ShapedTextRendering(fake_win.backend, size=16)._subpixel is False
+    # Explicit value wins over the env flag.
+    monkeypatch.setenv("VIDERE_USE_SHAPED_SUBPIXEL", "1")
+    forced = ShapedTextRendering(fake_win.backend, size=16, subpixel=False)
+    assert forced._subpixel is False

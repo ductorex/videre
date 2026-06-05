@@ -7,6 +7,7 @@ exercised via the `_bgra_to_numpy_array` helper directly since the bundled
 fonts are all monochrome), and alpha-modulated text colors.
 """
 
+import numpy as np
 import pygame
 import pygame.freetype
 import pytest
@@ -51,6 +52,45 @@ def test_render_single_glyph_whitespace_yields_empty() -> None:
     s = r.render_single_glyph(path, 16, False, False, glyphs[0].glyph_id)
     assert s.empty()
     assert s.width == 0 and s.height == 0
+
+
+# -- Sub-pixel phase --------------------------------------------------------
+
+
+def test_render_single_glyph_phase_shifts_bitmap() -> None:
+    """Two distinct sub-pixel phases of the same glyph must rasterize to
+    different coverage: the outline is shifted by `phase / _SUBPIXEL_PHASES`
+    px before rendering, so this proves the `phase` argument reaches
+    `_rasterize_glyph` (not just the LIGHT-hint flag that `subpixel` sets)."""
+    shaper = Shaper()
+    _, path = get_font_provider().get_font_info("A")
+    glyphs = shaper.shape(
+        text="A", font_path=path, size_px=32, script="Latn", right_to_left=False
+    )
+    gid = glyphs[0].glyph_id
+    r = GlyphRasterizer()
+    g0 = r.render_single_glyph(path, 32, False, False, gid, subpixel=True, phase=0)
+    g2 = r.render_single_glyph(path, 32, False, False, gid, subpixel=True, phase=2)
+    assert not g0.empty() and not g2.empty()
+    assert g0.image is not None and g2.image is not None
+    differ = g0.image.shape != g2.image.shape or not np.array_equal(g0.image, g2.image)
+    assert differ
+
+
+def test_render_single_glyph_phase_cached_per_phase() -> None:
+    """Same `(glyph, phase)` returns the cached instance; different phases are
+    distinct cache entries (so a sub-pixel run never reuses a wrong bitmap)."""
+    shaper = Shaper()
+    _, path = get_font_provider().get_font_info("A")
+    gid = shaper.shape(
+        text="A", font_path=path, size_px=24, script="Latn", right_to_left=False
+    )[0].glyph_id
+    r = GlyphRasterizer()
+    a = r.render_single_glyph(path, 24, False, False, gid, subpixel=True, phase=1)
+    b = r.render_single_glyph(path, 24, False, False, gid, subpixel=True, phase=1)
+    assert a is b  # cache hit on identical key
+    c = r.render_single_glyph(path, 24, False, False, gid, subpixel=True, phase=3)
+    assert c is not a  # different phase -> different entry
 
 
 # -- Color with explicit alpha ----------------------------------------------

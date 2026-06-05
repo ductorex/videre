@@ -5,8 +5,8 @@ from dataclasses import dataclass
 class ShapedGlyph:
     """A single glyph as produced by HarfBuzz, with positions in pixels.
 
-    `cluster` is the Python index of the source character in the
-    `ShapedRun.source_text` string, such that `source_text[g.cluster]`
+    `cluster` is the Python index of the source character in the run's
+    source-text string, such that `source_text[g.cluster]`
     yields the source character (or the first one when several codepoints
     collapsed into a single cluster via a ligature or Indic reordering).
     It is NOT a UTF-8 byte index nor a UTF-16 code-unit index; we feed
@@ -37,29 +37,3 @@ class ShapedGlyph:
     y_offset: float
     ink_left: float = 0.0
     ink_right: float = 0.0
-
-
-@dataclass(slots=True, frozen=True)
-class ShapedRun:
-    """One contiguous run of glyphs that share the same font and script.
-
-    The source text was already split so that this run uses a single
-    font, single script and single bidi level. `bold` / `italic` record
-    whether synthetic bold or slant was applied during shaping; the
-    rasterizer needs them to apply matching outline transformations on
-    each glyph so positions and pixels stay aligned.
-    """
-
-    font_path: str
-    font_name: str
-    script: str
-    bidi_level: int
-    bold: bool
-    italic: bool
-    source_text: str
-    glyphs: tuple[ShapedGlyph, ...]
-
-    @property
-    def right_to_left(self) -> bool:
-        """Derived from the UAX#9 bidi level (odd = RTL)."""
-        return self.bidi_level % 2 == 1

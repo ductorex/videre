@@ -30,7 +30,7 @@ from videre.core.shaping.new_text_partition.partitioner import partition_text
 from videre.core.shaping.new_text_partition.reorder import reorder_line
 from videre.core.shaping.new_text_partition.shaping import shape_line
 from videre.core.shaping.new_text_partition.wrap import wrap_lines
-from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer
+from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
 from videre.core.shaping.shaper import Shaper
 from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import (
@@ -98,6 +98,7 @@ def render_text(
     underline: bool = False,
     height_delta: int = 2,
     compact: bool = True,
+    subpixel: bool = False,
     selection: tuple[int, int] | None = None,
 ) -> tuple[RenderedText, Rendering]:
     """Paint `text` and return `(caret info, surface)`."""
@@ -159,6 +160,7 @@ def render_text(
             extra,
             underline,
             bold,
+            subpixel,
         )
     return rendered, out
 
@@ -236,6 +238,7 @@ def _paint_line(
     justify_extra: float,
     underline: bool,
     bold: bool,
+    subpixel: bool,
 ) -> None:
     if not glyphs:
         return
@@ -243,11 +246,22 @@ def _paint_line(
     pen_x = float(x_offset)
     line_start = pen_x
     for i, g in enumerate(glyphs):
+        # The phase is part of the bitmap's cache key, so resolve it from the
+        # float pen BEFORE rasterizing. In pixel mode `subpixel_split` returns
+        # `(round(origin), 0)`, so this stays bit-for-bit the pixel-aligned path.
+        int_x, phase = subpixel_split(pen_x + g.x_offset, subpixel)
         sprite = rasterizer.render_single_glyph(
-            g.font_path, size, g.bold, g.italic, g.glyph_id, color
+            g.font_path,
+            size,
+            g.bold,
+            g.italic,
+            g.glyph_id,
+            color,
+            subpixel=subpixel,
+            phase=phase,
         )
         if not sprite.empty():
-            blit_x = int(round(pen_x + g.x_offset)) + sprite.bitmap_left
+            blit_x = int_x + sprite.bitmap_left
             blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
             backend.blit(out, _sprite_surface(backend, sprite), (blit_x, blit_y))
         pen_x += g.x_advance
