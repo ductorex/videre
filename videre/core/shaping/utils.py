@@ -33,7 +33,7 @@ def load_freetype_face(font_path: str) -> ft.Face:
     """Cached `freetype.Face` factory shared across the shaping package.
 
     The rasterizer mutates per-call state (set_pixel_sizes / set_transform /
-    load_glyph) while partition_func only reads the cmap (get_char_index). The
+    load_glyph) while partition_utils only reads the cmap (get_char_index). The
     cmap is immutable once the face is loaded, so the read-only consumer is
     unaffected by mutations made by the rasterizer between two calls.
     """

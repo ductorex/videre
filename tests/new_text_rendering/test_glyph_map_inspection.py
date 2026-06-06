@@ -25,7 +25,7 @@ from videre.core.shaping.new_text_partition.model import RenderedTextGlyphMap
 from videre.core.shaping.new_text_partition.partitioner import partition_text
 from videre.core.shaping.new_text_partition.render import build_glyph_lines
 from videre.core.shaping.shaper import Shaper
-from videre.core.shaping.text_partition.partition_func import get_font_provider
+from videre.fonts.provider import get_font_provider
 from videre.testing.utils import TEXT_SAMPLES
 
 _SIZE = 20

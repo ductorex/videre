@@ -2,8 +2,9 @@
 
 Bidi direction comes from `videre.core.vibidi` (a full UAX#9 implementation,
 including rule N0 for paired brackets). UAX#29 word segmentation, UAX#24 script
-runs and per-character font routing reuse the helpers of the legacy
-`text_partition.partition_func`. The result is assembled into the new
+runs and per-character font routing reuse the helpers in `partition_utils`
+(font lookup via `fonts.provider.get_font_provider`). The result is assembled
+into the new
 `new_text_partition.model` types, with three deliberate differences:
 
 - **Explicit gaps.** Inter-word whitespace becomes a gap `TextUnit`
@@ -33,15 +34,15 @@ from videre.core.shaping.new_text_partition.model import (
     TextPartition,
     TextUnit,
 )
-from videre.core.shaping.text_partition.partition_func import (
+from videre.core.shaping.new_text_partition.partition_utils import (
     _BIDI_CONTROL_CHARS,
     _shaping_script,
     _split_by_font,
     _split_by_script,
     _split_by_word,
-    get_font_provider,
 )
 from videre.core.vibidi.vibidi import vibidi
+from videre.fonts.provider import get_font_provider
 from videre.fonts.unicode_utils import Unicode, get_character
 
 

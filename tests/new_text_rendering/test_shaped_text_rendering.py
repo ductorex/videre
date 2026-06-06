@@ -14,8 +14,8 @@ from tests.common import pixels_alpha, pixels_red
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.shaping import ShapedTextRendering
-from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import line_metrics, underline_metrics
+from videre.fonts.provider import get_font_provider
 
 
 @pytest.fixture(scope="module", autouse=True)

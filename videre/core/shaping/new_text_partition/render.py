@@ -36,12 +36,12 @@ from videre.core.shaping.new_text_partition.space_policy import (
 from videre.core.shaping.new_text_partition.wrap import wrap_lines
 from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
 from videre.core.shaping.shaper import Shaper
-from videre.core.shaping.text_partition.partition_func import get_font_provider
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     line_metrics,
     underline_metrics,
 )
+from videre.fonts.provider import get_font_provider
 
 # Translucent blue selection highlight (matches the legacy renderer). The
 # alpha is essential: glyphs are blitted OVER it, so an opaque fill would tint
