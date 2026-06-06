@@ -2,11 +2,6 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True, frozen=True)
-class TextLine:
-    text: str
-
-
-@dataclass(slots=True, frozen=True)
 class TextScript:
     text: str
     script: str  # ISO 15924 code, available from fontTools.unicodedata
@@ -18,18 +13,6 @@ class TextScript:
     # its direction from the surrounding paragraph context, not its
     # script. Keeping direction on TextScript would conflict with the
     # bidi-driven value upstream.
-
-
-@dataclass(slots=True, frozen=True)
-class BidiRun:
-    """A maximal run of consecutive codepoints sharing the same bidi
-    embedding level. Produced by `_split_by_level` from a (text,
-    per-codepoint levels) pair. Used to slice a Word into segments of
-    uniform direction before further per-script / per-font splitting.
-    """
-
-    text: str
-    level: int
 
 
 @dataclass(slots=True, frozen=True)

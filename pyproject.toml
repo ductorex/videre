@@ -13,7 +13,6 @@ dependencies = [
     "pillow>=11.3.0",
     "pygame>=2.6.1",
     "pyperclip>=1.9.0",
-    "python-bidi>=0.6.10",
     "tqdm>=4.67.1",
     "uharfbuzz>=0.54.1",
     "unicodedataplus>=16.0.0.post1",

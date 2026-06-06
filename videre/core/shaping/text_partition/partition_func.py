@@ -1,24 +1,9 @@
 from functools import lru_cache
 
-from bidi.algorithm import (
-    explicit_embed_and_overrides as _bidi_explicit_embed_and_overrides,
-)
-from bidi.algorithm import get_base_level as _bidi_get_base_level
-from bidi.algorithm import get_embedding_levels as _bidi_get_embedding_levels
-from bidi.algorithm import get_empty_storage as _bidi_get_empty_storage
-from bidi.algorithm import resolve_implicit_levels as _bidi_resolve_implicit_levels
-from bidi.algorithm import resolve_neutral_types as _bidi_resolve_neutral_types
-from bidi.algorithm import resolve_weak_types as _bidi_resolve_weak_types
 from uniseg.linebreak import line_break as _line_break
 from uniseg.wordbreak import words as _word_segments
 
-from videre.core.shaping.text_partition.partition_repr import (
-    BidiRun,
-    PerFont,
-    TextLine,
-    TextScript,
-    Word,
-)
+from videre.core.shaping.text_partition.partition_repr import PerFont, TextScript, Word
 from videre.core.shaping.utils import load_freetype_face
 from videre.fonts.provider import FontProvider
 from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, get_character
@@ -57,74 +42,19 @@ _BIDI_CONTROL_CHARS = frozenset(
         chr(0x200D),  # ZWJ - Zero Width Joiner
     }
 )
-"""Joiner characters that UAX#9's X9 rule strips before resolving
-levels. They must be filtered out of a line before `_split_by_bidi`,
-otherwise `len(levels) != len(text)`. The other X9-removed characters
-(explicit embedding marks LRE/RLE/PDF/LRO/RLO and isolate marks
-LRI/RLI/FSI/PDI) are filtered upstream by `Unicode.printable`, which
-treats them as non-printable since they have no visual representation.
-
-ZWNJ / ZWJ are NOT filtered by `Unicode.printable` because they affect
-cursive shaping in Arabic / Indic scripts; consumers may legitimately
-want to keep them in source text and route them to HarfBuzz. The bidi
-pipeline simply drops them before resolution, which means their
-contribution to shaping is currently lost — a separate ZWJ-aware
-pipeline would have to keep them and inject a level inherited from the
-neighbour."""
+"""Zero-width joiners that UAX#9's X9 rule strips before bidi resolution.
+`partitioner` filters them out of each line (alongside `Unicode.printable`'s
+removal of the explicit embedding / isolate marks LRE/RLE/PDF/LRO/RLO and
+LRI/RLI/FSI/PDI) before handing the text to vibidi, so they never reach
+shaping. ZWNJ / ZWJ stay printable because they affect cursive shaping in
+Arabic / Indic scripts, but dropping them here means that contribution is
+currently lost; a ZWJ-aware pipeline would keep them and inject a level
+inherited from the neighbour."""
 
 
 @lru_cache(maxsize=1)
 def get_font_provider() -> FontProvider:
     return FontProvider()
-
-
-def _split_by_line(text: str) -> list[TextLine]:
-    """
-    Split by line.
-
-    Recognized line terminators: \\r\\n, \\r alone, \\n alone. Each terminator
-    starts a new line; consecutive terminators yield empty lines.
-    """
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    return [TextLine(text=part) for part in normalized.split("\n")]
-
-
-def _strip_bidi_controls(text: str) -> str:
-    """Remove characters that UAX#9's X9 rule strips before resolving
-    levels. Must be called on a line before `_split_by_bidi`, so
-    `_split_by_bidi`'s output satisfies `len(levels) == len(text)`."""
-    if not any(c in _BIDI_CONTROL_CHARS for c in text):
-        return text
-    return "".join(c for c in text if c not in _BIDI_CONTROL_CHARS)
-
-
-def _split_by_bidi(text: str) -> tuple[int, list[int]]:
-    """Run UAX#9 phases X1 through I2 on `text` and return the
-    paragraph base level plus per-codepoint resolved embedding levels.
-    Even = LTR, odd = RTL. `len(levels) == len(text)`; the caller must
-    have stripped bidi control characters (via `_strip_bidi_controls`)
-    beforehand.
-
-    Levels are returned in source order / logical text order (not visual order).
-    """
-    if not text:
-        return 0, []
-    base_level = _bidi_get_base_level(text)
-    storage = _bidi_get_empty_storage()
-    storage["base_level"] = base_level
-    storage["base_dir"] = ("L", "R")[base_level]
-    _bidi_get_embedding_levels(text, storage)
-    _bidi_explicit_embed_and_overrides(storage)
-    _bidi_resolve_weak_types(storage)
-    _bidi_resolve_neutral_types(storage, False)
-    _bidi_resolve_implicit_levels(storage, False)
-    levels = [c["level"] for c in storage["chars"]]
-    if len(levels) != len(text):
-        raise ValueError(
-            f"Bidi controls present in text: len(levels)={len(levels)} "
-            f"vs len(text)={len(text)}. Call _strip_bidi_controls first."
-        )
-    return base_level, levels
 
 
 def _split_by_word(text: str) -> list[Word]:
@@ -253,27 +183,6 @@ def _split_by_word(text: str) -> list[Word]:
         i += 1
 
     return result
-
-
-def _split_by_level(text: str, levels: list[int]) -> list[BidiRun]:
-    """Split `text` into maximal runs of consecutive codepoints sharing
-    the same bidi embedding level. `levels` must be the per-codepoint
-    levels returned by `_split_by_bidi(text)` so positions align."""
-    if not text:
-        return []
-    assert len(text) == len(levels), (
-        f"len(text)={len(text)} != len(levels)={len(levels)}"
-    )
-    runs: list[BidiRun] = []
-    chunk_start = 0
-    chunk_level = levels[0]
-    for i in range(1, len(text)):
-        if levels[i] != chunk_level:
-            runs.append(BidiRun(text=text[chunk_start:i], level=chunk_level))
-            chunk_start = i
-            chunk_level = levels[i]
-    runs.append(BidiRun(text=text[chunk_start:], level=chunk_level))
-    return runs
 
 
 def _split_by_script(text: str) -> list[TextScript]:

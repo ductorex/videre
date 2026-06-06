@@ -2,25 +2,15 @@
 
 This file pins the per-helper edge cases that the high-level rendering
 paths happen not to hit (empty inputs, all-neutral text, ambiguous
-quotes, lead-block + CJK fusion, multi-font runs, bidi level resolution).
+quotes, lead-block + CJK fusion, multi-font runs, bidi-formatter filtering).
 """
 
-import pytest
-
 from videre.core.shaping.text_partition.partition_func import (
-    _split_by_bidi,
     _split_by_font,
-    _split_by_level,
     _split_by_script,
     _split_by_word,
-    _strip_bidi_controls,
 )
-from videre.core.shaping.text_partition.partition_repr import BidiRun
 
-ARAB_ALEF = chr(0x0623)  # Arabic letter Alef with Hamza Above
-ARAB_BA = chr(0x0628)  # Arabic letter Ba
-ARAB_JEEM = chr(0x062C)  # Arabic letter Jeem
-ARAB_WORD = ARAB_ALEF + ARAB_BA + ARAB_JEEM  # 3-codepoint Arabic chunk
 LRE = chr(0x202A)  # Left-to-Right Embedding (invisible)
 RLE = chr(0x202B)  # Right-to-Left Embedding (invisible)
 PDF = chr(0x202C)  # Pop Directional Format (invisible)
@@ -188,40 +178,13 @@ def test_split_by_font_emoji_in_latin_text_splits_pieces() -> None:
     assert len(fonts) >= 2  # at least one font change happened
 
 
-# -- _strip_bidi_controls ---------------------------------------------------
-
-
-def test_strip_bidi_controls_pure_text_is_unchanged() -> None:
-    """Common case: no bidi controls in the input. The function
-    short-circuits and returns the same string."""
-    text = "hello world " + ARAB_WORD
-    assert _strip_bidi_controls(text) is text
-
-
-def test_strip_bidi_controls_removes_zwnj() -> None:
-    """Zero-width non-joiner is class BN; X9 drops it during bidi
-    resolution. Stripping it upstream keeps the level alignment
-    invariant in `_split_by_bidi`; the cost is that cursive shaping
-    won't see the explicit non-join request."""
-    text = f"a{ZWNJ}b"
-    assert _strip_bidi_controls(text) == "ab"
-
-
-def test_strip_bidi_controls_leaves_lre_rle_pdf_alone() -> None:
-    """Explicit embedding/isolate marks (LRE/RLE/PDF/...) are NOT
-    handled here — they are filtered upstream by `Unicode.printable`
-    since they have no visual representation. `_strip_bidi_controls`
-    is only responsible for the two joiners that `Unicode.printable`
-    keeps (because they affect cursive shaping)."""
-    text = f"hi{LRE}there{PDF}"
-    # `_strip_bidi_controls` passes them through untouched.
-    assert _strip_bidi_controls(text) == text
+# -- Unicode.printable (bidi formatters / joiners) --------------------------
 
 
 def test_unicode_printable_rejects_explicit_bidi_formatters() -> None:
     """Sanity check that LRE/RLE/PDF/LRO/RLO/LRI/RLI/FSI/PDI are
-    classified as non-printable so they get filtered before reaching
-    `_split_by_bidi`."""
+    classified as non-printable so `partitioner` filters them out before
+    handing the text to vibidi."""
     from videre.fonts.unicode_utils import Unicode
 
     for c in (LRE, RLE, PDF):
@@ -230,109 +193,9 @@ def test_unicode_printable_rejects_explicit_bidi_formatters() -> None:
 
 def test_unicode_printable_keeps_zwnj_and_zwj() -> None:
     """ZWNJ / ZWJ remain printable because they affect cursive
-    shaping (Arabic, Indic). The bidi pipeline strips them later,
-    inside `_split_by_bidi`, only to keep level alignment."""
+    shaping (Arabic, Indic). `partitioner` strips them per line before
+    handing the text to vibidi."""
     from videre.fonts.unicode_utils import Unicode
 
     assert Unicode.printable(ZWNJ)
     assert Unicode.printable(chr(0x200D))  # ZWJ
-
-
-# -- _split_by_bidi ---------------------------------------------------------
-
-
-def test_split_by_bidi_empty_returns_zero_base_and_empty_levels() -> None:
-    base, levels = _split_by_bidi("")
-    assert base == 0
-    assert levels == []
-
-
-def test_split_by_bidi_pure_ltr_all_zero() -> None:
-    base, levels = _split_by_bidi("hello")
-    assert base == 0
-    assert levels == [0, 0, 0, 0, 0]
-
-
-def test_split_by_bidi_pure_rtl_all_one_with_base_one() -> None:
-    base, levels = _split_by_bidi(ARAB_WORD)
-    assert base == 1
-    assert levels == [1, 1, 1]
-
-
-def test_split_by_bidi_mixed_ltr_context_assigns_rtl_level_one() -> None:
-    """LTR paragraph base, with an RTL chunk inserted: the RTL chunk
-    gets level 1, everything else stays at level 0."""
-    text = "abc " + ARAB_WORD + " def"
-    base, levels = _split_by_bidi(text)
-    assert base == 0
-    # 'a', 'b', 'c', ' ' = 0; 3 Arabic chars = 1; ' ', 'd', 'e', 'f' = 0.
-    assert levels == [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
-
-
-def test_split_by_bidi_mixed_rtl_context_lifts_ltr_to_level_two() -> None:
-    """RTL paragraph base with LTR inserted: the LTR chunk goes to
-    level 2 (one above the base), demonstrating the recursive
-    nature of UAX#9 levels."""
-    text = ARAB_WORD + " Paris " + ARAB_WORD
-    base, levels = _split_by_bidi(text)
-    assert base == 1
-    # 3 Arabic = 1; ' ' = 1 (neutral in RTL context); 'P','a','r','i','s' = 2;
-    # ' ' = 1; 3 Arabic = 1.
-    assert levels == [1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1]
-
-
-def test_split_by_bidi_neutrals_inherit_paragraph_direction() -> None:
-    """The colon and the slash in the 'turc ottoman' example are
-    neutrals. UAX#9 assigns them the paragraph direction (LTR here),
-    not the direction of the adjacent RTL run."""
-    text = "fr : " + ARAB_WORD + " / en"
-    base, levels = _split_by_bidi(text)
-    assert base == 0
-    # 'f','r',' ',':',' ' = 0 (5 chars); 3 Arabic = 1; ' ','/',' ','e','n' = 0
-    # (5 chars).
-    assert len(levels) == len(text)
-    assert levels[:5] == [0] * 5
-    assert levels[5:8] == [1, 1, 1]
-    assert levels[8:] == [0] * 5
-
-
-def test_split_by_bidi_raises_on_bidi_control_chars() -> None:
-    """If the caller forgot to call `_strip_bidi_controls` first, the
-    X9-removed characters create a length mismatch that the function
-    refuses to paper over silently."""
-    with pytest.raises(ValueError, match="Bidi controls present"):
-        _split_by_bidi(f"hi{LRE}there{PDF}")
-
-
-# -- _split_by_level --------------------------------------------------------
-
-
-def test_split_by_level_empty_returns_empty() -> None:
-    assert _split_by_level("", []) == []
-
-
-def test_split_by_level_single_level_yields_one_run() -> None:
-    runs = _split_by_level("hello", [0, 0, 0, 0, 0])
-    assert runs == [BidiRun(text="hello", level=0)]
-
-
-def test_split_by_level_alternating_levels_yields_distinct_runs() -> None:
-    """Two adjacent LTR/RTL chunks: one run per level."""
-    text = "ab" + ARAB_WORD
-    runs = _split_by_level(text, [0, 0, 1, 1, 1])
-    assert runs == [BidiRun(text="ab", level=0), BidiRun(text=ARAB_WORD, level=1)]
-
-
-def test_split_by_level_three_runs_alternating() -> None:
-    text = "ab" + ARAB_WORD + "cd"
-    runs = _split_by_level(text, [0, 0, 1, 1, 1, 0, 0])
-    assert runs == [
-        BidiRun(text="ab", level=0),
-        BidiRun(text=ARAB_WORD, level=1),
-        BidiRun(text="cd", level=0),
-    ]
-
-
-def test_split_by_level_asserts_len_mismatch() -> None:
-    with pytest.raises(AssertionError):
-        _split_by_level("ab", [0])
