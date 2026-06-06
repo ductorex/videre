@@ -3,7 +3,7 @@ from pathlib import Path
 
 from uharfbuzz import Buffer, Face, Font, FontFuncs, ot_font_set_funcs, shape
 
-from videre.core.shaping.shaped import ShapedGlyph
+from videre.core.shaping.shaped_glyph import ShapedGlyph
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
