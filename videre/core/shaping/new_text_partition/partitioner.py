@@ -28,6 +28,7 @@ from typing import Iterator
 
 from videre.core.shaping.new_text_partition.model import (
     Line,
+    LineBidi,
     LogicalCharacter,
     TextPartition,
     TextUnit,
@@ -97,9 +98,10 @@ def _partition_line(raw: str, start: int) -> Line:
     positions = [p for _, p in kept]
 
     vibidi_text = vibidi(line_text)
+    bidi = LineBidi(vibidi_text, tuple(positions))
     base_is_rtl = vibidi_text.base_is_rtl
     if not line_text:
-        return Line(components=(), base_is_rtl=base_is_rtl)
+        return Line(components=(), bidi=bidi)
     is_rtls = [pos.is_rtl for pos in vibidi_text.logical_positions]
 
     components: list[TextUnit] = []
@@ -136,7 +138,7 @@ def _partition_line(raw: str, start: int) -> Line:
         components.append(
             _gap_unit(line_text[cursor:], positions[cursor:], base_is_rtl)
         )
-    return Line(components=tuple(components), base_is_rtl=base_is_rtl)
+    return Line(components=tuple(components), bidi=bidi)
 
 
 def _gap_unit(text: str, positions: list[int], base_is_rtl: bool) -> TextUnit:

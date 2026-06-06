@@ -1,9 +1,9 @@
 """Tests for the flat-model L2 reorder (`new_text_partition.reorder`).
 
-`_l2_reorder` / `_pseudo_level` are pinned as pure functions; `reorder_line`
-is exercised end-to-end (partition -> shape -> reorder) on the same mixed-bidi
-cases as the legacy `test_bidi_reorder`, asserting the glyphs come out in
-visual (left-to-right) order via their `logical_position`s.
+`reorder_line` is exercised end-to-end (partition -> shape -> reorder) on
+mixed-bidi cases, asserting the glyphs come out in visual (left-to-right) order
+via their `logical_position`s. The L2 itself lives in vibidi (covered by
+`tests/vibidi`), so it is not re-tested here.
 """
 
 import pygame
@@ -11,11 +11,7 @@ import pygame.freetype
 import pytest
 
 from videre.core.shaping.new_text_partition.partitioner import partition_text
-from videre.core.shaping.new_text_partition.reorder import (
-    _l2_reorder,
-    _pseudo_level,
-    reorder_line,
-)
+from videre.core.shaping.new_text_partition.reorder import reorder_line
 from videre.core.shaping.new_text_partition.shaping import shape_line
 from videre.core.shaping.shaper import Shaper
 
@@ -38,36 +34,6 @@ def _positions(text: str, shaper: Shaper) -> list[int]:
     (line,) = partition_text(text).lines
     gl = reorder_line(shape_line(line, shaper, 16))
     return [g.logical_position for g in gl.glyphs]
-
-
-# -- _pseudo_level -----------------------------------------------------------
-
-
-def test_pseudo_level() -> None:
-    assert _pseudo_level(False, False) == 0  # LTR unit, LTR base
-    assert _pseudo_level(True, False) == 1  # RTL unit, LTR base
-    assert _pseudo_level(True, True) == 1  # RTL unit, RTL base
-    assert _pseudo_level(False, True) == 2  # LTR unit, RTL base
-
-
-# -- _l2_reorder (copy of the pure function) ---------------------------------
-
-
-def test_l2_reorder_pure_ltr_is_identity() -> None:
-    assert _l2_reorder([0, 0, 0], 0) == [0, 1, 2]
-
-
-def test_l2_reorder_single_rtl_in_ltr_is_identity() -> None:
-    assert _l2_reorder([0, 1, 0], 0) == [0, 1, 2]
-
-
-def test_l2_reorder_pure_rtl_reverses_all() -> None:
-    assert _l2_reorder([1, 1, 1], 1) == [2, 1, 0]
-
-
-def test_l2_reorder_rtl_base_with_ltr_run() -> None:
-    # [RTL, LTR, RTL] in an RTL paragraph: net reversal.
-    assert _l2_reorder([1, 2, 1], 1) == [2, 1, 0]
 
 
 # -- reorder_line end-to-end -------------------------------------------------
@@ -109,3 +75,15 @@ def test_empty_line_reorders_to_no_glyphs(shaper: Shaper) -> None:
     (line,) = partition_text("").lines
     gl = reorder_line(shape_line(line, shaper, 16))
     assert gl.glyphs == []
+
+
+def test_digits_in_rtl_run_use_real_levels(shaper: Shaper) -> None:
+    """A European number inside a Hebrew run gets level 2 (not pseudo-0): in a
+    base-LTR paragraph the digits render to the LEFT of the (reversed) Hebrew
+    letters, not the right. The old pseudo-levels got this backwards; vibidi's
+    real levels fix it."""
+    text = "abc אבג 123 end"  # pos 4-6 Hebrew, 8-10 digits
+    positions = _positions(text, shaper)
+    assert positions.index(8) < positions.index(4)  # "123" visually before אבג
+    assert [p for p in positions if p in (8, 9, 10)] == [8, 9, 10]  # digits LTR
+    assert [p for p in positions if p in (4, 5, 6)] == [6, 5, 4]  # Hebrew reversed

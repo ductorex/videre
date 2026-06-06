@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from videre.core.vibidi.vibidi import VibidiText
 from videre.fonts.unicode_utils import Character
 
 
@@ -19,6 +20,25 @@ class TextPartition:
     # Python str, containing text to be rendered.
     text: str
     lines: tuple[Line, ...]
+
+
+@dataclass(slots=True, frozen=True)
+class LineBidi:
+    """Per-line bidi context, carried from segmentation down to the L2 reorder.
+
+    `vibidi_text` is the resolved bidi of the WHOLE logical line (levels computed
+    with full line context; they stay internal to vibidi). `positions[i]` is the
+    original-text index of the i-th character of the filtered line text vibidi
+    saw, so a glyph's `logical_position` maps to a vibidi index via the inverse —
+    letting the reorder translate between the two coordinate spaces.
+    """
+
+    vibidi_text: VibidiText
+    positions: tuple[int, ...]
+
+    @property
+    def base_is_rtl(self) -> bool:
+        return self.vibidi_text.base_is_rtl
 
 
 @dataclass(slots=True, frozen=True)
@@ -34,12 +54,15 @@ class Line:
     # We can have sequence of words, e.g. in scripts/languages
     # where "words" are not necessarly separated by spaces.
     components: tuple[TextUnit, ...]
-    # Paragraph base direction for this line (UAX#9 base level parity:
-    # False = LTR, True = RTL). The only direction info kept at line scope:
-    # the visual reorder step derives the pseudo-levels it needs from this
-    # plus each unit's `is_rtl`, so the full bidi levels never travel down
-    # the pipeline. Gap units inherit this as their own `is_rtl`.
-    base_is_rtl: bool = False
+    # Per-line bidi context: vibidi result for the whole line + the
+    # original-position mapping. The reorder calls `bidi.vibidi_text.reorder(...)`
+    # for real UAX#9 visual order; `base_is_rtl` stays exposed for gap units and
+    # callers.
+    bidi: LineBidi
+
+    @property
+    def base_is_rtl(self) -> bool:
+        return self.bidi.base_is_rtl
 
     def __post_init__(self):
         for i, component in enumerate(self.components):
@@ -158,13 +181,17 @@ class ShapedUnit:
 class ShapedTextLine:
     """One partition `Line` after shaping, BEFORE width-based wrapping.
 
-    Units in logical order. `base_is_rtl` is propagated for the downstream
-    L2 reorder, which derives the pseudo-levels it needs from each unit's
-    `is_rtl` plus this base — the full UAX#9 levels are never carried here.
+    Units in logical order. `bidi` (the line's vibidi context) rides along for
+    the downstream L2 reorder, which calls `bidi.vibidi_text.reorder(...)` to get
+    the real UAX#9 visual order.
     """
 
+    bidi: LineBidi
     units: list[ShapedUnit] = field(default_factory=list)
-    base_is_rtl: bool = False
+
+    @property
+    def base_is_rtl(self) -> bool:
+        return self.bidi.base_is_rtl
 
 
 @dataclass(slots=True)

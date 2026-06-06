@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from typing import Iterable, Iterator
 
 from videre.core.shaping.new_text_partition.model import (
+    LineBidi,
     PositionedGlyph,
     ShapedTextLine,
     ShapedUnit,
@@ -75,7 +76,7 @@ def _wrap_line(
     for group in _greedy(atoms, width):
         stripped = _strip_edge_glues(group)
         if stripped:
-            yield _rebuild(stripped, line.base_is_rtl)
+            yield _rebuild(stripped, line.bidi)
 
 
 # ---------------------------------------------------------------------------
@@ -229,10 +230,11 @@ def _strip_edge_glues(group: list[_Atom]) -> list[_Atom]:
     return group[lo:hi]
 
 
-def _rebuild(group: list[_Atom], base_is_rtl: bool) -> ShapedTextLine:
+def _rebuild(group: list[_Atom], bidi: LineBidi) -> ShapedTextLine:
     """Regroup consecutive atoms of the same `TextUnit` back into `ShapedUnit`s.
     A breakable unit split across sub-lines yields one `ShapedUnit` per
-    sub-line, each holding its slice of glyphs."""
+    sub-line, each holding its slice of glyphs. `bidi` is the line's context,
+    carried through so the reorder can call `vibidi_text.reorder`."""
     units: list[ShapedUnit] = []
     cur_unit: TextUnit | None = None
     cur_glyphs: list[PositionedGlyph] = []
@@ -246,4 +248,4 @@ def _rebuild(group: list[_Atom], base_is_rtl: bool) -> ShapedTextLine:
             cur_glyphs.extend(atom.glyphs)
     if cur_unit is not None:
         units.append(ShapedUnit(cur_unit, cur_glyphs))
-    return ShapedTextLine(units=units, base_is_rtl=base_is_rtl)
+    return ShapedTextLine(units=units, bidi=bidi)

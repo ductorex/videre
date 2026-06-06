@@ -37,7 +37,7 @@ def shape_line(
         _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
         for unit in line.components
     ]
-    return ShapedTextLine(units=units, base_is_rtl=line.base_is_rtl)
+    return ShapedTextLine(units=units, bidi=line.bidi)
 
 
 def _shape_unit(
