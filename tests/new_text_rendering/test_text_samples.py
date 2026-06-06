@@ -61,14 +61,21 @@ def _init_pygame() -> None:
 def _png(rendering: Rendering) -> bytes:
     """Serialize a rendered surface to PNG bytes for `image_regression`.
 
-    These tests are already pygame-coupled (they init `pygame.freetype`),
-    so unwrapping the backend's `PygameRendering` to its `pygame.Surface`
-    is acceptable here; `pygame.image.save` mirrors what the backend's
-    `screenshot()` does for the display.
+    The rendered text surface is RGBA with the glyphs living in the ALPHA
+    channel over a transparent (0,0,0,0) background. `image_regression` compares
+    in RGB (its `_load_image` drops alpha), which would flatten every snapshot to
+    all-black and make the check vacuous (any render would "match"). So we
+    composite onto an opaque white background first: the glyphs land in RGB and
+    the comparison is real. (`screenshot()` already returns opaque RGB, so window
+    snapshots via `fake_win.check()` don't need this.)
     """
     assert isinstance(rendering, PygameRendering)
+    src = rendering.surface
+    flat = pygame.Surface(src.get_size())  # opaque (no SRCALPHA)
+    flat.fill((255, 255, 255))
+    flat.blit(src, (0, 0))
     buffer = io.BytesIO()
-    pygame.image.save(rendering.surface, buffer, "out.png")
+    pygame.image.save(flat, buffer, "out.png")
     return buffer.getvalue()
 
 

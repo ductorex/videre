@@ -1,10 +1,10 @@
 """Implementation of `partition_text`: build a `TextPartition` from raw text.
 
-Reuses the segmentation helpers of the legacy
-`text_partition.partition_func` (UAX#9 bidi resolution, UAX#29 word
-segmentation, UAX#24 script runs, per-character font routing), but assembles
-the result into the new `new_text_partition.model` types, with three
-deliberate differences:
+Bidi direction comes from `videre.core.vibidi` (a full UAX#9 implementation,
+including rule N0 for paired brackets). UAX#29 word segmentation, UAX#24 script
+runs and per-character font routing reuse the helpers of the legacy
+`text_partition.partition_func`. The result is assembled into the new
+`new_text_partition.model` types, with three deliberate differences:
 
 - **Explicit gaps.** Inter-word whitespace becomes a gap `TextUnit`
   (`is_gap=True`) carrying the real space characters, instead of the legacy
@@ -15,10 +15,11 @@ deliberate differences:
   ORIGINAL text, tracked across line-terminator normalization and the
   unprintable / bidi-control filtering, so caret / selection mapping stays
   exact.
-- **Direction, not level.** The full UAX#9 levels are not propagated: units
-  cut on direction (`is_rtl = level % 2`) and only the per-line `base_is_rtl`
-  is kept. Any visual reorder is a separate downstream step that derives the
-  pseudo-levels it needs from `(is_rtl, base_is_rtl)`.
+- **Direction, not level.** vibidi resolves the full UAX#9 levels internally
+  but exposes only each character's direction (`is_rtl`); units cut on that,
+  and only the per-line `base_is_rtl` is kept. Any visual reorder is a separate
+  downstream step that derives the pseudo-levels it needs from
+  `(is_rtl, base_is_rtl)`.
 """
 
 from __future__ import annotations
@@ -34,12 +35,12 @@ from videre.core.shaping.new_text_partition.model import (
 from videre.core.shaping.text_partition.partition_func import (
     _BIDI_CONTROL_CHARS,
     _shaping_script,
-    _split_by_bidi,
     _split_by_font,
     _split_by_script,
     _split_by_word,
     get_font_provider,
 )
+from videre.core.vibidi.vibidi import vibidi
 from videre.fonts.unicode_utils import Unicode, get_character
 
 
@@ -95,10 +96,11 @@ def _partition_line(raw: str, start: int) -> Line:
     line_text = "".join(c for c, _ in kept)
     positions = [p for _, p in kept]
 
-    base_level, levels = _split_by_bidi(line_text)
-    base_is_rtl = bool(base_level & 1)
+    vibidi_text = vibidi(line_text)
+    base_is_rtl = vibidi_text.base_is_rtl
     if not line_text:
         return Line(components=(), base_is_rtl=base_is_rtl)
+    is_rtls = [pos.is_rtl for pos in vibidi_text.logical_positions]
 
     components: list[TextUnit] = []
     cursor = 0
@@ -124,7 +126,7 @@ def _partition_line(raw: str, start: int) -> Line:
         components.extend(
             _word_units(
                 word.text,
-                levels[word_start:word_end],
+                is_rtls[word_start:word_end],
                 positions[word_start:word_end],
                 is_breakable=not word.atomic,
             )
@@ -158,21 +160,18 @@ def _gap_unit(text: str, positions: list[int], base_is_rtl: bool) -> TextUnit:
 
 
 def _word_units(
-    text: str, levels: list[int], positions: list[int], *, is_breakable: bool
+    text: str, is_rtls: list[bool], positions: list[int], *, is_breakable: bool
 ) -> list[TextUnit]:
     """Split one word into TextUnits by (direction, script, font).
 
-    Mirrors the legacy level -> script -> font piece split but cuts on
-    direction (``is_rtl = level % 2``) instead of the raw level: HarfBuzz only
-    needs a direction per run, and two adjacent code points never share parity
-    unless they share direction, so the run boundaries match the legacy split
-    for every real text. `is_breakable` is the word's `not atomic`, propagated
-    to each of its units.
+    Cuts on direction (each character's `is_rtl`, from vibidi) then script then
+    font: HarfBuzz only needs a direction per run, and consecutive code points
+    are grouped while they share it. `is_breakable` is the word's `not atomic`,
+    propagated to each of its units.
     """
-    dirs = [lv & 1 for lv in levels]
     units: list[TextUnit] = []
-    for d_lo, d_hi in _runs(dirs):
-        is_rtl = bool(dirs[d_lo])
+    for d_lo, d_hi in _runs(is_rtls):
+        is_rtl = is_rtls[d_lo]
         d_text = text[d_lo:d_hi]
         d_pos = positions[d_lo:d_hi]
         s_off = 0

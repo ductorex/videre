@@ -11,7 +11,7 @@ can't tell apart:
   a mirror char shaped RTL swaps glyph id).
 
 A pixel snapshot only guarantees "unchanged since baseline"; these encode
-"correct". The bracket case is a known bug, pinned `xfail` (see its docstring).
+"correct". The bracket case (UAX#9 N0) is the bug vibidi fixed; this test pins it.
 
 `RenderedTextGlyphMap` is defined in `model.py` but not yet produced by the
 pipeline, so `_gmap` assembles one from `partition_text` + `build_glyph_lines`.
@@ -140,18 +140,9 @@ def test_rtl_pure_reverses_visual_order(shaper) -> None:
     assert all(g.is_rtl for gl in gmap.wrapped_glyph_lines for g in gl.glyphs)
 
 
-# -- bidi: paired brackets in the real 'arabic' sample (known bug) ----------
+# -- bidi: paired brackets in the real 'arabic' sample (UAX#9 N0) -----------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="python-bidi's pure-Python path (our levels source) lacks UAX#9 N0 "
-    "(paired brackets). In the 'arabic' sample the opening '[' framing a latin "
-    "IPA island in RTL text resolves to the RTL base, HarfBuzz mirrors it to "
-    "']', and both brackets collapse to ']'. The same defect shows in "
-    "python-bidi's own get_display, so it's a levels bug, not a videre one. "
-    "Drop this xfail once bidi resolves the brackets correctly.",
-)
 def test_arabic_sample_keeps_both_bracket_shapes(shaper) -> None:
     """The 'arabic' sample, rendered like `test_text_sample_renders_to_snapshot`
     (width=600, wrap), frames a latin IPA transcription in one '[' ... ']' pair.
@@ -159,7 +150,8 @@ def test_arabic_sample_keeps_both_bracket_shapes(shaper) -> None:
     brackets resolve straight to LTR or stay RTL and get mirrored AND
     repositioned (the reorder+mirror compensation). We assert on the painted
     shapes of the two source brackets as a SET, not on one glyph's direction, so
-    the check survives that compensation. The bug collapses both onto ']'."""
+    the check survives that compensation. Before vibidi (rule N0) both collapsed
+    onto ']'; N0 resolves the pair, so the two shapes are now distinct."""
     text = TEXT_SAMPLES["arabic"]
     bracket_positions = {i for i, c in enumerate(text) if c in "[]"}
     assert len(bracket_positions) == 2  # the sample has exactly one '[' and one ']'
