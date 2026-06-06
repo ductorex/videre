@@ -8,11 +8,11 @@ One unified greedy pass over **atoms** (indivisible glyph chunks) and
 consumable **glues** (gaps):
 
 - an atomic unit (Latin/Arabic/... word) -> one atom that never splits;
-- a breakable unit (CJK / SE-Asian), and every unit under `wrap_words=False`,
-  -> one atom per cluster, so it may break between clusters;
-- a gap -> a glue: a break opportunity whose advance is dropped when the line
-  actually breaks there (so a wrap-induced inter-word space is not rendered),
-  but kept as spacing otherwise.
+- a breakable unit (CJK / SE-Asian), and every non-gap unit under
+  `wrap_words=False`, -> one atom per cluster, so it may break between clusters;
+- a gap -> under word wrap, one consumable glue (a break opportunity whose
+  advance is dropped when the line breaks there, kept as spacing otherwise);
+  under char wrap, one kept box per space so the gap splits like any cluster.
 
 Word-wrap and cluster-wrap differ only in how units are atomized — same
 algorithm. `real_right` (ink overhang past the advance) is measured exactly as
@@ -28,11 +28,11 @@ mapping. "(n)" = the gap's n spaces kept verbatim.
 
   width   wrap_words  space_policy  start     inside    end
   ------  ----------  ------------  --------  --------  -------
-  absent  char        collapse      dropped   1 space   dropped
+  absent  char        collapse      1 space   1 space   1 space
   absent  char        preserve      kept(n)   kept(n)   kept(n)
-  absent  word        collapse      dropped   1 space   dropped
+  absent  word        collapse      1 space   1 space   1 space
   absent  word        preserve      kept(n)   kept(n)   kept(n)
-  > 0     char        collapse      dropped   1 space   dropped
+  > 0     char        collapse      1 space   1 space   1 space
   > 0     char        preserve      kept[a]   kept(n)   kept[a]
   > 0     word        collapse      dropped   1 space   dropped
   > 0     word        preserve      kept[b]   kept(n)   kept[c]
@@ -51,17 +51,20 @@ the wrapped sub-line when `width > 0`.
       (indivisible under word wrap). The gap's width still counts toward
       fitting (a minor deviation from CSS pre-wrap's true zero-cost hanging).
 
-`collapse` is invariant in width / wrap_words for gaps (the three collapse
-rows are identical); `preserve` never drops a space, it only redistributes.
+Edge trimming (drop) is exclusive to word wrap: only `> 0 + word + collapse`
+drops gaps at line edges. With char wrap or no wrap an edge space is kept (it
+disambiguates a word boundary from a mid-word char break) — `collapse` merely
+shrinks runs to one space there. `preserve` never drops a space anywhere.
 
 `space_policy` (resolved upstream: AUTO -> COLLAPSE when wrapping by word, else
-PRESERVE) selects the behaviour. COLLAPSE = the collapse rows: drop edge glues
-(`_strip_edge_glues`) and consume the break glue (`_greedy`). PRESERVE keeps
-every gap: no edge strip; a word-wrap break glue hangs on the head; a char-wrap
-gap is atomized per character (`_atomize`) so it splits across lines. The
-COLLAPSE "reduce an inner gap to one space" step is a separate pre-pass
-(`space_policy.collapse_spaces`) run before the wrap, since it must apply even
-when there is no wrap.
+PRESERVE) and `wrap_words` select the behaviour:
+- run shrinking (n spaces -> 1) is the COLLAPSE pre-pass
+  (`space_policy.collapse_spaces`), run before the wrap so it applies even with
+  no width; it never trims edges.
+- char wrap (`preserve_char` in `_atomize`): every gap becomes kept per-space
+  boxes regardless of policy, so gaps split and are never dropped.
+- word wrap: a gap is one glue; COLLAPSE drops it at edges / breaks
+  (`_strip_edge_glues` + `_greedy`), PRESERVE hangs the break glue on the head.
 """
 
 from __future__ import annotations
@@ -122,7 +125,11 @@ def _wrap_line(
     line: ShapedTextLine, width: int, wrap_words: bool, space_policy: TextSpacePolicy
 ) -> Iterator[ShapedTextLine]:
     collapse = space_policy is TextSpacePolicy.COLLAPSE
-    atoms = _atomize(line, wrap_words, preserve_char=not collapse and not wrap_words)
+    # Char wrap keeps gaps as splittable per-space boxes regardless of policy:
+    # an edge space there is meaningful (word boundary vs mid-word break), so it
+    # is never dropped. Edge trimming (strip / glue-consume) is word-wrap-only —
+    # and in char wrap there are no glues, so `_strip_edge_glues` is a no-op.
+    atoms = _atomize(line, wrap_words, preserve_char=not wrap_words)
     for group in _greedy(atoms, width, collapse):
         if collapse:
             group = _strip_edge_glues(group)

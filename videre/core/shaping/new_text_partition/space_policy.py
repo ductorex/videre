@@ -4,11 +4,11 @@
 from the wrap mode (AUTO = collapse only when wrapping by word).
 
 `collapse_spaces` is the COLLAPSE pre-pass, run per shaped line BEFORE width
-wrapping (so it applies even when there is no wrap): it reduces every inner gap
-to a single space and drops the line's leading / trailing gaps. PRESERVE needs
-no pre-pass (gaps are kept verbatim); its line-edge handling lives in the wrap.
-See `wrap` for the full start / inside / end table per
-(width x wrap_words x policy).
+wrapping (so it applies even when there is no wrap): it shrinks every gap run to
+a single space (n -> 1). It does NOT trim edges — dropping a gap at a line edge
+is word-wrap-only (it lives in the wrap), since under char wrap / no wrap an edge
+space is meaningful. PRESERVE needs no pre-pass (gaps are kept verbatim). See
+`wrap` for the full start / inside / end table per (width x wrap_words x policy).
 """
 
 from __future__ import annotations
@@ -28,8 +28,13 @@ def resolve_space_policy(
 
 
 def collapse_spaces(line: ShapedTextLine) -> ShapedTextLine:
-    """COLLAPSE pre-pass: reduce every gap to a single space glyph and drop the
-    line's leading / trailing gaps. An all-whitespace line collapses to empty.
+    """COLLAPSE pre-pass: shrink every gap run to a single space glyph (n -> 1).
+
+    Edges are NOT trimmed here: dropping a gap at a line edge is exclusively a
+    word-wrap behaviour (`wrap._strip_edge_glues` / the greedy), since with no
+    wrap or char wrap an edge space is meaningful (it disambiguates a word
+    boundary from a mid-word char break). So this only shrinks runs; every gap
+    stays, shown as one space.
 
     Reducing keeps the gap's first glyph (its width = one space); the dropped
     spaces' source positions are absorbed by the neighbouring cluster in the
@@ -41,9 +46,4 @@ def collapse_spaces(line: ShapedTextLine) -> ShapedTextLine:
         else su
         for su in line.units
     ]
-    lo, hi = 0, len(reduced)
-    while lo < hi and reduced[lo].unit.is_gap:
-        lo += 1
-    while hi > lo and reduced[hi - 1].unit.is_gap:
-        hi -= 1
-    return ShapedTextLine(units=reduced[lo:hi], bidi=line.bidi)
+    return ShapedTextLine(units=reduced, bidi=line.bidi)

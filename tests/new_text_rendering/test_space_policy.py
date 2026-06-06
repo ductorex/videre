@@ -1,9 +1,10 @@
 """Tests for `TextSpacePolicy` handling (`new_text_partition.space_policy` +
 its wiring through `render.build_glyph_lines` / `wrap`).
 
-Covers the spec table (width x wrap_words x policy -> start/inside/end gap
-behaviour) end to end on the flat pipeline, plus the `collapse_spaces` pre-pass
-and `resolve_space_policy` in isolation.
+Covers the 8-case spec table (width x wrap_words x policy) end to end on the
+flat pipeline — checking the gap behaviour at the START, INSIDE and END of each
+logical / wrapped line — plus the `collapse_spaces` pre-pass and
+`resolve_space_policy` in isolation.
 """
 
 import pygame
@@ -37,14 +38,11 @@ def shaper() -> Shaper:
 
 
 def _lines_chars(text: str, shaper: Shaper, **kw) -> list[str]:
-    """Per display line, the source characters of its glyphs in visual order."""
+    """Per display line, the source characters of its glyphs in visual order.
+    For LTR text this is the rendered line verbatim, so a list of expected
+    strings pins the start / inside / end gap behaviour exactly."""
     lines = build_glyph_lines(text, shaper, _SIZE, **kw)
     return ["".join(text[g.logical_position] for g in gl.glyphs) for gl, _ in lines]
-
-
-def _all_positions(text: str, shaper: Shaper, **kw) -> set[int]:
-    lines = build_glyph_lines(text, shaper, _SIZE, **kw)
-    return {g.logical_position for gl, _ in lines for g in gl.glyphs}
 
 
 def _adv(text: str, shaper: Shaper) -> float:
@@ -87,85 +85,128 @@ def test_collapse_reduces_inner_gap_to_one_glyph(shaper: Shaper) -> None:
     assert sum(len(u.glyphs) for u in line.units if not u.unit.is_gap) == 2
 
 
-def test_collapse_drops_leading_and_trailing_gaps(shaper: Shaper) -> None:
+def test_collapse_keeps_edge_gaps_shrunk_to_one(shaper: Shaper) -> None:
+    # Edges are NOT trimmed by the pre-pass (that is word-wrap-only); each gap
+    # run, including leading / trailing, is just shrunk to one space.
     line = collapse_spaces(_shaped("  a  ", shaper))
-    assert _gap_glyphs(line) == 0
-    assert len(line.units) == 1
-    assert not line.units[0].unit.is_gap
+    assert _gap_glyphs(line) == 2  # leading + trailing, one glyph each
+    assert len(line.units) == 3  # gap, "a", gap
+    assert line.units[0].unit.is_gap and line.units[-1].unit.is_gap
 
 
-def test_collapse_all_whitespace_line_becomes_empty(shaper: Shaper) -> None:
+def test_collapse_all_whitespace_line_shrinks_to_one_space(shaper: Shaper) -> None:
     line = collapse_spaces(_shaped("   ", shaper))
-    assert line.units == []
+    assert len(line.units) == 1
+    assert line.units[0].unit.is_gap
+    assert _gap_glyphs(line) == 1
 
 
-# -- end to end, no wrap (width absent) --------------------------------------
+# -- the 8-case table, end to end (start / inside / end) ----------------------
+#
+# Cases 1-4 (width absent): no wrap, so wrap_words is irrelevant and edges are
+# never trimmed. One canonical string with spaces at the start (2), inside (3)
+# and end (2) pins all three positions at once.
 
 
-def test_no_wrap_collapse_inner_to_one_space(shaper: Shaper) -> None:
-    assert _lines_chars("a   b", shaper, space_policy=SP.COLLAPSE) == ["a b"]
+@pytest.mark.parametrize("wrap_words", [False, True])
+@pytest.mark.parametrize(
+    "policy, expected", [(SP.COLLAPSE, " a b "), (SP.PRESERVE, "  a   b  ")]
+)
+def test_no_wrap_start_inside_end(
+    shaper: Shaper, wrap_words: bool, policy: SP, expected: str
+) -> None:
+    """Cases 1-4. COLLAPSE shrinks every run (start / inside / end) to one space
+    but keeps them; PRESERVE keeps them verbatim. char == word here (width
+    absent => wrap_words irrelevant)."""
+    got = _lines_chars("  a   b  ", shaper, wrap_words=wrap_words, space_policy=policy)
+    assert got == [expected]
 
 
-def test_no_wrap_collapse_drops_edges(shaper: Shaper) -> None:
-    assert _lines_chars("  a   b  ", shaper, space_policy=SP.COLLAPSE) == ["a b"]
-
-
-def test_no_wrap_preserve_keeps_everything(shaper: Shaper) -> None:
-    assert _lines_chars("  a   b  ", shaper, space_policy=SP.PRESERVE) == ["  a   b  "]
-
-
-def test_no_wrap_auto_is_preserve(shaper: Shaper) -> None:
-    # AUTO + no wrap (wrap_words=False) -> PRESERVE.
-    assert _lines_chars("a   b", shaper) == ["a   b"]
-
-
-def test_collapse_all_whitespace_renders_empty_line(shaper: Shaper) -> None:
-    assert _lines_chars("   ", shaper, space_policy=SP.COLLAPSE) == [""]
-    assert _lines_chars("   ", shaper, space_policy=SP.PRESERVE) == ["   "]
-
-
-# -- end to end, width wrap, collapse ----------------------------------------
-
-
-def test_wrap_collapse_reduces_inner_runs(shaper: Shaper) -> None:
-    # Wide enough to keep it all on one line; inner runs still collapse to one.
-    chars = _lines_chars(
-        "aa   bb   cc", shaper, width=10000, wrap_words=True, space_policy=SP.COLLAPSE
+def test_word_wrap_collapse_trims_every_edge(shaper: Shaper) -> None:
+    """Case 7 (> 0, word, collapse): inner runs -> one space; EVERY wrapped-line
+    edge is trimmed — logical leading / trailing and the break gap alike."""
+    text = "  aa   bb  cc  "  # leading 2, inner 3, inner 2, trailing 2
+    width = int(_adv(" aa bb", shaper)) + 8  # fits collapsed "aa bb", not "cc" after it
+    lines = _lines_chars(
+        text, shaper, width=width, wrap_words=True, space_policy=SP.COLLAPSE
     )
-    assert chars == ["aa bb cc"]
+    assert lines == ["aa bb", "cc"]
+    for ln in lines:  # every wrapped-line edge is clean
+        assert not ln.startswith(" ")
+        assert not ln.endswith(" ")
 
 
-# -- end to end, width wrap, preserve + char ---------------------------------
-
-
-def test_wrap_char_preserve_splits_gap_keeping_all_spaces(shaper: Shaper) -> None:
-    text = "a      b"  # 6 spaces
-    width = int(_adv("a  ", shaper))  # forces a break inside the gap
-    lines = build_glyph_lines(
-        text, shaper, _SIZE, width=width, wrap_words=False, space_policy=SP.PRESERVE
+def test_word_wrap_preserve_keeps_leading_inner_and_hangs_end(shaper: Shaper) -> None:
+    """Case 8 (> 0, word, preserve): leading kept (start), runs kept (inside),
+    the break gap hangs at the line END and is not reported to the next line."""
+    text = "  aa   bb  cc"  # leading 2, inner 3, 2-space break gap before cc
+    width = (
+        int(_adv("  aa   bb", shaper)) + 12
+    )  # fits up to "bb", not "cc" after the gap
+    lines = _lines_chars(
+        text, shaper, width=width, wrap_words=True, space_policy=SP.PRESERVE
     )
-    assert len(lines) >= 2  # the gap actually split across lines
-    # Nothing dropped: every source position survives (gap scinded, not consumed).
-    assert _all_positions(
+    assert lines == ["  aa   bb  ", "cc"]
+    assert lines[0].startswith("  ")  # leading kept (start)
+    assert lines[0].endswith("  ")  # break gap hung (end)
+    assert not lines[1].startswith(" ")  # not reported to the next line's start
+
+
+def test_char_wrap_collapse_shrinks_but_keeps_every_edge(shaper: Shaper) -> None:
+    """Case 5 (> 0, char, collapse): runs shrink to one, but NO space is dropped
+    at any wrapped-line edge (a char break must stay distinguishable from a word
+    boundary). start / inside / end all survive, shrunk."""
+    text = "  aa   bb  "  # -> " aa bb " once runs are shrunk
+    width = int(_adv("aa b", shaper))  # narrow -> several char breaks
+    lines = _lines_chars(
+        text, shaper, width=width, wrap_words=False, space_policy=SP.COLLAPSE
+    )
+    assert len(lines) >= 2  # actually wrapped
+    assert "".join(lines) == " aa bb "  # every space kept (shrunk), none dropped
+    assert lines[0].startswith(" ")  # leading space kept at the first edge
+    assert lines[-1].endswith(" ")  # trailing space kept at the last edge
+
+
+def test_char_wrap_preserve_keeps_everything_verbatim(shaper: Shaper) -> None:
+    """Case 6 (> 0, char, preserve): no shrink, no trim; a gap straddling a
+    break splits per character. start / inside / end all survive verbatim."""
+    text = "  aa   bb  "  # leading 2, inner 3, trailing 2
+    width = int(_adv("aa b", shaper))  # narrow -> several char breaks
+    lines = _lines_chars(
         text, shaper, width=width, wrap_words=False, space_policy=SP.PRESERVE
-    ) == set(range(len(text)))
+    )
+    assert len(lines) >= 2
+    assert "".join(lines) == text  # nothing dropped, nothing shrunk
+    assert lines[0].startswith(" ")  # leading run kept at the first edge
+    assert lines[-1].endswith(" ")  # trailing run kept at the last edge
 
 
-# -- end to end, width wrap, preserve + word vs collapse ---------------------
+def test_char_wrap_preserve_splits_a_wide_gap(shaper: Shaper) -> None:
+    """Case 6 detail: a single wide inner gap splits across lines (not consumed)
+    — every space survives the break."""
+    text = "a      b"  # 6 spaces
+    width = int(_adv("a  ", shaper))  # break inside the gap
+    lines = _lines_chars(
+        text, shaper, width=width, wrap_words=False, space_policy=SP.PRESERVE
+    )
+    assert len(lines) >= 2
+    assert "".join(lines) == text  # all 6 spaces preserved across the split
 
 
-def test_wrap_word_preserve_hangs_break_gap_collapse_drops_it(shaper: Shaper) -> None:
-    text = "alpha beta"  # the inter-word space is source position 5
-    width = int(_adv("alpha", shaper)) + 1  # "beta" cannot fit -> break at the gap
-    common = dict(width=width, wrap_words=True)
+# -- AUTO end to end + all-whitespace edge case ------------------------------
 
-    collapse_pos = _all_positions(text, shaper, **common, space_policy=SP.COLLAPSE)
-    preserve_pos = _all_positions(text, shaper, **common, space_policy=SP.PRESERVE)
 
-    full = set(range(len(text)))
-    assert collapse_pos == full - {5}  # collapse consumes the break space
-    assert preserve_pos == full  # preserve keeps it (hung at the line end)
+def test_auto_resolves_end_to_end(shaper: Shaper) -> None:
+    """AUTO + word wrap behaves as COLLAPSE; AUTO + no wrap (the widget's
+    default for char / unwrapped text) behaves as PRESERVE."""
+    width = int(_adv(" aa bb", shaper)) + 8
+    assert _lines_chars("  aa   bb  cc  ", shaper, width=width, wrap_words=True) == [
+        "aa bb",
+        "cc",
+    ]
+    assert _lines_chars("  a   b  ", shaper) == ["  a   b  "]
 
-    # The hung space sits at the end of the first display line.
-    first_line = _lines_chars(text, shaper, **common, space_policy=SP.PRESERVE)[0]
-    assert first_line.endswith(" ")
+
+def test_all_whitespace_line(shaper: Shaper) -> None:
+    assert _lines_chars("   ", shaper, space_policy=SP.COLLAPSE) == [" "]  # shrunk
+    assert _lines_chars("   ", shaper, space_policy=SP.PRESERVE) == ["   "]

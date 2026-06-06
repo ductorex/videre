@@ -29,9 +29,11 @@ class TextSpacePolicy(Enum):
     (1) spaces only; newlines stay hard -> closer to pre-line.
     (2) terminal / <textarea>-like; no rigorous CSS equivalent.
 
-    COLLAPSE drops gaps at line edges and renders an inner gap as a single
-    space; PRESERVE never drops a space, it only redistributes them across
-    wrapped lines. See `new_text_partition.wrap` for the full
+    COLLAPSE shrinks every run of spaces to one; it drops gaps at line edges
+    ONLY under word wrap (char wrap / no wrap keep an edge space, to disambiguate
+    a word boundary from a mid-word break — a GUI choice, unlike CSS which trims
+    every line edge). PRESERVE never drops a space, it only redistributes them
+    across wrapped lines. See `new_text_partition.wrap` for the full
     start / inside / end table per (width x wrap_words x policy).
     """
 
