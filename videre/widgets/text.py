@@ -7,6 +7,15 @@ from videre.widgets.widget import Widget
 
 
 class Text(Widget):
+    """A run of text, optionally wrapped and aligned.
+
+    `wrap` (`TextWrap`) selects char / word wrapping (None = no wrap); `align`
+    (`TextAlign`) sets horizontal alignment within the available width. How
+    whitespace gaps are kept or collapsed follows `TextSpacePolicy` (whose
+    `AUTO` default derives from `wrap`); see that enum and
+    `new_text_partition.wrap` for the details.
+    """
+
     __wprops__ = {
         "text",
         "size",

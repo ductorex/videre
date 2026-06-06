@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from videre.colors import Color, Colors
 from videre.core.abstract_backend import AbstractBackend
-from videre.core.constants import TextAlign
+from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.core.shaping.new_text_partition.layout import (
@@ -29,6 +29,10 @@ from videre.core.shaping.new_text_partition.model import GlyphLine, PositionedGl
 from videre.core.shaping.new_text_partition.partitioner import partition_text
 from videre.core.shaping.new_text_partition.reorder import reorder_line
 from videre.core.shaping.new_text_partition.shaping import shape_line
+from videre.core.shaping.new_text_partition.space_policy import (
+    collapse_spaces,
+    resolve_space_policy,
+)
 from videre.core.shaping.new_text_partition.wrap import wrap_lines
 from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
 from videre.core.shaping.shaper import Shaper
@@ -64,16 +68,20 @@ def build_glyph_lines(
     *,
     width: int | None = None,
     wrap_words: bool = False,
+    space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
     bold: bool = False,
     italic: bool = False,
 ) -> list[tuple[GlyphLine, bool]]:
     """Run the whole pipeline, returning `(glyph_line, is_paragraph_end)` per
     display line in visual order."""
+    policy = resolve_space_policy(space_policy, wrap_words)
     out: list[tuple[GlyphLine, bool]] = []
     for line in partition_text(text).lines:
         shaped = shape_line(line, shaper, size, bold=bold, italic=italic)
+        if policy is TextSpacePolicy.COLLAPSE:
+            shaped = collapse_spaces(shaped)
         subs = (
-            list(wrap_lines([shaped], width, wrap_words))
+            list(wrap_lines([shaped], width, wrap_words, policy))
             if width is not None
             else [shaped]
         )
@@ -92,6 +100,7 @@ def render_text(
     color: Color | None = None,
     width: int | None = None,
     wrap_words: bool = False,
+    space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
     align: TextAlign | None = None,
     bold: bool = False,
     italic: bool = False,
@@ -105,7 +114,14 @@ def render_text(
     color = color or Colors.black
     m = font_metrics(size, height_delta)
     lines = build_glyph_lines(
-        text, shaper, size, width=width, wrap_words=wrap_words, bold=bold, italic=italic
+        text,
+        shaper,
+        size,
+        width=width,
+        wrap_words=wrap_words,
+        space_policy=space_policy,
+        bold=bold,
+        italic=italic,
     )
 
     # `compact` drops the leading line gap unless the first line is an

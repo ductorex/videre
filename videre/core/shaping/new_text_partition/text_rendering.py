@@ -93,7 +93,6 @@ class ShapedTextRendering(AbstractTextRendering):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, Rendering]:
-        # todo handle space_policy
         return render_text(
             text,
             backend=self._backend,
@@ -103,6 +102,7 @@ class ShapedTextRendering(AbstractTextRendering):
             color=color,
             width=width,
             wrap_words=wrap_words,
+            space_policy=space_policy,
             align=align,
             bold=self._bold,
             italic=self._italic,
