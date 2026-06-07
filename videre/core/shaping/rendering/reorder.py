@@ -16,7 +16,7 @@ keeps HarfBuzz's intra-cluster order for glyphs that share a position.
 
 from __future__ import annotations
 
-from videre.core.shaping.new_text_partition.model import GlyphLine, ShapedTextLine
+from videre.core.shaping.glyph_partition import GlyphLine, ShapedTextLine
 
 
 def reorder_line(line: ShapedTextLine) -> GlyphLine:

@@ -1,4 +1,4 @@
-"""Tests for the flat-model width wrap (`new_text_partition.wrap`).
+"""Tests for the flat-model width wrap (`text_partition.wrap`).
 
 Builds real `ShapedTextLine`s via partition_text + shape_line, then wraps and
 checks: content preservation/order, width respected for multi-word lines,
@@ -10,10 +10,9 @@ import pygame
 import pygame.freetype
 import pytest
 
-from videre.core.shaping.new_text_partition.partitioner import partition_text
-from videre.core.shaping.new_text_partition.shaping import shape_line
-from videre.core.shaping.new_text_partition.wrap import wrap_lines
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.rendering.wrap import wrap_lines
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 
 @pytest.fixture(scope="module", autouse=True)

@@ -158,7 +158,9 @@ def test_selection_across_wrapped_lines(fake_win) -> None:
     r = ShapedTextRendering(fake_win.backend, size=16)
     text = "alpha beta gamma delta"
     width = 80
-    s_no = r.render_text(text, color=Color(0, 0, 0), width=width, wrap_words=True)[1]
+    rendered, s_no = r.render_text(
+        text, color=Color(0, 0, 0), width=width, wrap_words=True
+    )
     s_sel = r.render_text(
         text,
         color=Color(0, 0, 0),
@@ -175,9 +177,10 @@ def test_selection_across_wrapped_lines(fake_win) -> None:
     # gap between the two lines' bands — the bands are contiguous when
     # `ascender + descender == line_spacing` (the Noto Sans case), and
     # demanding a gap would entangle this test with font metrics.
-    assert nz_rows.size > r.font_metrics.line_spacing, (
+    line_spacing = rendered.font_metrics.line_spacing
+    assert nz_rows.size > line_spacing, (
         f"selection span too short ({nz_rows.size} rows) to cover two "
-        f"lines (line_spacing={r.font_metrics.line_spacing})"
+        f"lines (line_spacing={line_spacing})"
     )
 
 
@@ -188,14 +191,15 @@ def test_selection_across_paragraph_break(fake_win) -> None:
     r = ShapedTextRendering(fake_win.backend, size=16)
     text = "alpha\nbeta"
     n = len(text)
-    s_no = r.render_text(text, color=Color(0, 0, 0))[1]
+    rendered, s_no = r.render_text(text, color=Color(0, 0, 0))
     s_sel = r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1]
     diff = pixels_blue(s_sel).astype(int) - pixels_blue(s_no).astype(int)
     rows = (diff > 20).any(axis=0)
     nz_rows = np.flatnonzero(rows)
     # Same intent as test_selection_across_wrapped_lines: span exceeds
     # one line's worth of rows ⇒ two lines are highlighted.
-    assert nz_rows.size > r.font_metrics.line_spacing, (
+    line_spacing = rendered.font_metrics.line_spacing
+    assert nz_rows.size > line_spacing, (
         f"selection span too short ({nz_rows.size} rows) to cover two "
-        f"lines (line_spacing={r.font_metrics.line_spacing})"
+        f"lines (line_spacing={line_spacing})"
     )

@@ -14,7 +14,7 @@ space is meaningful. PRESERVE needs no pre-pass (gaps are kept verbatim). See
 from __future__ import annotations
 
 from videre.core.constants import TextSpacePolicy
-from videre.core.shaping.new_text_partition.model import ShapedTextLine, ShapedUnit
+from videre.core.shaping.glyph_partition import ShapedTextLine, ShapedUnit
 
 
 def resolve_space_policy(

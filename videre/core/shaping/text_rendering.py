@@ -1,24 +1,17 @@
-"""`ShapedTextRendering` on the flat `new_text_partition` pipeline.
+"""`ShapedTextRendering` on the flat `text_partition` pipeline.
 
 Implements `AbstractTextRendering` (`render_char` + `render_text`) by holding
 the per-style config plus a shared `Shaper` / `GlyphRasterizer`, and delegating
 to `render`. Backend-agnostic (only goes through `AbstractBackend`).
 """
 
-from __future__ import annotations
-
 from videre.colors import Color
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rendering_result import AbstractTextRendering, Rendering
-from videre.core.shaping.env import use_shaped_subpixel
-from videre.core.shaping.new_text_partition.layout import FontMetrics, RenderedText
-from videre.core.shaping.new_text_partition.render import (
-    font_metrics,
-    render_char,
-    render_text,
-)
 from videre.core.shaping.rasterizer import GlyphRasterizer
+from videre.core.shaping.render import render_char, render_text
+from videre.core.shaping.rendering.layout import RenderedText
 from videre.core.shaping.shaper import Shaper
 
 
@@ -45,7 +38,7 @@ class ShapedTextRendering(AbstractTextRendering):
         underline: bool = False,
         height_delta: int = 2,
         compact: bool = True,
-        subpixel: bool | None = None,
+        subpixel: bool = False,
         *,
         shaper: Shaper | None = None,
         rasterizer: GlyphRasterizer | None = None,
@@ -57,18 +50,10 @@ class ShapedTextRendering(AbstractTextRendering):
         self._underline = underline
         self._height_delta = height_delta
         self._compact = compact
-        # Sub-pixel glyph positioning. An explicit bool wins; None follows the
-        # VIDERE_USE_SHAPED_SUBPIXEL env flag, so a run can toggle it without
-        # code changes. `render_text` threads it down to `_paint_line`.
-        self._subpixel = use_shaped_subpixel() if subpixel is None else subpixel
+        # Sub-pixel glyph positioning. `render_text` threads it down to `_paint_line`.
+        self._subpixel = bool(subpixel)
         self._shaper = shaper or Shaper()
         self._rasterizer = rasterizer or GlyphRasterizer()
-
-    @property
-    def font_metrics(self) -> FontMetrics:
-        """Reference-font line metrics for this size — lets consumers size
-        cursors / line spacing without a render."""
-        return font_metrics(self._size, self._height_delta)
 
     def render_char(self, c: str, color: Color | None = None) -> Rendering:
         return render_char(

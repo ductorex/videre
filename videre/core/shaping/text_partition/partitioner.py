@@ -5,7 +5,7 @@ including rule N0 for paired brackets). UAX#29 word segmentation, UAX#24 script
 runs and per-character font routing reuse the helpers in `partition_utils`
 (font lookup via `fonts.provider.get_font_provider`). The result is assembled
 into the new
-`new_text_partition.model` types, with three deliberate differences:
+`text_partition.model` types, with three deliberate differences:
 
 - **Explicit gaps.** Inter-word whitespace becomes a gap `TextUnit`
   (`is_gap=True`) carrying the real space characters, instead of a per-word
@@ -26,14 +26,14 @@ from __future__ import annotations
 
 from typing import Iterator
 
-from videre.core.shaping.new_text_partition.model import (
+from videre.core.shaping.text_partition.model import (
     Line,
     LineBidi,
     LogicalCharacter,
     TextPartition,
     TextUnit,
 )
-from videre.core.shaping.new_text_partition.partition_utils import (
+from videre.core.shaping.text_partition.partition_utils import (
     _BIDI_CONTROL_CHARS,
     _shaping_script,
     _split_by_font,

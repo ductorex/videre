@@ -19,23 +19,22 @@ from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
-from videre.core.shaping.new_text_partition.layout import (
+from videre.core.shaping.glyph_partition import GlyphLine, PositionedGlyph
+from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
+from videre.core.shaping.rendering.layout import (
     FontMetrics,
     RawLine,
     RenderedText,
     build_rendered_text,
 )
-from videre.core.shaping.new_text_partition.model import GlyphLine, PositionedGlyph
-from videre.core.shaping.new_text_partition.partitioner import partition_text
-from videre.core.shaping.new_text_partition.reorder import reorder_line
-from videre.core.shaping.new_text_partition.shaping import shape_line
-from videre.core.shaping.new_text_partition.space_policy import (
+from videre.core.shaping.rendering.reorder import reorder_line
+from videre.core.shaping.rendering.space_policy import (
     collapse_spaces,
     resolve_space_policy,
 )
-from videre.core.shaping.new_text_partition.wrap import wrap_lines
-from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.rendering.wrap import wrap_lines
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     line_metrics,

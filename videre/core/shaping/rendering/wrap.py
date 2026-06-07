@@ -73,13 +73,12 @@ from dataclasses import dataclass
 from typing import Iterable, Iterator
 
 from videre.core.constants import TextSpacePolicy
-from videre.core.shaping.new_text_partition.model import (
-    LineBidi,
+from videre.core.shaping.glyph_partition import (
     PositionedGlyph,
     ShapedTextLine,
     ShapedUnit,
-    TextUnit,
 )
+from videre.core.shaping.text_partition.model import LineBidi, TextUnit
 
 
 @dataclass(slots=True)

@@ -7,7 +7,7 @@ direction, and the no-adjacent-gaps rule.
 
 import pytest
 
-from videre.core.shaping.new_text_partition.partitioner import partition_text
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 ARAB = "أبج"  # 3-codepoint Arabic chunk
 HEB = "אבג"  # 3-codepoint Hebrew chunk

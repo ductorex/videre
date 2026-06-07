@@ -10,9 +10,8 @@ import pygame
 import pygame.freetype
 import pytest
 
-from videre.core.shaping.new_text_partition.partitioner import partition_text
-from videre.core.shaping.new_text_partition.shaping import shape_line
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 ARAB = "أبج"  # 3-codepoint Arabic chunk
 

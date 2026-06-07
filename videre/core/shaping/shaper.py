@@ -1,9 +1,31 @@
+"""Shape a partition `Line` into glyphs via HarfBuzz, keeping the unit link.
+
+Produces a `ShapedTextLine`: the line's `TextUnit`s in logical order, each
+carrying its `PositionedGlyph`s. Within a unit the glyphs are in HarfBuzz
+output order (visual left-to-right, so reversed vs logical for an RTL unit);
+the units themselves stay in logical order until the L2 reorder (after wrap).
+
+`logical_position` is read straight off the unit's `LogicalCharacter`s via the
+HarfBuzz cluster index, so it is correct in both reading directions: for an
+RTL unit the clusters decrease but each one still points at the right source
+character. Several glyphs sharing a cluster (decomposition) get the same
+position; a ligature glyph takes its cluster's first character's position.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 from uharfbuzz import Buffer, Face, Font, FontFuncs, ot_font_set_funcs, shape
 
-from videre.core.shaping.shaped_glyph import ShapedGlyph
+from videre.core.shaping.glyph_partition import (
+    PositionedGlyph,
+    ShapedTextLine,
+    ShapedUnit,
+)
+from videre.core.shaping.text_partition.model import Line, TextUnit
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
@@ -75,6 +97,44 @@ class _FreetypeFontFuncsForHb:
         self, _font: Font, unicode: int, variation_selector: int, _user_data: object
     ) -> int:
         return self._hb_default_font.get_variation_glyph(unicode, variation_selector)
+
+
+@dataclass(slots=True, frozen=True)
+class ShapedGlyph:
+    """A single glyph as produced by HarfBuzz, with positions in pixels.
+
+    `cluster` is the Python index of the source character in the run's
+    source-text string, such that `source_text[g.cluster]`
+    yields the source character (or the first one when several codepoints
+    collapsed into a single cluster via a ligature or Indic reordering).
+    It is NOT a UTF-8 byte index nor a UTF-16 code-unit index; we feed
+    HarfBuzz with `Buffer.add_str` which works on Python codepoints.
+    When one codepoint produces several glyphs (decomposition), they all
+    carry that codepoint's cluster. Clusters are monotonic for LTR runs
+    and reversed for RTL runs (HarfBuzz returns glyphs in visual order).
+    Use it to find legal break positions: two consecutive glyphs with
+    different clusters delimit a cluster boundary safe to wrap on.
+
+    `ink_left` / `ink_right` describe the glyph's bitmap bounding box
+    along the x-axis, **in pixels and relative to the glyph's origin**
+    (= `pen_x + x_offset` at draw time). They come straight from
+    HarfBuzz `font.get_glyph_extents` (`x_bearing` and
+    `x_bearing + width` respectively). Most glyphs have
+    `ink_right <= x_advance`, but italic letters and a few sidebearing-
+    light glyphs (e.g. `f`, `T`, certain punctuation, RTL letters with
+    swashes) overhang past the advance — which means the wrap engine
+    must compare the cluster's effective right edge to the available
+    width, not just the cumulative advance.
+    """
+
+    glyph_id: int
+    cluster: int
+    x_advance: float
+    y_advance: float
+    x_offset: float
+    y_offset: float
+    ink_left: float = 0.0
+    ink_right: float = 0.0
 
 
 class Shaper:
@@ -199,3 +259,52 @@ class Shaper:
                 )
             )
         return tuple(out)
+
+
+def shape_line(
+    line: Line,
+    shaper: Shaper,
+    size_px: int,
+    *,
+    bold: bool = False,
+    italic: bool = False,
+) -> ShapedTextLine:
+    """Shape every component of `line` (gaps included) into a `ShapedTextLine`."""
+    units = [
+        _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
+        for unit in line.components
+    ]
+    return ShapedTextLine(units=units, bidi=line.bidi)
+
+
+def _shape_unit(
+    unit: TextUnit, shaper: Shaper, size_px: int, *, bold: bool, italic: bool
+) -> ShapedUnit:
+    text = "".join(lc.character.c for lc in unit.characters)
+    shaped = shaper.shape(
+        text=text,
+        font_path=unit.font_path,
+        size_px=size_px,
+        script=unit.script,
+        right_to_left=unit.is_rtl,
+        bold=bold,
+        italic=italic,
+    )
+    glyphs = [
+        PositionedGlyph(
+            glyph_id=g.glyph_id,
+            x_advance=g.x_advance,
+            x_offset=g.x_offset,
+            y_offset=g.y_offset,
+            ink_left=g.ink_left,
+            ink_right=g.ink_right,
+            font_path=unit.font_path,
+            bold=bold,
+            italic=italic,
+            is_rtl=unit.is_rtl,
+            is_gap=unit.is_gap,
+            logical_position=unit.characters[g.cluster].logical_position,
+        )
+        for g in shaped
+    ]
+    return ShapedUnit(unit=unit, glyphs=glyphs)

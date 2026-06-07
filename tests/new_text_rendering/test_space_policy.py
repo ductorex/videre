@@ -1,4 +1,4 @@
-"""Tests for `TextSpacePolicy` handling (`new_text_partition.space_policy` +
+"""Tests for `TextSpacePolicy` handling (`text_partition.space_policy` +
 its wiring through `render.build_glyph_lines` / `wrap`).
 
 Covers the 8-case spec table (width x wrap_words x policy) end to end on the
@@ -12,14 +12,13 @@ import pygame.freetype
 import pytest
 
 from videre.core.constants import TextSpacePolicy as SP
-from videre.core.shaping.new_text_partition.partitioner import partition_text
-from videre.core.shaping.new_text_partition.render import build_glyph_lines
-from videre.core.shaping.new_text_partition.shaping import shape_line
-from videre.core.shaping.new_text_partition.space_policy import (
+from videre.core.shaping.render import build_glyph_lines
+from videre.core.shaping.rendering.space_policy import (
     collapse_spaces,
     resolve_space_policy,
 )
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 _SIZE = 16
 

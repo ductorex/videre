@@ -30,8 +30,8 @@ import pygame.freetype
 import pytest
 
 import videre
-from videre.core.shaping.new_text_partition.layout import RenderedText
-from videre.core.shaping.new_text_partition.render import build_glyph_lines
+from videre.core.shaping.render import build_glyph_lines
+from videre.core.shaping.rendering.layout import RenderedText
 from videre.core.shaping.shaper import Shaper
 from videre.testing.utils import TEXT_SAMPLES
 

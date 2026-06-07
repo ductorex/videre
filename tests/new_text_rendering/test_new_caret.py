@@ -1,4 +1,4 @@
-"""Tests for the flat-model caret (`new_text_partition.layout.RenderedText`),
+"""Tests for the flat-model caret (`text_partition.layout.RenderedText`),
 obtained from `render_text`. Covers size, LTR states/navigation/hit-test/range,
 RTL visual navigation, and the painted selection highlight.
 """
@@ -9,8 +9,8 @@ import pytest
 
 from tests.common import pixels_blue, pixels_red
 from videre.colors import Color
-from videre.core.shaping.new_text_partition.render import render_text
 from videre.core.shaping.rasterizer import GlyphRasterizer
+from videre.core.shaping.render import render_text
 from videre.core.shaping.shaper import Shaper
 
 BLACK = Color(0, 0, 0)

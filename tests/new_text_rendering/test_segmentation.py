@@ -5,7 +5,7 @@ paths happen not to hit (empty inputs, all-neutral text, ambiguous
 quotes, lead-block + CJK fusion, multi-font runs, bidi-formatter filtering).
 """
 
-from videre.core.shaping.new_text_partition.partition_utils import (
+from videre.core.shaping.text_partition.partition_utils import (
     _split_by_font,
     _split_by_script,
     _split_by_word,

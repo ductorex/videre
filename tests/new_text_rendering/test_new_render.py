@@ -1,4 +1,4 @@
-"""Tests for the flat-model surface render (`new_text_partition.render`).
+"""Tests for the flat-model surface render (`text_partition.render`).
 
 Sanity checks: a non-empty surface is painted, empty text still reserves one
 line slot, an inter-word space widens the surface, wrap grows height and
@@ -13,8 +13,8 @@ import pytest
 from tests.common import pixels_alpha
 from videre.colors import Color
 from videre.core.constants import TextAlign
-from videre.core.shaping.new_text_partition.render import render_text
 from videre.core.shaping.rasterizer import GlyphRasterizer
+from videre.core.shaping.render import render_text
 from videre.core.shaping.shaper import Shaper
 
 BLACK = Color(0, 0, 0)

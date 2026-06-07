@@ -10,8 +10,8 @@ import pytest
 
 from tests.common import pixels_alpha
 from videre.colors import Color
-from videre.core.shaping.new_text_partition.layout import RenderedText
-from videre.core.shaping.new_text_partition.text_rendering import ShapedTextRendering
+from videre.core.shaping.rendering.layout import RenderedText
+from videre.core.shaping.text_rendering import ShapedTextRendering
 
 BLACK = Color(0, 0, 0)
 
@@ -77,14 +77,11 @@ def test_subpixel_changes_pixels_not_size(fake_win) -> None:
     assert not np.array_equal(pixels_alpha(surf_pixel), pixels_alpha(surf_sub))
 
 
-def test_subpixel_default_follows_env(fake_win, monkeypatch) -> None:
-    """With no explicit `subpixel`, the constructor follows the
-    VIDERE_USE_SHAPED_SUBPIXEL env flag; an explicit bool overrides it."""
-    monkeypatch.setenv("VIDERE_USE_SHAPED_SUBPIXEL", "1")
-    assert ShapedTextRendering(fake_win.backend, size=16)._subpixel is True
-    monkeypatch.delenv("VIDERE_USE_SHAPED_SUBPIXEL", raising=False)
+def test_subpixel_defaults_off_and_explicit_wins(fake_win) -> None:
+    """No `subpixel` argument -> off; an explicit bool is honored. (The old
+    VIDERE_USE_SHAPED_SUBPIXEL env flag was removed along with env.py.)"""
     assert ShapedTextRendering(fake_win.backend, size=16)._subpixel is False
-    # Explicit value wins over the env flag.
-    monkeypatch.setenv("VIDERE_USE_SHAPED_SUBPIXEL", "1")
-    forced = ShapedTextRendering(fake_win.backend, size=16, subpixel=False)
-    assert forced._subpixel is False
+    on = ShapedTextRendering(fake_win.backend, size=16, subpixel=True)
+    assert on._subpixel is True
+    off = ShapedTextRendering(fake_win.backend, size=16, subpixel=False)
+    assert off._subpixel is False

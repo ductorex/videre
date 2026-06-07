@@ -33,7 +33,7 @@ class TextSpacePolicy(Enum):
     ONLY under word wrap (char wrap / no wrap keep an edge space, to disambiguate
     a word boundary from a mid-word break — a GUI choice, unlike CSS which trims
     every line edge). PRESERVE never drops a space, it only redistributes them
-    across wrapped lines. See `new_text_partition.wrap` for the full
+    across wrapped lines. See `text_partition.wrap` for the full
     start / inside / end table per (width x wrap_words x policy).
     """
 
