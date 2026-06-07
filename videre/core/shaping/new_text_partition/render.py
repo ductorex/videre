@@ -289,7 +289,9 @@ def _paint_line(
         ul_offset, ul_thickness = underline_metrics(glyphs[0].font_path, size)
         if bold:
             ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * size))
-        backend.rectangle(
+        # `box` (filled), not `rectangle` (1px outline): a thickness >= 3px
+        # underline drawn as an outline renders hollow ("rectangle" look).
+        backend.box(
             out,
             Rectangle(
                 int(line_start),

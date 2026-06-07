@@ -267,7 +267,19 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
             current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
             queue.pop(0)
             continue
-        if last_break is not None:
+        if atom.can_break_before:
+            # The overflowing atom is itself a legal break point, so break right
+            # before it: `current` already fits by construction, so this keeps
+            # every atom that fits (maximal greedy). This is preferred over an
+            # earlier `last_break` — backing up there would needlessly drop a
+            # fitting atom. That is the char-wrap off-by-one: there every atom is
+            # a break opportunity, so `last_break` trails one atom behind the
+            # fill front and would push a character that fits onto the next line.
+            # A trailing glue left in `current` is dropped (collapse, by
+            # `_strip_edge_glues`) or hung (preserve), exactly as via last_break.
+            lines.append(current)
+            current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
+        elif last_break is not None:
             brk = current[last_break]
             if brk.is_glue and not collapse:
                 head = current[: last_break + 1]  # preserve: hang it on the head
@@ -280,10 +292,6 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
                 tail = current[last_break:]
             lines.append(head)
             queue = tail + queue
-            current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
-        elif atom.can_break_before:
-            # Break right before `atom`; it starts the next line.
-            lines.append(current)
             current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
         else:
             # Glued to the current run with no legal break: overflow it whole.
