@@ -6,9 +6,13 @@ from videre.core.clipboard import Clipboard
 from videre.core.framing import FPS
 from videre.core.utils import OnEvent
 from videre.layouts.div.div import Div
-from videre.testing.utils import LOREM_IPSUM
+from videre.testing.utils import LOREM_IPSUM, TEXT_SAMPLES
 
 logger = logging.getLogger(__name__)
+
+
+def _text_input_init_text() -> str:
+    return TEXT_SAMPLES["arabic"].splitlines()[0]
 
 
 class Demo:
@@ -57,7 +61,7 @@ class Demo:
     @on_demo("text input")
     def on_text_input(self, *args):
         return videre.Container(
-            videre.TextInput("hello !"), padding=videre.Padding.all(20)
+            videre.TextInput(_text_input_init_text()), padding=videre.Padding.all(20)
         )
 
     @on_demo("clipboard")

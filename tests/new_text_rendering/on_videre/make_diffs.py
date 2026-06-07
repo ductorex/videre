@@ -30,14 +30,10 @@ _BAND = 16  # header strip height for labels
 
 
 def _snapshots():
-    rels = set()
-    for root in (_WIDGET, _HERE):
-        for png in root.rglob("*.png"):
-            rel = png.relative_to(root).as_posix()
-            if rel.startswith("_diffs/"):  # our own output, never a snapshot
-                continue
-            rels.add(rel)
-    return sorted(rels)
+    # Only mirror snapshots (legacy baselines under widget_tests). Skips our own
+    # `_diffs/` output and on_videre-only snapshots (e.g. the bidi TextInput
+    # tests) that have no legacy counterpart to diff against.
+    return sorted(p.relative_to(_WIDGET).as_posix() for p in _WIDGET.rglob("*.png"))
 
 
 def _load(path, shape):

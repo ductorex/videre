@@ -22,14 +22,13 @@ _WIDGET = _HERE.parents[1] / "widget_tests"  # tests/widget_tests
 
 
 def _snapshots():
-    rels = set()
-    for root in (_WIDGET, _HERE):
-        for png in root.rglob("*.png"):
-            rel = png.relative_to(root).as_posix()
-            if rel.startswith("_diffs/"):  # make_diffs.py output, not a snapshot
-                continue
-            rels.add(rel)
-    return sorted(rels)
+    # Only mirror snapshots: those whose module is mirrored from `widget_tests`
+    # (so we iterate the legacy baselines). on_videre-only outputs — the
+    # `make_diffs` `_diffs/` tree and the standalone bidi TextInput snapshots —
+    # have no legacy counterpart to compare against, so they are excluded by
+    # construction. A baseline present here but missing under `on_videre/` still
+    # fails (the per-test `shaped.exists()` check below).
+    return sorted(p.relative_to(_WIDGET).as_posix() for p in _WIDGET.rglob("*.png"))
 
 
 def _load(path):
