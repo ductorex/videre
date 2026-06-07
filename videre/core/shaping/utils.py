@@ -1,4 +1,4 @@
-from functools import lru_cache
+from functools import cache, lru_cache
 
 import freetype as ft
 
@@ -28,9 +28,20 @@ SYNTHETIC_SLANT_FACTOR = 0.2
 TOP_GLYPH_MARGIN_PX = 1
 
 
+# Caching convention in this module:
+#   @cache              -- cheap, value-type results over a bounded key domain
+#       (per-codepoint, or per-(font, size[, glyph]) metrics). Entries are tiny,
+#       so no size bound is needed.
+#   @lru_cache(maxsize) -- heavyweight resources that must be capped. A font
+#       `Face` holds the whole font file in memory and there are ~174 of them,
+#       so we bound how many stay resident.
+
+
 @lru_cache(maxsize=64)
 def load_freetype_face(font_path: str) -> ft.Face:
-    """Cached `freetype.Face` factory shared across the shaping package.
+    """Cached `freetype.Face`, shared across the shaping package. Bounded with
+    `lru_cache` (not `@cache`) because a `Face` is heavyweight — it holds the
+    font file in memory — and there are ~174 fonts, so we cap the resident set.
 
     The rasterizer mutates per-call state (set_pixel_sizes / set_transform /
     load_glyph) while partition_utils only reads the cmap (get_char_index). The
@@ -40,26 +51,31 @@ def load_freetype_face(font_path: str) -> ft.Face:
     return ft.Face(font_path)
 
 
-@lru_cache(maxsize=128)
-def space_advance(font_path: str, size_px: int) -> float:
-    """Pixels-space horizontal advance of the U+0020 SPACE glyph.
+@cache
+def glyph_metrics(font_path: str, size_px: int, glyph_id: int) -> tuple[int, int, int]:
+    """Cached FreeType metrics of one glyph, in 26.6 fixed-point:
+    ``(horizontal_advance, horizontal_bearing_x, width)``.
 
-    Used between consecutive `ShapedWord`s during layout: the shaped
-    pipeline (like `pygame_text_rendering`) does not store or render the
-    inter-word space as a glyph; instead each word boundary contributes
-    a virtual advance equal to this value, computed once on the
-    reference font. Falls back to 0.0 if the font has no space glyph.
+    Independent of bold / italic on purpose: synthetic bold's advance growth
+    and bitmap widening, and synthetic italic's shear, are all applied
+    downstream (HarfBuzz ``synthetic_bold``, the shaper's ``bold_bitmap_extra``,
+    the rasterizer's affine transform) — never to the base glyph loaded here.
+    So the key is only ``(font_path, size_px, glyph_id)``. (The rasterized glyph
+    *bitmap* does vary with bold / italic, but that lives in the rasterizer's
+    own cache.)
+
+    Loading a glyph through FreeType is the dominant cost of shaping; memoizing
+    it removes the redundant ``load_glyph`` the HarfBuzz advance callback and
+    the shaper's ink-extent loop would otherwise each do, per glyph, per render.
     """
     face = load_freetype_face(font_path)
     face.set_pixel_sizes(0, size_px)
-    glyph_idx = face.get_char_index(0x20)
-    if glyph_idx == 0:
-        return 0.0
-    face.load_glyph(glyph_idx)
-    return face.glyph.advance.x / 64.0
+    face.load_glyph(glyph_id)
+    m = face.glyph.metrics
+    return (m.horiAdvance, m.horiBearingX, m.width)
 
 
-@lru_cache(maxsize=128)
+@cache
 def line_metrics(font_path: str, size_px: int) -> tuple[int, int, int]:
     """Pixels-space line metrics: ``(ascender_px, descender_px, line_height_px)``.
 
@@ -82,7 +98,7 @@ def line_metrics(font_path: str, size_px: int) -> tuple[int, int, int]:
     return (int(round(ascender)), int(round(descender)), int(round(height)))
 
 
-@lru_cache(maxsize=128)
+@cache
 def underline_metrics(font_path: str, size_px: int) -> tuple[int, int]:
     """Pixels-space underline metrics: ``(offset_px, thickness_px)``.
 

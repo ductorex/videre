@@ -140,14 +140,11 @@ def test_quote_at_word_boundary_acts_as_trailing() -> None:
 
 def test_cjk_words_dont_fuse_across_whitespace() -> None:
     """The CJK coalescer must respect source whitespace: `中 文`
-    yields two separate Words (with the second carrying
-    `space_before=True`)."""
+    yields two separate Words."""
     words = _split_by_word(CJK_ZHONG + " " + CJK_WEN)
     assert len(words) == 2
     assert words[0].text == CJK_ZHONG
     assert words[1].text == CJK_WEN
-    assert words[0].space_before is False
-    assert words[1].space_before is True
 
 
 # -- _split_by_font ----------------------------------------------------------

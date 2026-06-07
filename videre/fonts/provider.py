@@ -10,7 +10,7 @@ https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project
 
 import json
 import os
-from functools import lru_cache
+from functools import cache
 
 from videre.fonts.font_utils import FontUtils
 
@@ -135,7 +135,7 @@ class FontProvider:
         return name, path
 
 
-@lru_cache(maxsize=1)
+@cache
 def get_font_provider() -> FontProvider:
-    """Return a FontProvider object, cached at global level."""
+    """The process-wide `FontProvider` singleton (`@cache` on a no-arg func)."""
     return FontProvider()

@@ -69,15 +69,6 @@ class Word:
     run; the consumer must call grapheme-cluster segmentation to find legal
     break positions.
     """
-    space_before: bool = False
-    """
-    True when the source had at least one whitespace token immediately
-    before this word. Drives the inter-word `space_advance` insertion in
-    rendering and wrapping: two adjacent words with no source whitespace
-    between them (e.g. `Hello` and `世界` in `"Hello世界"` — UAX#29 word
-    boundaries do not require a separator) must render flush. Always False
-    on the first Word of a line.
-    """
 
 
 @dataclass(slots=True, frozen=True)
@@ -108,8 +99,7 @@ def _split_by_word(text: str) -> list[Word]:
     Pipeline:
     1. ``uniseg.wordbreak.words`` segments the text. Whitespace tokens are
        dropped but their presence is remembered as a fusion barrier on the
-       next non-whitespace token *and* as the source signal for
-       `Word.space_before`.
+       next non-whitespace token.
     2. Each remaining token is classified via Line_Break:
        - tokens whose every character is in ``_LB_BREAKABLE`` (CJK
          ideographs, Hangul syllables, SE-Asian SA characters) are non-atomic
@@ -128,41 +118,25 @@ def _split_by_word(text: str) -> list[Word]:
     3. Fusion (cjk coalescence, trail-to-prev, lead-to-next) is forbidden
        across any whitespace that was in the source text. ``"a b"`` always
        yields two Words even when fusion rules would otherwise apply.
-    4. ``space_before`` is set on each Word from the source: True iff a
-       whitespace token was seen between this Word and the previous one
-       (or the start of the input). It is the rendering signal that drives
-       inter-word `space_advance` insertion. UAX#29 splits between Latin
-       and CJK without any whitespace, so two consecutive words may have
-       ``space_before=False`` (e.g. `"Hello世界"` → [`Hello`, `世界`]).
     """
     if not text:
         return []
 
     raw = list(_word_segments(text))
     n_raw = len(raw)
-    # `classify_sep_before` flags whether something separator-like (string
-    # boundary OR whitespace) precedes the token; quote classification needs
-    # this. `ws_before` is the strict source signal: True only if a real
-    # whitespace token was seen, used to set `Word.space_before`.
-    parts: list[tuple[str, str, bool, bool]] = []
-    classify_sep_pending = True  # string boundary counts as a separator
-    ws_pending = False
+    # `sep_before` flags whether something separator-like (string boundary OR
+    # whitespace) precedes the token; quote classification needs this.
+    parts: list[tuple[str, str, bool]] = []
+    sep_pending = True  # string boundary counts as a separator
     for idx, token in enumerate(raw):
         if _is_whitespace_token(token):
-            classify_sep_pending = True
-            ws_pending = True
+            sep_pending = True
             continue
         sep_right = idx == n_raw - 1 or _is_whitespace_token(raw[idx + 1])
         parts.append(
-            (
-                token,
-                _classify_token(token, classify_sep_pending, sep_right),
-                classify_sep_pending,
-                ws_pending,
-            )
+            (token, _classify_token(token, sep_pending, sep_right), sep_pending)
         )
-        classify_sep_pending = False
-        ws_pending = False
+        sep_pending = False
 
     if not parts:
         return []
@@ -171,25 +145,19 @@ def _split_by_word(text: str) -> list[Word]:
     i = 0
     n = len(parts)
     while i < n:
-        token, kind, sep_before, ws_before = parts[i]
+        token, kind, sep_before = parts[i]
         if kind == "cjk":
             chunk = [token]
             j = i + 1
             while j < n and parts[j][1] == "cjk" and not parts[j][2]:
                 chunk.append(parts[j][0])
                 j += 1
-            result.append(
-                Word(text="".join(chunk), atomic=False, space_before=ws_before)
-            )
+            result.append(Word(text="".join(chunk), atomic=False))
             i = j
             continue
         if kind == "trail" and result and not sep_before:
             prev = result[-1]
-            result[-1] = Word(
-                text=prev.text + token,
-                atomic=prev.atomic,
-                space_before=prev.space_before,
-            )
+            result[-1] = Word(text=prev.text + token, atomic=prev.atomic)
             i += 1
             continue
         if kind == "lead":
@@ -198,32 +166,26 @@ def _split_by_word(text: str) -> list[Word]:
                 j += 1
             if j < n and not parts[j][2]:
                 prefix = "".join(parts[k][0] for k in range(i, j))
-                next_text, next_kind, _, _ = parts[j]
+                next_text, next_kind, _ = parts[j]
                 if next_kind == "cjk":
                     k = j + 1
                     chunk = [prefix + next_text]
                     while k < n and parts[k][1] == "cjk" and not parts[k][2]:
                         chunk.append(parts[k][0])
                         k += 1
-                    result.append(
-                        Word(text="".join(chunk), atomic=False, space_before=ws_before)
-                    )
+                    result.append(Word(text="".join(chunk), atomic=False))
                     i = k
                 else:
-                    result.append(
-                        Word(
-                            text=prefix + next_text, atomic=True, space_before=ws_before
-                        )
-                    )
+                    result.append(Word(text=prefix + next_text, atomic=True))
                     i = j + 1
                 continue
             # No adjacent target: emit the lead block as a standalone atomic.
             merged = "".join(parts[k][0] for k in range(i, j))
-            result.append(Word(text=merged, atomic=True, space_before=ws_before))
+            result.append(Word(text=merged, atomic=True))
             i = j
             continue
         # Plain word, or trail/lead blocked by a separator: emit as atomic.
-        result.append(Word(text=token, atomic=True, space_before=ws_before))
+        result.append(Word(text=token, atomic=True))
         i += 1
 
     return result

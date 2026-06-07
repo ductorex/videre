@@ -7,7 +7,7 @@ from videre.core.shaping.shaped_glyph import ShapedGlyph
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
-    load_freetype_face,
+    glyph_metrics,
 )
 
 # Third element of the `synthetic_bold` tuple. False means HarfBuzz grows
@@ -19,6 +19,8 @@ _SYNTHETIC_BOLD_IN_PLACE = False
 
 @lru_cache(maxsize=64)
 def _load_face(font_path: str) -> Face:
+    # Bounded like `load_freetype_face`: a HarfBuzz `Face` holds the font file
+    # bytes and there are ~174 fonts, so cap the resident set (not `@cache`).
     return Face(Path(font_path).read_bytes())
 
 
@@ -30,7 +32,7 @@ class _FreetypeFontFuncsForHb:
     (unicode -> glyph id) so we don't reimplement them.
     """
 
-    __slots__ = ("_hb_default_font", "_ft_face", "_size_px")
+    __slots__ = ("_hb_default_font", "_font_path", "_size_px")
 
     def __init__(self, font_path: str, size_px: int) -> None:
         face = _load_face(font_path)
@@ -44,7 +46,7 @@ class _FreetypeFontFuncsForHb:
         ot_font_set_funcs(default_font)
 
         self._hb_default_font = default_font
-        self._ft_face = load_freetype_face(font_path)
+        self._font_path = font_path
         self._size_px = size_px
 
     def to_font_funcs(self) -> FontFuncs:
@@ -60,14 +62,11 @@ class _FreetypeFontFuncsForHb:
         return funcs
 
     def _get_h_advance(self, _font: Font, glyph_id: int, _user_data: object) -> int:
-        # The freetype.Face is shared across the shaping package
-        # (rasterizer, line_metrics, ...), and other consumers mutate
-        # its pixel size between calls — so we restore it here on
-        # every callback invocation. Returns the hinted advance in
-        # 26.6 fixed-point, exactly as HarfBuzz expects.
-        self._ft_face.set_pixel_sizes(0, self._size_px)
-        self._ft_face.load_glyph(glyph_id)
-        return self._ft_face.glyph.metrics.horiAdvance
+        # Hinted advance in 26.6 fixed-point, exactly as HarfBuzz expects.
+        # Cached per (font, size, glyph): a hit touches no FreeType face, so it
+        # also sidesteps the shared-face pixel-size contention this used to
+        # guard against.
+        return glyph_metrics(self._font_path, self._size_px, glyph_id)[0]
 
     def _nominal_glyph(self, _font: Font, unicode: int, _user_data: object) -> int:
         return self._hb_default_font.get_nominal_glyph(unicode)
@@ -181,15 +180,12 @@ class Shaper:
         # on every side (so `+2*strength` total to bitmap width).
         # Italic shear doesn't change the advance — only the bitmap leans
         # — so no compensation needed there.
-        ft_face = load_freetype_face(font_path)
-        ft_face.set_pixel_sizes(0, size_px)
         bold_bitmap_extra = 2 * SYNTHETIC_BOLD_STRENGTH * size_px if bold else 0.0
         out: list[ShapedGlyph] = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            ft_face.load_glyph(info.codepoint)
-            metr = ft_face.glyph.metrics
-            ft_x_bearing = metr.horiBearingX / 64
-            ft_width = metr.width / 64 + bold_bitmap_extra
+            _, ft_bearing, ft_w = glyph_metrics(font_path, size_px, info.codepoint)
+            ft_x_bearing = ft_bearing / 64
+            ft_width = ft_w / 64 + bold_bitmap_extra
             out.append(
                 ShapedGlyph(
                     glyph_id=info.codepoint,

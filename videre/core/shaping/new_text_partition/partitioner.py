@@ -8,10 +8,9 @@ into the new
 `new_text_partition.model` types, with three deliberate differences:
 
 - **Explicit gaps.** Inter-word whitespace becomes a gap `TextUnit`
-  (`is_gap=True`) carrying the real space characters, instead of the legacy
-  `space_before` boolean. Leading / trailing whitespace is captured too. This
-  gives `space_policy` (collapse / preserve) and justification real units to
-  act on.
+  (`is_gap=True`) carrying the real space characters, instead of a per-word
+  whitespace flag. Leading / trailing whitespace is captured too. This gives
+  `space_policy` (collapse / preserve) and justification real units to act on.
 - **Original-text positions.** Every `LogicalCharacter` keeps its index in the
   ORIGINAL text, tracked across line-terminator normalization and the
   unprintable / bidi-control filtering, so caret / selection mapping stays
