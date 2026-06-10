@@ -2,7 +2,7 @@
 `widget_tests` baselines, to *inspect* where the shaped renderer diverges.
 
 For each snapshot that differs, writes a side-by-side composite to
-`on_videre/_diffs/<module>/<name>.png`:
+`on_widgets/_diffs/<module>/<name>.png`:
 
     [ baseline | shaped | heatmap ]
 
@@ -11,17 +11,20 @@ for small differences (|delta| <= 32, typically antialiasing) and red for large
 ones (structural — wrap points, alignment, glyph metrics). The `_diffs/` folder
 is git-ignored; it is a debug artifact, regenerated on demand:
 
-    uv run python -m tests.new_text_rendering.on_videre.make_diffs
+    uv run python -m tests.new_text_rendering.on_videre.on_widgets.make_diffs
 """
 
+import importlib
 import pathlib
 import shutil
 
 import numpy as np
 from PIL import Image, ImageDraw
 
-_HERE = pathlib.Path(__file__).parent  # tests/new_text_rendering/on_videre
-_WIDGET = _HERE.parents[1] / "widget_tests"  # tests/widget_tests
+_HERE = pathlib.Path(__file__).parent
+_WIDGET_MODULE = importlib.import_module("tests.widget_tests")
+assert _WIDGET_MODULE.__file__ is not None
+_WIDGET = pathlib.Path(_WIDGET_MODULE.__file__).parent
 _OUT = _HERE / "_diffs"
 
 _AA_THRESHOLD = 32  # |delta| at/below this is treated as antialiasing (yellow)
@@ -31,8 +34,8 @@ _BAND = 16  # header strip height for labels
 
 def _snapshots():
     # Only mirror snapshots (legacy baselines under widget_tests). Skips our own
-    # `_diffs/` output and on_videre-only snapshots (e.g. the bidi TextInput
-    # tests) that have no legacy counterpart to diff against.
+    # `_diffs/` output and on_widgets-only snapshots that have no legacy
+    # counterpart to diff against.
     return sorted(p.relative_to(_WIDGET).as_posix() for p in _WIDGET.rglob("*.png"))
 
 

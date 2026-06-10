@@ -8,27 +8,32 @@ where the shaped renderer diverges from the legacy pygame renderer.
 Run deliberately (most text snapshots are expected to diverge — that is what we
 are measuring):
 
-    uv run pytest tests/new_text_rendering/on_videre/test_snapshots.py -q
+    uv run pytest tests/new_text_rendering/on_videre/on_widgets/test_snapshots.py -q
 """
 
+import importlib
 import pathlib
 
 import numpy as np
 import pytest
 from PIL import Image
 
-_HERE = pathlib.Path(__file__).parent  # tests/new_text_rendering/on_videre
-_WIDGET = _HERE.parents[1] / "widget_tests"  # tests/widget_tests
+_HERE = pathlib.Path(__file__).parent
+_WIDGET_MODULE = importlib.import_module("tests.widget_tests")
+assert _WIDGET_MODULE.__file__ is not None
+_WIDGET = pathlib.Path(_WIDGET_MODULE.__file__).parent
 
 
 def _snapshots():
     # Only mirror snapshots: those whose module is mirrored from `widget_tests`
-    # (so we iterate the legacy baselines). on_videre-only outputs — the
+    # (so we iterate the legacy baselines). on_widgets-only outputs — the
     # `make_diffs` `_diffs/` tree and the standalone bidi TextInput snapshots —
     # have no legacy counterpart to compare against, so they are excluded by
-    # construction. A baseline present here but missing under `on_videre/` still
+    # construction. A baseline present here but missing under `on_widgets/` still
     # fails (the per-test `shaped.exists()` check below).
-    return sorted(p.relative_to(_WIDGET).as_posix() for p in _WIDGET.rglob("*.png"))
+    sources = sorted(p.relative_to(_WIDGET).as_posix() for p in _WIDGET.rglob("*.png"))
+    assert sources, "Cannot find any png snapshots"
+    return sources
 
 
 def _load(path):
@@ -39,7 +44,7 @@ def _load(path):
 def test_shaped_matches_legacy(rel):
     legacy, shaped = _WIDGET / rel, _HERE / rel
     assert legacy.exists(), f"baseline absente de widget_tests: {rel}"
-    assert shaped.exists(), f"snapshot absent de on_videre: {rel}"
+    assert shaped.exists(), f"snapshot absent de on_widgets: {rel}"
 
     a, b = _load(legacy), _load(shaped)
     if a.shape != b.shape:
