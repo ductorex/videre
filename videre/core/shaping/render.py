@@ -19,7 +19,11 @@ from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
-from videre.core.shaping.glyph_partition import GlyphLine, PositionedGlyph
+from videre.core.shaping.glyph_partition import (
+    GlyphLine,
+    PositionedGlyph,
+    measure_glyphs,
+)
 from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
 from videre.core.shaping.rendering.layout import (
     FontMetrics,
@@ -131,7 +135,7 @@ def render_text(
     baselines = [first_baseline + i * m.line_spacing for i in range(n)]
     total_height = baselines[-1] + m.descender
 
-    measures = [_measure(gl.glyphs) for gl, _ in lines]
+    measures = [measure_glyphs(gl.glyphs) for gl, _ in lines]
     natural_max = max((rr for _, rr in measures), default=0.0)
     target_width = float(width) if width is not None else natural_max
     surface_w = max(int(round(target_width)), 1)
@@ -303,20 +307,8 @@ def _paint_line(
 
 
 # ---------------------------------------------------------------------------
-# Measurement / alignment helpers
+# Alignment helpers
 # ---------------------------------------------------------------------------
-
-
-def _measure(glyphs: list[PositionedGlyph]) -> tuple[float, float]:
-    """`(advance, real_right)` of a glyph line: cumulative advance and the
-    rightmost ink edge, same arithmetic as the wrap engine."""
-    pen = 0.0
-    real_right = 0.0
-    for g in glyphs:
-        draw_x = int(round(pen + g.x_offset + g.ink_left))
-        real_right = max(real_right, draw_x + (g.ink_right - g.ink_left))
-        pen += g.x_advance
-    return pen, max(real_right, pen)
 
 
 def _gap_run_ends(glyphs: list[PositionedGlyph]) -> frozenset[int]:

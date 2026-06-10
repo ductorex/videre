@@ -99,3 +99,18 @@ class GlyphLine:
     """
 
     glyphs: list[PositionedGlyph] = field(default_factory=list)
+
+
+def measure_glyphs(glyphs: list[PositionedGlyph]) -> tuple[float, float]:
+    """`(advance, real_right)` of a glyph sequence: cumulative `x_advance` and
+    the rightmost ink edge from the sequence's left, using the same
+    `int(round(...))` rounding as the rasterizer — the single measurement
+    shared by the wrap engine and the paint pass, so both agree on whether a
+    glyph fits."""
+    pen = 0.0
+    real_right = 0.0
+    for g in glyphs:
+        draw_x = int(round(pen + g.x_offset + g.ink_left))
+        real_right = max(real_right, draw_x + (g.ink_right - g.ink_left))
+        pen += g.x_advance
+    return pen, max(real_right, pen)

@@ -77,6 +77,7 @@ from videre.core.shaping.glyph_partition import (
     PositionedGlyph,
     ShapedTextLine,
     ShapedUnit,
+    measure_glyphs,
 )
 from videre.core.shaping.text_partition.model import LineBidi, TextUnit
 
@@ -100,7 +101,7 @@ class _Atom:
 def wrap_lines(
     lines: Iterable[ShapedTextLine],
     width: int,
-    wrap_words: bool = True,
+    wrap_words: bool = False,
     space_policy: TextSpacePolicy = TextSpacePolicy.COLLAPSE,
 ) -> Iterator[ShapedTextLine]:
     """Subdivide each shaped line into sub-lines fitting within `width`.
@@ -166,12 +167,12 @@ def _atomize(
         if unit.is_gap:
             if preserve_char:
                 for chunk in _clusters(su.glyphs):
-                    adv, rr = _measure(chunk)
+                    adv, rr = measure_glyphs(chunk)
                     atoms.append(_Atom(unit, chunk, adv, rr, False, True))
                 prev_was_box = True
                 prev_split = True
             else:
-                adv, rr = _measure(su.glyphs)
+                adv, rr = measure_glyphs(su.glyphs)
                 atoms.append(_Atom(unit, su.glyphs, adv, rr, True, True))
                 prev_was_box = False
                 prev_split = False
@@ -185,7 +186,7 @@ def _atomize(
                 cbb = False  # line start, or right after a glue (the glue breaks)
             else:
                 cbb = split or prev_split  # word boundary between adjacent units
-            adv, rr = _measure(chunk)
+            adv, rr = measure_glyphs(chunk)
             atoms.append(_Atom(unit, chunk, adv, rr, False, cbb))
             prev_was_box = True
         prev_split = split
@@ -208,21 +209,6 @@ def _clusters(glyphs: list[PositionedGlyph]) -> list[list[PositionedGlyph]]:
         out.append(glyphs[i:j])
         i = j
     return out
-
-
-def _measure(glyphs: list[PositionedGlyph]) -> tuple[float, float]:
-    """Return `(advance, real_right)` for a chunk, mirroring the legacy wrap:
-    `advance` is the cumulative `x_advance`; `real_right` is the rightmost ink
-    edge from the chunk's left, using the same `int(round(...))` rounding as
-    the rasterizer so wrap and paint agree on whether a glyph fits."""
-    pen = 0.0
-    real_right = 0.0
-    for g in glyphs:
-        draw_x = int(round(pen + g.x_offset + g.ink_left))
-        ink_width = g.ink_right - g.ink_left
-        real_right = max(real_right, draw_x + ink_width)
-        pen += g.x_advance
-    return pen, max(real_right, pen)
 
 
 # ---------------------------------------------------------------------------
