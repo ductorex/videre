@@ -566,7 +566,6 @@ dependencies = [
     { name = "tqdm" },
     { name = "uharfbuzz" },
     { name = "unicodedataplus" },
-    { name = "uniseg" },
 ]
 
 [package.dev-dependencies]
@@ -578,6 +577,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "uniseg" },
 ]
 
 [package.metadata]
@@ -593,7 +593,6 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "uharfbuzz", specifier = ">=0.54.1" },
     { name = "unicodedataplus", specifier = ">=16.0.0.post1" },
-    { name = "uniseg", specifier = ">=0.10.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -605,4 +604,5 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.12.10" },
     { name = "ty", specifier = ">=0.0.32" },
+    { name = "uniseg", specifier = ">=0.10.1" },
 ]

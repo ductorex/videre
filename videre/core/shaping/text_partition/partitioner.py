@@ -1,10 +1,10 @@
 """Implementation of `partition_text`: build a `TextPartition` from raw text.
 
 Bidi direction comes from `videre.core.vibidi` (a full UAX#9 implementation,
-including rule N0 for paired brackets). UAX#29 word segmentation, UAX#24 script
-runs and per-character font routing reuse the helpers in `partition_utils`
-(font lookup via `fonts.provider.get_font_provider`). The result is assembled
-into the new
+including rule N0 for paired brackets). UAX#29 word segmentation and Videre's
+word profile live in `word_splitter`; UAX#24 script runs and per-character font
+routing reuse the helpers in `partition_utils` (font lookup via
+`fonts.provider.get_font_provider`). The result is assembled into the
 `text_partition.model` types, with three deliberate differences:
 
 - **Explicit gaps.** Inter-word whitespace becomes a gap `TextUnit`
@@ -38,7 +38,11 @@ from videre.core.shaping.text_partition.partition_utils import (
     _shaping_script,
     _split_by_font,
     _split_by_script,
-    _split_by_word,
+)
+from videre.core.shaping.text_partition.word_splitter import (
+    GapSpan,
+    WordSpan,
+    split_word_spans,
 )
 from videre.core.vibidi.vibidi import vibidi
 from videre.fonts.provider import get_font_provider
@@ -105,38 +109,24 @@ def _partition_line(raw: str, start: int) -> Line:
     is_rtls = [pos.is_rtl for pos in vibidi_text.logical_positions]
 
     components: list[TextUnit] = []
-    cursor = 0
-    # Words come out in source order and each `word.text` is a literal slice of
-    # `line_text`, so a forward `str.find` locates them and the characters in
-    # the hole `line_text[cursor:word_start]` are exactly the dropped
-    # whitespace -> an explicit gap. This naturally captures leading,
-    # inter-word and (after the loop) trailing whitespace.
-    for word in _split_by_word(line_text):
-        word_start = line_text.find(word.text, cursor)
-        assert word_start != -1, (
-            f"Cannot locate word {word.text!r} in {line_text!r} from {cursor}"
-        )
-        if word_start > cursor:
+    for span in split_word_spans(line_text):
+        if isinstance(span, GapSpan):
             components.append(
                 _gap_unit(
-                    line_text[cursor:word_start],
-                    positions[cursor:word_start],
+                    line_text[span.start : span.end],
+                    positions[span.start : span.end],
                     base_is_rtl,
                 )
             )
-        word_end = word_start + len(word.text)
+            continue
+        assert isinstance(span, WordSpan)
         components.extend(
             _word_units(
-                word.text,
-                is_rtls[word_start:word_end],
-                positions[word_start:word_end],
-                is_breakable=not word.atomic,
+                line_text[span.start : span.end],
+                is_rtls[span.start : span.end],
+                positions[span.start : span.end],
+                is_breakable=not span.atomic,
             )
-        )
-        cursor = word_end
-    if cursor < len(line_text):
-        components.append(
-            _gap_unit(line_text[cursor:], positions[cursor:], base_is_rtl)
         )
     return Line(components=tuple(components), bidi=bidi)
 

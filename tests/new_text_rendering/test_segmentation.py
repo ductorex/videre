@@ -1,15 +1,17 @@
-"""Direct tests for the partition_utils private segmentation helpers.
+"""Direct tests for the low-level text segmentation helpers.
 
 This file pins the per-helper edge cases that the high-level rendering
 paths happen not to hit (empty inputs, all-neutral text, ambiguous
 quotes, lead-block + CJK fusion, multi-font runs, bidi-formatter filtering).
 """
 
+from typing import NamedTuple
+
 from videre.core.shaping.text_partition.partition_utils import (
     _split_by_font,
     _split_by_script,
-    _split_by_word,
 )
+from videre.core.shaping.text_partition.word_splitter import WordSpan, split_word_spans
 
 LRE = chr(0x202A)  # Left-to-Right Embedding (invisible)
 RLE = chr(0x202B)  # Right-to-Left Embedding (invisible)
@@ -20,6 +22,19 @@ LDQ = "“"
 RDQ = "”"
 CJK_ZHONG = "中"
 CJK_WEN = "文"
+
+
+class _Word(NamedTuple):
+    text: str
+    atomic: bool
+
+
+def _split_by_word(text: str) -> list[_Word]:
+    return [
+        _Word(text[span.start : span.end], span.atomic)
+        for span in split_word_spans(text)
+        if isinstance(span, WordSpan)
+    ]
 
 
 # -- Empty inputs ------------------------------------------------------------
