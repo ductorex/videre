@@ -176,3 +176,15 @@ def test_paragraph_break_caret_on_second_line(fake_win, shaper, rasterizer) -> N
     y_alpha = rendered.visual_state(0).pixel.y_top
     y_beta = rendered.visual_state(8).pixel.y_top  # inside "beta" (positions 6..9)
     assert y_beta > y_alpha
+
+
+def test_explicit_newline_has_distinct_caret_positions_on_both_sides(
+    fake_win, shaper, rasterizer
+) -> None:
+    text = "a\nb"
+    rendered, _ = _render(text, fake_win, shaper, rasterizer)
+
+    states = [rendered.visual_state(pos) for pos in range(len(text) + 1)]
+    assert [state.pos for state in states] == list(range(len(text) + 1))
+    assert rendered.total_visual_count() == len(text)
+    assert states[1].pixel.y_top < states[2].pixel.y_top

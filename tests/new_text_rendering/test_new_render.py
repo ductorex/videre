@@ -14,7 +14,7 @@ from tests.common import pixels_alpha
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.shaping.rasterizer import GlyphRasterizer
-from videre.core.shaping.render import render_text
+from videre.core.shaping.render import render_char, render_text
 from videre.core.shaping.shaper import Shaper
 
 BLACK = Color(0, 0, 0)
@@ -75,6 +75,26 @@ def test_inter_word_space_widens_surface(fake_win, shaper, rasterizer) -> None:
     assert with_space.get_width() > without.get_width()
 
 
+@pytest.mark.parametrize(("text", "italic"), [("f", True), ("J", False)])
+def test_glyph_overhang_is_not_clipped(
+    fake_win, shaper, rasterizer, text, italic
+) -> None:
+    line = _render(text, fake_win, shaper, rasterizer, italic=italic)
+    glyph = render_char(
+        text,
+        backend=fake_win.backend,
+        rasterizer=rasterizer,
+        shaper=shaper,
+        size=16,
+        color=BLACK,
+        italic=italic,
+    )
+
+    line_ink = int((pixels_alpha(line) > 0).sum())
+    glyph_ink = int((pixels_alpha(glyph) > 0).sum())
+    assert line_ink == glyph_ink
+
+
 # -- Wrapping ----------------------------------------------------------------
 
 
@@ -84,6 +104,14 @@ def test_wrap_grows_height_and_respects_width(fake_win, shaper, rasterizer) -> N
     wrapped = _render(text, fake_win, shaper, rasterizer, width=120, wrap_words=True)
     assert wrapped.get_height() > natural.get_height()
     assert wrapped.get_width() <= 120
+
+
+def test_word_wrap_all_whitespace_still_reserves_one_line(
+    fake_win, shaper, rasterizer
+) -> None:
+    empty = _render("", fake_win, shaper, rasterizer, width=100, wrap_words=True)
+    spaces = _render("   ", fake_win, shaper, rasterizer, width=100, wrap_words=True)
+    assert spaces.get_height() == empty.get_height()
 
 
 # -- Alignment ---------------------------------------------------------------

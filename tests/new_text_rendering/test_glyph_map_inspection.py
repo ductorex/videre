@@ -61,6 +61,11 @@ def _glyphs_at(glines: list[GlyphLine], pos: int) -> list:
     return [g for gl in glines for g in gl.glyphs if g.logical_position == pos]
 
 
+def _visible_glyph_ids(glyphs) -> list[int]:
+    """Ignore zero-width control placeholders and compare painted forms."""
+    return [g.glyph_id for g in glyphs if g.x_advance != 0 or g.ink_left != g.ink_right]
+
+
 def _ltr_glyph_id(shaper: Shaper, ch: str) -> int:
     _, font_path = get_font_provider().get_font_info(ch)
     glyphs = shaper.shape(
@@ -154,3 +159,39 @@ def test_arabic_sample_keeps_both_bracket_shapes(shaper) -> None:
         if g.logical_position in bracket_positions
     }
     assert shapes == {_ltr_glyph_id(shaper, "["), _ltr_glyph_id(shaper, "]")}
+
+
+# -- join controls must reach HarfBuzz ---------------------------------------
+
+
+def test_emoji_family_zwj_sequence_shapes_as_one_glyph(shaper: Shaper) -> None:
+    family = "\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"
+    without_zwj = family.replace("\u200d", "")
+    _, font_path = get_font_provider().get_font_info(family[0])
+
+    expected = shaper.shape(
+        family, font_path, _SIZE, script="Zyyy", right_to_left=False
+    )
+    unjoined = shaper.shape(
+        without_zwj, font_path, _SIZE, script="Zyyy", right_to_left=False
+    )
+    actual = [g for line in _glyph_lines(family, shaper) for g in line.glyphs]
+
+    assert _visible_glyph_ids(expected) != _visible_glyph_ids(unjoined)
+    assert _visible_glyph_ids(actual) == _visible_glyph_ids(expected)
+
+
+def test_persian_zwnj_preserves_non_joining_letter_forms(shaper: Shaper) -> None:
+    # Persian "name-ha": ZWNJ keeps the plural suffix visually separate.
+    text = "\u0646\u0627\u0645\u0647\u200c\u0647\u0627"
+    without_zwnj = text.replace("\u200c", "")
+    _, font_path = get_font_provider().get_font_info(text[0])
+
+    expected = shaper.shape(text, font_path, _SIZE, script="Arab", right_to_left=True)
+    incorrectly_joined = shaper.shape(
+        without_zwnj, font_path, _SIZE, script="Arab", right_to_left=True
+    )
+    actual = [g for line in _glyph_lines(text, shaper) for g in line.glyphs]
+
+    assert _visible_glyph_ids(expected) != _visible_glyph_ids(incorrectly_joined)
+    assert _visible_glyph_ids(actual) == _visible_glyph_ids(expected)
