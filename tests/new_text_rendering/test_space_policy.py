@@ -37,11 +37,17 @@ def shaper() -> Shaper:
 
 
 def _lines_chars(text: str, shaper: Shaper, **kw) -> list[str]:
-    """Per display line, the source characters of its glyphs in visual order.
-    For LTR text this is the rendered line verbatim, so a list of expected
-    strings pins the start / inside / end gap behaviour exactly."""
+    """Per display line, the source characters of its painted glyphs.
+
+    Invisible source anchors are deliberately excluded: for LTR text this is
+    the rendered line verbatim, so expected strings pin the visible start /
+    inside / end gap behaviour exactly.
+    """
     lines = build_glyph_lines(text, shaper, _SIZE, **kw)
-    return ["".join(text[g.logical_position] for g in gl.glyphs) for gl, _ in lines]
+    return [
+        "".join(text[g.logical_position] for g in gl.glyphs if g.paint)
+        for gl, _ in lines
+    ]
 
 
 def _adv(text: str, shaper: Shaper) -> float:
@@ -135,6 +141,22 @@ def test_word_wrap_collapse_trims_every_edge(shaper: Shaper) -> None:
         assert not ln.endswith(" ")
 
 
+def test_word_wrap_collapse_retains_trimmed_gap_source_ranges(shaper: Shaper) -> None:
+    text = "  aa   bb  cc  "
+    width = int(_adv(" aa bb", shaper)) + 8
+    lines = build_glyph_lines(
+        text, shaper, _SIZE, width=width, wrap_words=True, space_policy=SP.COLLAPSE
+    )
+
+    anchors = {
+        (glyph.logical_position, glyph.source_end)
+        for line, _ in lines
+        for glyph in line.glyphs
+        if not glyph.paint
+    }
+    assert anchors == {(0, 2), (9, 11), (13, 15)}
+
+
 def test_word_wrap_preserve_keeps_leading_inner_and_hangs_end(shaper: Shaper) -> None:
     """Case 8 (> 0, word, preserve): leading kept (start), runs kept (inside),
     the break gap hangs at the line END and is not reported to the next line."""
@@ -209,3 +231,18 @@ def test_auto_resolves_end_to_end(shaper: Shaper) -> None:
 def test_all_whitespace_line(shaper: Shaper) -> None:
     assert _lines_chars("   ", shaper, space_policy=SP.COLLAPSE) == [" "]  # shrunk
     assert _lines_chars("   ", shaper, space_policy=SP.PRESERVE) == ["   "]
+
+
+def test_wrapped_collapsed_whitespace_keeps_an_invisible_line_anchor(
+    shaper: Shaper,
+) -> None:
+    lines = build_glyph_lines(
+        "   ", shaper, _SIZE, width=100, wrap_words=True, space_policy=SP.COLLAPSE
+    )
+
+    assert len(lines) == 1
+    glyphs = lines[0][0].glyphs
+    assert len(glyphs) == 1
+    assert not glyphs[0].paint
+    assert glyphs[0].x_advance == 0
+    assert (glyphs[0].logical_position, glyphs[0].source_end) == (0, 3)

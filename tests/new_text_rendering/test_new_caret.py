@@ -11,7 +11,8 @@ from tests.common import pixels_blue, pixels_red
 from videre.colors import Color
 from videre.core.shaping.rasterizer import GlyphRasterizer
 from videre.core.shaping.render import render_text
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 BLACK = Color(0, 0, 0)
 ARAB = "أبج"  # 3-codepoint Arabic chunk
@@ -188,3 +189,95 @@ def test_explicit_newline_has_distinct_caret_positions_on_both_sides(
     assert [state.pos for state in states] == list(range(len(text) + 1))
     assert rendered.total_visual_count() == len(text)
     assert states[1].pixel.y_top < states[2].pixel.y_top
+
+
+def test_rtl_line_terminator_does_not_skip_the_visual_right_edge(
+    fake_win, shaper, rasterizer
+) -> None:
+    text = f"{ARAB}\nb"
+    rendered, _ = _render(text, fake_win, shaper, rasterizer)
+
+    state = rendered.visual_state(len(ARAB))
+    visited = []
+    for _ in range(len(ARAB)):
+        state = rendered.next_visual(state)
+        visited.append(state.pos)
+
+    assert visited == [2, 1, 0]
+    assert rendered.next_visual(state).pos == len(ARAB) + 1
+
+
+def test_crlf_is_one_editable_visual_item(fake_win, shaper, rasterizer) -> None:
+    rendered, _ = _render("a\r\nb", fake_win, shaper, rasterizer)
+
+    assert rendered.total_visual_count() == 3
+    assert rendered.visual_range_to_source_set(1, 2) == frozenset({1, 2})
+    assert rendered.visual_state(1).pixel.y_top < rendered.visual_state(3).pixel.y_top
+
+
+def test_vertical_tab_is_a_line_break(fake_win, shaper, rasterizer) -> None:
+    rendered, _ = _render("a\vb", fake_win, shaper, rasterizer)
+
+    assert len(rendered.line_layouts) == 2
+    assert rendered.visual_range_to_source_set(1, 2) == frozenset({1})
+    assert rendered.visual_state(1).pixel.y_top < rendered.visual_state(2).pixel.y_top
+
+
+def test_hidden_controls_keep_source_slots_without_width(
+    fake_win, shaper, rasterizer
+) -> None:
+    rendered, _ = _render("a\x01\u200eb", fake_win, shaper, rasterizer)
+
+    assert rendered.total_visual_count() == 4
+    assert rendered.visual_range_to_source_set(1, 2) == frozenset({1})
+    assert rendered.visual_range_to_source_set(2, 3) == frozenset({2})
+    assert rendered.visual_state(1).pixel.x == rendered.visual_state(2).pixel.x
+    assert rendered.visual_state(2).pixel.x == rendered.visual_state(3).pixel.x
+
+
+def test_tab_keeps_one_source_slot_and_has_advance(
+    fake_win, shaper, rasterizer
+) -> None:
+    rendered, _ = _render("a\tb", fake_win, shaper, rasterizer)
+
+    assert rendered.total_visual_count() == 3
+    assert rendered.visual_range_to_source_set(1, 2) == frozenset({1})
+    assert rendered.visual_state(2).pixel.x > rendered.visual_state(1).pixel.x
+
+
+def test_invalid_surrogate_renders_as_replacement_without_losing_source(
+    fake_win, shaper, rasterizer
+) -> None:
+    rendered, _ = _render("a\ud800b", fake_win, shaper, rasterizer)
+
+    assert rendered.total_visual_count() == 3
+    assert rendered.visual_range_to_source_set(1, 2) == frozenset({1})
+    assert rendered.visual_state(2).pixel.x > rendered.visual_state(1).pixel.x
+
+
+def test_collapsed_whitespace_line_keeps_one_selectable_source_item(
+    fake_win, shaper, rasterizer
+) -> None:
+    rendered, _ = _render(
+        "   ", fake_win, shaper, rasterizer, width=100, wrap_words=True
+    )
+
+    assert len(rendered.line_layouts) == 1
+    assert rendered.total_visual_count() == 1
+    assert rendered.visual_range_to_source_set(0, 1) == frozenset({0, 1, 2})
+    assert rendered.visual_state(0).pos == 0
+    assert rendered.visual_state(3).pos == 3
+    assert rendered.visual_state(0).pixel.x == rendered.visual_state(3).pixel.x
+
+
+def test_italic_overhang_padding_does_not_change_caret_advance(
+    fake_win, shaper, rasterizer
+) -> None:
+    rendered, _ = _render("ff", fake_win, shaper, rasterizer, italic=True)
+    (line,) = partition_text("ff").lines
+    shaped = shape_line(line, shaper, 16, italic=True)
+    advance = sum(glyph.x_advance for unit in shaped.units for glyph in unit.glyphs)
+
+    x_start = rendered.visual_state(0).pixel.x
+    x_end = rendered.visual_state(2).pixel.x
+    assert x_end - x_start == round(advance)

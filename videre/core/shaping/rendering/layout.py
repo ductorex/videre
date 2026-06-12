@@ -11,8 +11,8 @@ Simpler than the legacy `shaping/layout.py`:
 
 - glyphs arrive already in visual order (post `reorder_line`), so there is no
   `_apply_l2_to_line` and no parallel word/run source-offset bookkeeping;
-- `logical_position` is intrinsic to each glyph, so `_Item.source_start` is
-  read directly and `source_end` is the next source position;
+- source ranges are intrinsic to each glyph cluster, so invisible controls and
+  multi-codepoint editing units never depend on the next painted glyph;
 - the caret never needs `pos_to_pixel` / `pixel_to_pos` (those only backed the
   removed public contract) — the glyph-cursor path covers everything.
 """
@@ -27,6 +27,7 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 from videre.core.caret_position import CaretPosition
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, TextRenderingResult
+from videre.core.text_editing import EditUnit
 
 
 @dataclass(slots=True, frozen=True)
@@ -61,6 +62,7 @@ class _LineLayout:
     source_offset: int
     source_length: int
     items: tuple[_Item, ...]
+    terminator_at_end: bool
 
 
 @dataclass(slots=True, frozen=True)
@@ -106,7 +108,11 @@ class RenderedText(TextRenderingResult):
             return self._make_state(GlyphCursor(0, 0))
         remaining = max(0, visual_pos)
         for line_idx, line in enumerate(self.line_layouts):
-            if remaining <= len(line.items):
+            if remaining < len(line.items):
+                return self._make_state(GlyphCursor(line_idx, remaining))
+            if remaining == len(line.items):
+                if line.terminator_at_end and line_idx + 1 < len(self.line_layouts):
+                    return self._make_state(GlyphCursor(line_idx + 1, 0))
                 return self._make_state(GlyphCursor(line_idx, remaining))
             remaining -= len(line.items)
         last = len(self.line_layouts) - 1
@@ -293,7 +299,14 @@ class RenderedText(TextRenderingResult):
             return cursor
         line = self._clamp_line(cursor.line_index)
         if cursor.glyph_index < len(line.items):
-            return GlyphCursor(cursor.line_index, cursor.glyph_index + 1)
+            next_index = cursor.glyph_index + 1
+            if (
+                next_index == len(line.items)
+                and line.terminator_at_end
+                and cursor.line_index + 1 < len(self.line_layouts)
+            ):
+                return GlyphCursor(cursor.line_index + 1, 0)
+            return GlyphCursor(cursor.line_index, next_index)
         if cursor.line_index + 1 < len(self.line_layouts):
             return GlyphCursor(cursor.line_index + 1, 0)
         return cursor
@@ -305,7 +318,10 @@ class RenderedText(TextRenderingResult):
             return GlyphCursor(cursor.line_index, cursor.glyph_index - 1)
         if cursor.line_index > 0:
             prev = self.line_layouts[cursor.line_index - 1]
-            return GlyphCursor(cursor.line_index - 1, len(prev.items))
+            previous_index = (
+                len(prev.items) - 1 if prev.terminator_at_end else len(prev.items)
+            )
+            return GlyphCursor(cursor.line_index - 1, previous_index)
         return cursor
 
     def _clamp_line(self, line_index: int) -> _LineLayout:
@@ -366,47 +382,39 @@ def _right_edge_source(item: _Item) -> int:
 @dataclass(slots=True)
 class RawLine:
     """A painted display line, as collected by `render_text`: its vertical box
-    and, per cluster/gap in visual order, `(source_start, x_start, x_end,
-    is_rtl)`. `source_end` is resolved globally afterwards."""
+    and explicit source and pixel ranges for every visual item."""
 
     y_top: int
     y_bottom: int
     x_offset: int
-    clusters: list[tuple[int, int, int, bool]]
+    clusters: list[tuple[int, int, int, int, bool]]
+    source_start: int
+    source_end: int
+    terminator: EditUnit | None
+    terminator_at_visual_start: bool
 
 
 def build_rendered_text(
-    raw_lines: list[RawLine],
-    text_length: int,
-    font_metrics: FontMetrics,
-    width: int,
-    height: int,
+    raw_lines: list[RawLine], font_metrics: FontMetrics, width: int, height: int
 ) -> RenderedText:
-    """Assemble a `RenderedText` from painted lines. `source_end` of each
-    cluster is the next source position in document order (clusters tile the
-    source), or `text_length` for the last one — so a ligature cluster spans
-    its real source range without per-glyph bookkeeping."""
-    starts = sorted({c[0] for rl in raw_lines for c in rl.clusters})
-    next_start = {
-        s: (starts[i + 1] if i + 1 < len(starts) else text_length)
-        for i, s in enumerate(starts)
-    }
+    """Assemble a `RenderedText` from explicit source ranges."""
     line_layouts: list[_LineLayout] = []
-    prev_end = 0
     for rl in raw_lines:
         items = tuple(
-            _Item(ss, max(next_start[ss], ss + 1), xs, xe, rtl)
-            for (ss, xs, xe, rtl) in rl.clusters
+            _Item(source_start, source_end, x_start, x_end, is_rtl)
+            for source_start, source_end, x_start, x_end, is_rtl in rl.clusters
         )
-        if items:
-            source_offset = min(it.source_start for it in items)
-            source_length = max(it.source_end for it in items) - source_offset
-        else:
-            source_offset, source_length = prev_end, 0
         line_layouts.append(
             _LineLayout(
-                rl.y_top, rl.y_bottom, rl.x_offset, source_offset, source_length, items
+                y_top=rl.y_top,
+                y_bottom=rl.y_bottom,
+                x_offset=rl.x_offset,
+                source_offset=rl.source_start,
+                source_length=rl.source_end - rl.source_start,
+                items=items,
+                terminator_at_end=(
+                    rl.terminator is not None and not rl.terminator_at_visual_start
+                ),
             )
         )
-        prev_end = source_offset + source_length
     return RenderedText(font_metrics, tuple(line_layouts), width, height)

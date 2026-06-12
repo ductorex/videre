@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from videre.core.text_editing import EditUnit
 from videre.core.vibidi.vibidi import VibidiText
 from videre.fonts.unicode_utils import Character
 
@@ -19,6 +20,8 @@ from videre.fonts.unicode_utils import Character
 class TextPartition:
     # Python str, containing text to be rendered.
     text: str
+    # Immutable edit view over the complete source. The ranges tile `text`.
+    edit_units: tuple[EditUnit, ...]
     lines: tuple[Line, ...]
 
 
@@ -54,6 +57,15 @@ class Line:
     # We can have sequence of words, e.g. in scripts/languages
     # where "words" are not necessarly separated by spaces.
     components: tuple[TextUnit, ...]
+    # Edit units belonging to the line content, excluding its terminator.
+    edit_units: tuple[EditUnit, ...]
+    # Source range occupied by the content (the terminator starts at
+    # `source_end`, when present).
+    source_start: int
+    source_end: int
+    # Author-authored line break following this line. It has no glyph but is
+    # an editable source unit and later becomes a zero-width layout item.
+    terminator: EditUnit | None
     # Per-line bidi context: vibidi result for the whole line + the
     # original-position mapping. The reorder calls `bidi.vibidi_text.reorder(...)`
     # for real UAX#9 visual order; `base_is_rtl` stays exposed for gap units and
@@ -115,3 +127,7 @@ class LogicalCharacter:
     # but always point at the real source character (caret / selection slice
     # the source text with these).
     logical_position: int
+    # Editing unit containing this code point. Several consecutive logical
+    # characters may reference the same unit (combining sequence, emoji ZWJ,
+    # ideographic variation sequence, ...).
+    edit_unit: EditUnit

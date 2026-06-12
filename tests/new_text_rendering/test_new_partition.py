@@ -8,6 +8,7 @@ direction, and the no-adjacent-gaps rule.
 import pytest
 
 from videre.core.shaping.text_partition.partitioner import partition_text
+from videre.core.text_editing import EditUnitKind
 
 ARAB = "أبج"  # 3-codepoint Arabic chunk
 HEB = "אבג"  # 3-codepoint Hebrew chunk
@@ -115,6 +116,49 @@ def test_position_tracking_across_crlf() -> None:
     assert len(lines) == 2
     (b_unit,) = lines[1].components
     assert [lc.logical_position for lc in b_unit.characters] == [3]
+
+
+def test_lines_keep_explicit_source_ranges_and_terminators() -> None:
+    part = partition_text("a\r\nb\vc")
+    first, second, last = part.lines
+    assert first.terminator is not None
+    assert second.terminator is not None
+
+    assert (first.source_start, first.source_end, first.terminator.kind) == (
+        0,
+        1,
+        EditUnitKind.LINE_BREAK,
+    )
+    assert (second.source_start, second.source_end, second.terminator.kind) == (
+        3,
+        4,
+        EditUnitKind.LINE_BREAK,
+    )
+    assert (first.terminator.source_start, first.terminator.source_end) == (1, 3)
+    assert (last.source_start, last.source_end) == (5, 6)
+    assert last.terminator is None
+
+
+def test_hidden_controls_are_preserved_in_partition_source_order() -> None:
+    text = "a\x01\u200eb"
+    part = partition_text(text)
+    characters = [
+        character
+        for line in part.lines
+        for unit in line.components
+        for character in unit.characters
+    ]
+
+    assert "".join(character.character.c for character in characters) == text
+    assert [character.logical_position for character in characters] == list(
+        range(len(text))
+    )
+    assert [unit.kind for unit in part.edit_units] == [
+        EditUnitKind.TEXT,
+        EditUnitKind.HIDDEN_CONTROL,
+        EditUnitKind.BIDI_CONTROL,
+        EditUnitKind.TEXT,
+    ]
 
 
 # -- Base direction ----------------------------------------------------------

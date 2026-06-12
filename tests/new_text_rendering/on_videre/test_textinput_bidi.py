@@ -355,3 +355,56 @@ def test_latin_ligature_backspace_breaks_it(fake_win):
     assert ti.value == "f"
     assert _clusters("f")[0] != before[0]  # re-shaped: ligature -> plain 'f'
     fake_win.check("ligature_after")
+
+
+# --------------------------------------------------------------------------
+# 8. Editing units: deletion follows extended grapheme and control ranges.
+# --------------------------------------------------------------------------
+
+
+def _focus_at_source(fake_win, ti: videre.TextInput, source_pos: int) -> None:
+    fake_win.user.click_at(ti.global_x, ti.global_y + 1)
+    fake_win.render()
+    ti._set_cursor_to_pos(source_pos)
+    fake_win.render()
+
+
+def test_backspace_deletes_base_and_combining_mark_together(fake_win) -> None:
+    ti = _input(fake_win, "e\u0301x")
+    _focus_at_source(fake_win, ti, 2)
+
+    _press(fake_win, ti, "backspace")
+
+    assert ti.value == "x"
+    assert ti._get_cursor() == 0
+
+
+def test_delete_removes_a_whole_emoji_zwj_sequence(fake_win) -> None:
+    family = "\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"
+    ti = _input(fake_win, f"a{family}b")
+    _focus_at_source(fake_win, ti, 1)
+
+    _press(fake_win, ti, "delete")
+
+    assert ti.value == "ab"
+    assert ti._get_cursor() == 1
+
+
+def test_backspace_deletes_crlf_as_one_unit(fake_win) -> None:
+    ti = _input(fake_win, "a\r\nb")
+    _focus_at_source(fake_win, ti, 3)
+
+    _press(fake_win, ti, "backspace")
+
+    assert ti.value == "ab"
+    assert ti._get_cursor() == 1
+
+
+def test_backspace_can_delete_an_invisible_bidi_control(fake_win) -> None:
+    ti = _input(fake_win, "a\u200eb")
+    _focus_at_source(fake_win, ti, 2)
+
+    _press(fake_win, ti, "backspace")
+
+    assert ti.value == "ab"
+    assert ti._get_cursor() == 1

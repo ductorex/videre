@@ -1,0 +1,224 @@
+"""Source-text segmentation into Unicode-aware editing units.
+
+The raw Python string remains the only mutable source of truth. ``EditUnit``
+objects are immutable half-open source ranges derived from it. They provide the
+granularity used by cursor deletion and selection while leaving bidi and
+shaping free to inspect the individual code points inside each range.
+"""
+
+from __future__ import annotations
+
+import unicodedata
+from dataclasses import dataclass
+from enum import StrEnum, auto
+from functools import lru_cache
+
+import unicodedataplus as unicode_data  # ty: ignore
+
+UNICODE_VERSION = unicode_data.unidata_version
+
+_GCB_CONTROL = frozenset({"Control", "CR", "LF"})
+_GCB_EXTEND_OR_ZWJ = frozenset({"Extend", "ZWJ"})
+_INCB_EXTEND_OR_LINKER = frozenset({"Extend", "Linker"})
+_LINE_BREAK = frozenset({"BK", "CR", "LF", "NL"})
+
+_BIDI_CONTROLS = frozenset(
+    chr(codepoint)
+    for codepoint in (
+        0x061C,  # ALM
+        0x200E,  # LRM
+        0x200F,  # RLM
+        0x202A,  # LRE
+        0x202B,  # RLE
+        0x202C,  # PDF
+        0x202D,  # LRO
+        0x202E,  # RLO
+        0x2066,  # LRI
+        0x2067,  # RLI
+        0x2068,  # FSI
+        0x2069,  # PDI
+    )
+)
+
+
+class EditUnitKind(StrEnum):
+    """How one source range participates in editing and layout."""
+
+    TEXT = auto()
+    LINE_BREAK = auto()
+    TAB = auto()
+    BIDI_CONTROL = auto()
+    SOFT_HYPHEN = auto()
+    BREAK_OPPORTUNITY = auto()
+    NO_BREAK = auto()
+    HIDDEN_CONTROL = auto()
+    INVALID = auto()
+
+
+@dataclass(slots=True, frozen=True)
+class EditUnit:
+    """One immutable editing unit in the original source string."""
+
+    source_start: int
+    source_end: int
+    kind: EditUnitKind
+
+    def __post_init__(self) -> None:
+        if self.source_start < 0 or self.source_end <= self.source_start:
+            raise ValueError(
+                f"Invalid edit-unit range [{self.source_start}, {self.source_end})"
+            )
+
+    def source_text(self, source: str) -> str:
+        return source[self.source_start : self.source_end]
+
+
+def segment_edit_units(text: str) -> tuple[EditUnit, ...]:
+    """Segment ``text`` into extended grapheme clusters and classify them.
+
+    The grapheme boundaries implement UAX #29 Unicode 16 rules GB1-GB999,
+    including emoji ZWJ sequences and Indic conjunct rule GB9c. Control-like
+    graphemes are then classified for the downstream layout without being
+    removed from the source.
+    """
+    boundaries = grapheme_boundaries(text)
+    return tuple(
+        EditUnit(start, end, _classify_unit(text[start:end]))
+        for start, end in zip(boundaries, boundaries[1:])
+    )
+
+
+def grapheme_boundaries(text: str) -> tuple[int, ...]:
+    """Return extended-grapheme boundary offsets for ``text``."""
+    if not text:
+        return (0,)
+
+    gcb = [_grapheme_property(c) for c in text]
+    incb = [_indic_conjunct_property(c) for c in text]
+    pictographic = [_is_extended_pictographic(c) for c in text]
+    boundaries = [0]
+    for i in range(1, len(text)):
+        left = gcb[i - 1]
+        right = gcb[i]
+        should_break = True
+
+        if left == "CR" and right == "LF":  # GB3
+            should_break = False
+        elif left in _GCB_CONTROL:  # GB4
+            pass
+        elif right in _GCB_CONTROL:  # GB5
+            pass
+        elif left == "L" and right in {"L", "V", "LV", "LVT"}:  # GB6
+            should_break = False
+        elif left in {"LV", "V"} and right in {"V", "T"}:  # GB7
+            should_break = False
+        elif left in {"LVT", "T"} and right == "T":  # GB8
+            should_break = False
+        elif right in _GCB_EXTEND_OR_ZWJ:  # GB9
+            should_break = False
+        elif right == "SpacingMark":  # GB9a
+            should_break = False
+        elif left == "Prepend":  # GB9b
+            should_break = False
+        elif _is_indic_conjunct_boundary(incb, i):  # GB9c
+            should_break = False
+        elif _is_emoji_zwj_boundary(gcb, pictographic, i):  # GB11
+            should_break = False
+        elif left == right == "Regional_Indicator" and _odd_ri_run(gcb, i):  # GB12/13
+            should_break = False
+
+        if should_break:  # GB999
+            boundaries.append(i)
+    boundaries.append(len(text))
+    return tuple(boundaries)
+
+
+def previous_edit_unit(
+    units: tuple[EditUnit, ...], source_position: int
+) -> EditUnit | None:
+    """Unit immediately before, or containing the left side of, a cursor."""
+    for unit in reversed(units):
+        if unit.source_start < source_position:
+            return unit
+    return None
+
+
+def next_edit_unit(
+    units: tuple[EditUnit, ...], source_position: int
+) -> EditUnit | None:
+    """Unit immediately after, or containing the right side of, a cursor."""
+    for unit in units:
+        if unit.source_end > source_position:
+            return unit
+    return None
+
+
+@lru_cache(maxsize=4096)
+def _grapheme_property(c: str) -> str:
+    return unicode_data.grapheme_cluster_break(c)
+
+
+@lru_cache(maxsize=4096)
+def _indic_conjunct_property(c: str) -> str:
+    return unicode_data.indic_conjunct_break(c)
+
+
+@lru_cache(maxsize=4096)
+def _is_extended_pictographic(c: str) -> bool:
+    return unicode_data.is_extended_pictographic(c)
+
+
+@lru_cache(maxsize=4096)
+def _line_property(c: str) -> str:
+    return unicode_data.line_break(c)
+
+
+def _is_indic_conjunct_boundary(props: list[str], right_index: int) -> bool:
+    if props[right_index] != "Consonant":
+        return False
+    i = right_index - 1
+    saw_linker = False
+    while i >= 0 and props[i] in _INCB_EXTEND_OR_LINKER:
+        saw_linker = saw_linker or props[i] == "Linker"
+        i -= 1
+    return saw_linker and i >= 0 and props[i] == "Consonant"
+
+
+def _is_emoji_zwj_boundary(
+    gcb: list[str], pictographic: list[bool], right_index: int
+) -> bool:
+    if not pictographic[right_index] or gcb[right_index - 1] != "ZWJ":
+        return False
+    i = right_index - 2
+    while i >= 0 and gcb[i] == "Extend":
+        i -= 1
+    return i >= 0 and pictographic[i]
+
+
+def _odd_ri_run(props: list[str], right_index: int) -> bool:
+    count = 0
+    i = right_index - 1
+    while i >= 0 and props[i] == "Regional_Indicator":
+        count += 1
+        i -= 1
+    return count % 2 == 1
+
+
+def _classify_unit(text: str) -> EditUnitKind:
+    if any(unicodedata.category(c) == "Cs" for c in text):
+        return EditUnitKind.INVALID
+    if text == "\t":
+        return EditUnitKind.TAB
+    if all(_line_property(c) in _LINE_BREAK for c in text):
+        return EditUnitKind.LINE_BREAK
+    if all(c in _BIDI_CONTROLS for c in text):
+        return EditUnitKind.BIDI_CONTROL
+    if text == "\u00ad":
+        return EditUnitKind.SOFT_HYPHEN
+    if text == "\u200b":
+        return EditUnitKind.BREAK_OPPORTUNITY
+    if text in {"\u2060", "\ufeff"}:
+        return EditUnitKind.NO_BREAK
+    if all(unicodedata.category(c) in {"Cc", "Cf"} for c in text):
+        return EditUnitKind.HIDDEN_CONTROL
+    return EditUnitKind.TEXT

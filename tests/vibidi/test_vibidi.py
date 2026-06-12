@@ -1,8 +1,8 @@
 """Unit tests for the pure-Python bidi core in `videre.core.vibidi`.
 
-These pin the behaviour of each UAX#9 phase the module implements (P, W, N0,
-N1/N2, I) plus the L2 reordering, on small hand-checked cases. The exhaustive
-conformance run against Unicode's BidiCharacterTest.txt lives in
+These pin the behaviour of each UAX#9 phase the module implements (P, X1-X10,
+W, N0, N1/N2, I) plus the L2 reordering, on small hand-checked cases. The
+exhaustive conformance run against Unicode's BidiCharacterTest.txt lives in
 `test_bidi_character.py`; this file is the readable, fast first line of defence.
 """
 
@@ -25,6 +25,12 @@ def _rtl(text, policy=RtlPolicy.INFER):
 def _visual(text, policy=RtlPolicy.INFER, start=0, end=None):
     vt = vibidi(text, policy)
     return [p.logical for p in vt.reorder(start, len(text) if end is None else end)]
+
+
+def _standard_levels(text, policy=RtlPolicy.INFER):
+    return [
+        None if p._removed else p._level for p in vibidi(text, policy).logical_positions
+    ]
 
 
 # --- base direction (P2/P3 + policy) ---------------------------------------
@@ -106,6 +112,56 @@ def test_nsm_inherits_previous_direction():
     text = "אְ"  # Hebrew aleph + sheva (a non-spacing mark)
     assert _levels(text) == [1, 1]
     assert all(_rtl(text))
+
+
+# --- boundary neutrals removed by X9 ---------------------------------------
+
+
+def test_join_controls_inherit_their_shaping_run_level():
+    assert _levels("a\u200db") == [0, 0, 0]
+    assert _levels("\u0646\u200c\u0645") == [1, 1, 1]
+    assert _levels("\u200d\u0646") == [1, 1]
+
+
+# --- explicit formatting and isolates (X1-X10) -----------------------------
+
+
+def test_explicit_rtl_embedding_changes_levels_and_is_removed_by_x9():
+    text = "a\u202b\u05d0\u05d1\u05d2\u202cb"
+
+    assert _standard_levels(text) == [0, None, 1, 1, 1, None, 0]
+    assert _visual(text) == [0, 4, 3, 2, 6]
+
+
+def test_rtl_override_forces_latin_letters_to_reverse():
+    text = "a\u202eabc\u202cz"
+
+    assert _standard_levels(text) == [0, None, 1, 1, 1, None, 0]
+    assert _visual(text) == [0, 4, 3, 2, 6]
+
+
+def test_fsi_uses_its_contents_but_paragraph_inference_skips_them():
+    text = "\u2068\u05d0\u05d1\u2069a"
+    vt = vibidi(text)
+
+    assert vt.base_is_rtl is False
+    assert [p._level for p in vt.logical_positions] == [0, 1, 1, 0, 0]
+    assert [p.logical for p in vt.reorder(0, len(text))] == [0, 2, 1, 3, 4]
+
+
+def test_renderer_reorder_can_retain_x9_source_anchors():
+    text = "a\u202b\u05d0\u05d1\u05d2\u202cb"
+    vt = vibidi(text)
+
+    assert [p.logical for p in vt.reorder_retaining_controls(0, len(text))] == [
+        0,
+        1,
+        5,
+        4,
+        3,
+        2,
+        6,
+    ]
 
 
 # --- N0 paired brackets (the python-bidi gap / the bracket bug) -------------

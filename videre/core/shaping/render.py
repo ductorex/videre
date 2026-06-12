@@ -21,6 +21,7 @@ from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.core.shaping.glyph_partition import (
     GlyphLine,
+    GlyphMeasure,
     PositionedGlyph,
     measure_glyphs,
 )
@@ -136,7 +137,7 @@ def render_text(
     total_height = baselines[-1] + m.descender
 
     measures = [measure_glyphs(gl.glyphs) for gl, _ in lines]
-    natural_max = max((rr for _, rr in measures), default=0.0)
+    natural_max = max((measure.width for measure in measures), default=0.0)
     target_width = float(width) if width is not None else natural_max
     surface_w = max(int(round(target_width)), 1)
     surface_h = max(total_height, 1)
@@ -146,20 +147,28 @@ def render_text(
     raw_lines: list[RawLine] = []
     paint: list[tuple[list[PositionedGlyph], int, float, int]] = []
     for i, (gl, is_end) in enumerate(lines):
-        advance, _ = measures[i]
-        extra = _justify_extra(gl, advance, align, width, is_end)
-        x_offset = _align_offset(align, advance, target_width)
+        measure = measures[i]
+        extra = _justify_extra(gl, measure, align, width, is_end)
+        x_offset = _align_offset(align, measure, target_width)
         raw_lines.append(
             RawLine(
                 y_top=baselines[i] - m.ascender,
                 y_bottom=baselines[i] + m.descender,
                 x_offset=x_offset,
-                clusters=_line_clusters(gl.glyphs, extra),
+                clusters=_line_clusters(gl, extra),
+                source_start=gl.source_start,
+                source_end=(
+                    gl.terminator.source_end
+                    if gl.terminator is not None
+                    else gl.source_end
+                ),
+                terminator=gl.terminator,
+                terminator_at_visual_start=gl.terminator is not None and gl.base_is_rtl,
             )
         )
         paint.append((gl.glyphs, x_offset, extra, baselines[i]))
 
-    rendered = build_rendered_text(raw_lines, len(text), m, surface_w, surface_h)
+    rendered = build_rendered_text(raw_lines, m, surface_w, surface_h)
 
     out = backend.new_surface(surface_w, surface_h)
     # Selection background first, so glyphs sit on top of it.
@@ -207,6 +216,8 @@ def render_char(
         for unit in sline.units:
             if unit.glyphs:
                 g = unit.glyphs[0]
+                if not g.paint:
+                    return backend.zero()
                 glyph = rasterizer.render_single_glyph(
                     g.font_path, size, g.bold, g.italic, g.glyph_id, color
                 )
@@ -217,31 +228,55 @@ def render_char(
 
 
 def _line_clusters(
-    glyphs: list[PositionedGlyph], justify_extra: float
-) -> list[tuple[int, int, int, bool]]:
+    line: GlyphLine, justify_extra: float
+) -> list[tuple[int, int, int, int, bool]]:
     """Group glyphs into clusters (consecutive same `logical_position`) and
-    return `(source_start, x_start, x_end, is_rtl)` per cluster, with x relative
-    to the line's `x_offset`. Same pen + justify arithmetic as `_paint_line`,
-    so caret geometry matches the painted glyphs."""
+    return `(source_start, source_end, x_start, x_end, is_rtl)` per cluster,
+    with x relative to the line's `x_offset`. Same pen + justify arithmetic as
+    `_paint_line`, so caret geometry matches the painted glyphs."""
+    glyphs = line.glyphs
     if not glyphs:
-        return []
-    gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
-    clusters: list[tuple[int, int, int, bool]] = []
-    pen = 0.0
-    i = 0
-    n = len(glyphs)
-    while i < n:
-        lp = glyphs[i].logical_position
-        rtl = glyphs[i].is_rtl
-        x_start = int(round(pen))
-        j = i
-        while j < n and glyphs[j].logical_position == lp:
-            pen += glyphs[j].x_advance
-            if j in gap_ends:
-                pen += justify_extra
-            j += 1
-        clusters.append((lp, x_start, int(round(pen)), rtl))
-        i = j
+        clusters: list[tuple[int, int, int, int, bool]] = []
+    else:
+        gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
+        clusters = []
+        pen = 0.0
+        i = 0
+        n = len(glyphs)
+        while i < n:
+            source_start = glyphs[i].logical_position
+            source_end = glyphs[i].source_end
+            rtl = glyphs[i].is_rtl
+            x_start = int(round(pen))
+            j = i
+            while (
+                j < n
+                and glyphs[j].logical_position == source_start
+                and glyphs[j].source_end == source_end
+            ):
+                pen += glyphs[j].x_advance
+                if j in gap_ends:
+                    pen += justify_extra
+                j += 1
+            clusters.append((source_start, source_end, x_start, int(round(pen)), rtl))
+            i = j
+    if line.terminator is not None:
+        x = (
+            clusters[0][2]
+            if line.base_is_rtl and clusters
+            else (clusters[-1][3] if clusters else 0)
+        )
+        item = (
+            line.terminator.source_start,
+            line.terminator.source_end,
+            x,
+            x,
+            line.base_is_rtl,
+        )
+        if line.base_is_rtl:
+            clusters.insert(0, item)
+        else:
+            clusters.append(item)
     return clusters
 
 
@@ -269,20 +304,21 @@ def _paint_line(
         # float pen BEFORE rasterizing. In pixel mode `subpixel_split` returns
         # `(round(origin), 0)`, so this stays bit-for-bit the pixel-aligned path.
         int_x, phase = subpixel_split(pen_x + g.x_offset, subpixel)
-        sprite = rasterizer.render_single_glyph(
-            g.font_path,
-            size,
-            g.bold,
-            g.italic,
-            g.glyph_id,
-            color,
-            subpixel=subpixel,
-            phase=phase,
-        )
-        if not sprite.empty():
-            blit_x = int_x + sprite.bitmap_left
-            blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
-            backend.blit(out, _sprite_surface(backend, sprite), (blit_x, blit_y))
+        if g.paint:
+            sprite = rasterizer.render_single_glyph(
+                g.font_path,
+                size,
+                g.bold,
+                g.italic,
+                g.glyph_id,
+                color,
+                subpixel=subpixel,
+                phase=phase,
+            )
+            if not sprite.empty():
+                blit_x = int_x + sprite.bitmap_left
+                blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
+                backend.blit(out, _sprite_surface(backend, sprite), (blit_x, blit_y))
         pen_x += g.x_advance
         if i in gap_ends:
             pen_x += justify_extra
@@ -323,7 +359,7 @@ def _gap_run_ends(glyphs: list[PositionedGlyph]) -> frozenset[int]:
 
 def _justify_extra(
     gl: GlyphLine,
-    advance: float,
+    measure: GlyphMeasure,
     align: TextAlign | None,
     width: int | None,
     is_paragraph_end: bool,
@@ -331,23 +367,26 @@ def _justify_extra(
     if align is not TextAlign.JUSTIFY or width is None or is_paragraph_end:
         return 0.0
     gaps = len(_gap_run_ends(gl.glyphs))
-    slack = width - advance
+    slack = width - measure.width
     return slack / gaps if gaps > 0 and slack > 0 else 0.0
 
 
 def _align_offset(
-    align: TextAlign | None, line_width: float, target_width: float
+    align: TextAlign | None, measure: GlyphMeasure, target_width: float
 ) -> int:
-    """X offset of a line within the surface. LEFT / JUSTIFY / None flush left
-    (JUSTIFY spreads its slack via gap widening instead); CENTER / RIGHT shift."""
+    """Pen-origin offset that places the complete ink envelope in the surface."""
+    slack = max(0.0, target_width - measure.width)
     if align is None or align is TextAlign.LEFT or align is TextAlign.JUSTIFY:
-        return 0
-    slack = max(0.0, target_width - line_width)
-    if align is TextAlign.CENTER:
-        return int(slack // 2)
-    if align is TextAlign.RIGHT:
-        return int(slack)
-    return 0
+        envelope_offset = 0.0
+    elif align is TextAlign.CENTER:
+        envelope_offset = slack // 2
+    elif align is TextAlign.RIGHT:
+        envelope_offset = slack
+    else:
+        envelope_offset = 0.0
+    # `measure.left` may be negative (e.g. regular J). Shift the pen while
+    # leaving every glyph advance and caret interval unchanged.
+    return int(round(envelope_offset - measure.left))
 
 
 def _sprite_surface(backend: AbstractBackend, glyph: Glyph) -> Rendering:

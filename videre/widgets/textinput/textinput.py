@@ -8,6 +8,11 @@ from videre.core.clipboard import Clipboard
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, Rendering
+from videre.core.text_editing import (
+    next_edit_unit,
+    previous_edit_unit,
+    segment_edit_units,
+)
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
 from videre.layouts.div.div import Div
@@ -275,15 +280,23 @@ class TextInput(AbstractLayout):
                 if key.backspace:
                     if key.ctrl:
                         out_pos = get_previous_word_start_position(in_text, in_pos)
+                        next_pos = in_pos
                     else:
-                        out_pos = max(0, in_pos - 1)
-                    next_pos = in_pos
+                        unit = previous_edit_unit(segment_edit_units(in_text), in_pos)
+                        if unit is None:
+                            return
+                        out_pos = unit.source_start
+                        next_pos = unit.source_end
                 else:
-                    out_pos = in_pos
                     if key.ctrl:
+                        out_pos = in_pos
                         next_pos = get_next_word_end_position(in_text, in_pos)
                     else:
-                        next_pos = in_pos + 1
+                        unit = next_edit_unit(segment_edit_units(in_text), in_pos)
+                        if unit is None:
+                            return
+                        out_pos = unit.source_start
+                        next_pos = unit.source_end
                 out_text = in_text[:out_pos] + in_text[next_pos:]
                 self._text.text = out_text
                 self._set_cursor_to_pos(out_pos)

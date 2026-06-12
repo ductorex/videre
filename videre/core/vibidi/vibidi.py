@@ -5,7 +5,7 @@ into visual order. It exists to provide the one rule python-bidi's pure-Python
 path omits -- **N0**, paired brackets -- which is what makes mirrored brackets
 (``[`` / ``]``) render correctly inside RTL text.
 
-Two entry points, matching the only two places videre needs bidi:
+The primary entry points match the two places videre needs bidi:
 
 * ``vibidi(text) -> VibidiText``: run once per paragraph. Each ``LogicalPosition``
   exposes ``is_rtl`` (the resolved direction), handed to HarfBuzz at segmentation
@@ -15,17 +15,18 @@ Two entry points, matching the only two places videre needs bidi:
 
 Scope / simplifications, all deliberate:
 
-* **Flat text.** Explicit formatting characters (embeddings / overrides /
-  isolates, phases X1-X10) are assumed already stripped -- videre removes them
-  upstream -- so every character starts at the paragraph level and the
-  level-resolution phases (W, N, I) run over the whole text as a single run.
-  Re-adding X1-X10 would be a layer *in front of* this core, leaving W/N/I/L2
-  untouched.
 * **No L1.** L1 only resets trailing whitespace / separators to the base level,
   i.e. it repositions invisible blanks at a line end -- videre already handles
   that when it consumes wrap gaps. ``reorder`` therefore applies L2 uniformly,
   with no special-casing of spaces. The embedding *levels* stay internal
   (``_level``); nothing outside this module needs them.
+
+The explicit phase is complete: X1-X8 maintain the directional-status stack,
+X9 removes embeddings / overrides / BN characters from the bidi calculation,
+and X10 runs W/N/I independently on each isolating run sequence. Removed
+characters remain represented in ``logical_positions`` so source editing and
+HarfBuzz shaping do not lose them; the public ``reorder`` omits them as UAX#9
+requires, while ``reorder_retaining_controls`` is the rendering-pipeline hook.
 """
 
 import functools
@@ -45,6 +46,7 @@ class LogicalPosition:
 @dataclass(frozen=True, slots=True)
 class LevelPosition(LogicalPosition):
     _level: int
+    _removed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +77,22 @@ class VibidiText:
         since this information can be used later to match visual to logical position, without
         having to rely on sequence indexes.
         """
-        window = self.logical_positions[logical_start:logical_end]
+        window = [
+            position
+            for position in self.logical_positions[logical_start:logical_end]
+            if not position._removed
+        ]
+        return self._reorder_window(window)
+
+    def reorder_retaining_controls(
+        self, logical_start: int, logical_end: int
+    ) -> Sequence[VisualPosition]:
+        """Reorder while retaining X9 characters as zero-width source anchors."""
+        return self._reorder_window(
+            list(self.logical_positions[logical_start:logical_end])
+        )
+
+    def _reorder_window(self, window: list[LevelPosition]) -> Sequence[VisualPosition]:
         levels = [p._level for p in window]
         base_level = 1 if self.base_is_rtl else 0
         order = _l2_order(levels, base_level)
@@ -103,24 +120,88 @@ def vibidi(logical_text: str, rtl_policy: RtlPolicy = RtlPolicy.INFER) -> Vibidi
             to display text visually and match visual to logical positions.
     """
     original = [unicodedata.bidirectional(c) or _default_class(c) for c in logical_text]
-    base_level = _base_level(original, rtl_policy)
-    types = _resolve_weak(original, base_level)  # W1-W7
-    _resolve_brackets(logical_text, original, types, base_level)  # N0 (in place)
-    types = _resolve_neutral(types, base_level)  # N1, N2
-    levels = _resolve_implicit(types, base_level)  # I1, I2
+    matching_pdi = _matching_isolates(original)
+    base_level = _base_level(original, rtl_policy, matching_pdi)
+    types, explicit_levels, removed = _resolve_explicit(
+        original, base_level, matching_pdi
+    )
+    levels = list(explicit_levels)
+    for sequence in _isolating_run_sequences(
+        original, explicit_levels, removed, matching_pdi, base_level
+    ):
+        indices = sequence.indices
+        sequence_original = [original[i] for i in indices]
+        sequence_types = _resolve_weak(
+            sequence_original, [types[i] for i in indices], sequence.sos
+        )
+        _resolve_brackets(
+            "".join(logical_text[i] for i in indices),
+            sequence_original,
+            sequence_types,
+            explicit_levels[indices[0]],
+            sequence.sos,
+        )
+        sequence_levels = [explicit_levels[i] for i in indices]
+        sequence_types = _resolve_neutral(
+            sequence_types, sequence_levels, sequence.sos, sequence.eos
+        )
+        resolved_levels = _resolve_implicit(sequence_types, sequence_levels)
+        for index, level in zip(indices, resolved_levels):
+            levels[index] = level
+    levels = _restore_removed_levels(levels, removed, base_level)
     positions = tuple(
-        LevelPosition(is_rtl=bool(level & 1), logical=i, _level=level)
+        LevelPosition(
+            is_rtl=bool(level & 1), logical=i, _level=level, _removed=removed[i]
+        )
         for i, level in enumerate(levels)
     )
     return VibidiText(positions, bool(base_level & 1))
 
 
+def _restore_removed_levels(
+    levels: list[int], removed: list[bool], base_level: int
+) -> list[int]:
+    """Give X9 characters a neighbouring level without creating shaping cuts."""
+    active_indices = [i for i, is_removed in enumerate(removed) if not is_removed]
+    if not active_indices:
+        return [base_level] * len(levels)
+    first_level = levels[active_indices[0]]
+    restored: list[int] = []
+    previous_level: int | None = None
+    for index, level in enumerate(levels):
+        if not removed[index]:
+            previous_level = level
+            restored.append(level)
+        else:
+            restored.append(
+                previous_level if previous_level is not None else first_level
+            )
+    return restored
+
+
 # --- implementation details -------------------------------------------------
 #
 # Every helper traffics in UAX#9 bidi class strings ("L", "R", "AL", "EN", "AN",
-# "WS", "ON", ...) as returned by `unicodedata.bidirectional`. The text being
-# flat (single run at the base level), `sos` and `eos` -- the directions that
-# bound the run -- are both the base direction.
+# "WS", "ON", ...) as returned by `unicodedata.bidirectional`.
+
+_MAX_DEPTH = 125
+_X9_REMOVED = frozenset({"RLE", "LRE", "RLO", "LRO", "PDF", "BN"})
+_ISOLATE_INITIATORS = frozenset({"RLI", "LRI", "FSI"})
+_NEUTRAL_ISOLATES = frozenset({"B", "S", "WS", "ON", "RLI", "LRI", "FSI", "PDI"})
+
+
+@dataclass(frozen=True, slots=True)
+class _DirectionalStatus:
+    level: int
+    override: str | None
+    isolate: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _IsolatingRunSequence:
+    indices: list[int]
+    sos: str
+    eos: str
 
 
 def _default_class(c: str) -> str:
@@ -155,31 +236,252 @@ def _default_class(c: str) -> str:
     return "L"
 
 
-def _base_level(types: list[str], policy: RtlPolicy) -> int:
+def _matching_isolates(types: list[str]) -> dict[int, int]:
+    """Return both directions of every structurally matched isolate pair."""
+    stack: list[int] = []
+    matching: dict[int, int] = {}
+    for index, bidi_type in enumerate(types):
+        if bidi_type in _ISOLATE_INITIATORS:
+            stack.append(index)
+        elif bidi_type == "PDI" and stack:
+            initiator = stack.pop()
+            matching[initiator] = index
+            matching[index] = initiator
+    return matching
+
+
+def _base_level(
+    types: list[str], policy: RtlPolicy, matching_pdi: dict[int, int]
+) -> int:
     """Paragraph embedding level (UAX#9 P2/P3), or forced by `policy`."""
     if policy == RtlPolicy.LEFT_TO_RIGHT:
         return 0
     if policy == RtlPolicy.RIGHT_TO_LEFT:
         return 1
-    for t in types:  # P2: first strong character; P3: default to LTR
-        if t == "L":
+    index = 0
+    while index < len(types):  # P2 ignores text inside isolate initiators.
+        bidi_type = types[index]
+        if bidi_type in _ISOLATE_INITIATORS:
+            matching = matching_pdi.get(index)
+            if matching is None:
+                break
+            index = matching + 1
+            continue
+        if bidi_type == "L":
             return 0
-        if t in ("R", "AL"):
+        if bidi_type in ("R", "AL"):
             return 1
+        index += 1
     return 0
 
 
-def _resolve_weak(original: list[str], base_level: int) -> list[str]:
+def _fsi_type(index: int, types: list[str], matching_pdi: dict[int, int]) -> str:
+    """Resolve one FSI to LRI/RLI using P2/P3 on its isolated contents."""
+    end = matching_pdi.get(index, len(types))
+    cursor = index + 1
+    while cursor < end:
+        bidi_type = types[cursor]
+        if bidi_type in _ISOLATE_INITIATORS:
+            matching = matching_pdi.get(cursor)
+            if matching is None or matching >= end:
+                break
+            cursor = matching + 1
+            continue
+        if bidi_type == "L":
+            return "LRI"
+        if bidi_type in ("R", "AL"):
+            return "RLI"
+        cursor += 1
+    return "LRI"
+
+
+def _next_odd(level: int) -> int:
+    return level + 1 if level & 1 == 0 else level + 2
+
+
+def _next_even(level: int) -> int:
+    return level + 2 if level & 1 == 0 else level + 1
+
+
+def _resolve_explicit(
+    original: list[str], base_level: int, matching_pdi: dict[int, int]
+) -> tuple[list[str], list[int], list[bool]]:
+    """Apply X1-X9 and return current types, explicit levels, and X9 mask."""
+    types = list(original)
+    levels = [base_level] * len(original)
+    removed = [bidi_type in _X9_REMOVED for bidi_type in original]
+    stack = [_DirectionalStatus(base_level, None, False)]
+    overflow_isolate_count = 0
+    overflow_embedding_count = 0
+    valid_isolate_count = 0
+
+    for index, bidi_type in enumerate(original):
+        status = stack[-1]
+        if bidi_type in ("RLE", "LRE", "RLO", "LRO"):
+            levels[index] = status.level
+            new_level = (
+                _next_odd(status.level)
+                if bidi_type in ("RLE", "RLO")
+                else _next_even(status.level)
+            )
+            if (
+                new_level <= _MAX_DEPTH
+                and overflow_isolate_count == 0
+                and overflow_embedding_count == 0
+            ):
+                override = (
+                    "R" if bidi_type == "RLO" else "L" if bidi_type == "LRO" else None
+                )
+                stack.append(_DirectionalStatus(new_level, override, False))
+            elif overflow_isolate_count == 0:
+                overflow_embedding_count += 1
+        elif bidi_type in _ISOLATE_INITIATORS:
+            levels[index] = status.level
+            if status.override is not None:
+                types[index] = status.override
+            isolate_type = (
+                _fsi_type(index, original, matching_pdi)
+                if bidi_type == "FSI"
+                else bidi_type
+            )
+            new_level = (
+                _next_odd(status.level)
+                if isolate_type == "RLI"
+                else _next_even(status.level)
+            )
+            if (
+                new_level <= _MAX_DEPTH
+                and overflow_isolate_count == 0
+                and overflow_embedding_count == 0
+            ):
+                valid_isolate_count += 1
+                stack.append(_DirectionalStatus(new_level, None, True))
+            else:
+                overflow_isolate_count += 1
+        elif bidi_type == "PDI":
+            if overflow_isolate_count > 0:
+                overflow_isolate_count -= 1
+            elif valid_isolate_count > 0:
+                overflow_embedding_count = 0
+                while not stack[-1].isolate:
+                    stack.pop()
+                stack.pop()
+                valid_isolate_count -= 1
+            status = stack[-1]
+            levels[index] = status.level
+            if status.override is not None:
+                types[index] = status.override
+        elif bidi_type == "PDF":
+            levels[index] = status.level
+            if overflow_isolate_count == 0:
+                if overflow_embedding_count > 0:
+                    overflow_embedding_count -= 1
+                elif len(stack) >= 2 and not stack[-1].isolate:
+                    stack.pop()
+        elif bidi_type == "B":
+            levels[index] = base_level
+            stack = [_DirectionalStatus(base_level, None, False)]
+            overflow_isolate_count = 0
+            overflow_embedding_count = 0
+            valid_isolate_count = 0
+        else:
+            levels[index] = status.level
+            if status.override is not None:
+                types[index] = status.override
+    return types, levels, removed
+
+
+def _isolating_run_sequences(
+    original: list[str],
+    levels: list[int],
+    removed: list[bool],
+    matching_pdi: dict[int, int],
+    base_level: int,
+) -> list[_IsolatingRunSequence]:
+    """Build BD13 isolating run sequences and their X10 sos/eos values."""
+    active = [index for index, is_removed in enumerate(removed) if not is_removed]
+    if not active:
+        return []
+
+    runs: list[list[int]] = []
+    for index in active:
+        if not runs or levels[runs[-1][-1]] != levels[index]:
+            runs.append([index])
+        else:
+            runs[-1].append(index)
+    run_for_index = {
+        index: run_index for run_index, run in enumerate(runs) for index in run
+    }
+    active_position = {index: position for position, index in enumerate(active)}
+    sequences: list[_IsolatingRunSequence] = []
+    visited: set[int] = set()
+
+    starts = [
+        run_index
+        for run_index, run in enumerate(runs)
+        if not (
+            original[run[0]] == "PDI"
+            and run[0] in matching_pdi
+            and matching_pdi[run[0]] < run[0]
+        )
+    ]
+    for start in [*starts, *range(len(runs))]:
+        if start in visited:
+            continue
+        sequence_indices: list[int] = []
+        run_index = start
+        while run_index not in visited:
+            visited.add(run_index)
+            run = runs[run_index]
+            sequence_indices.extend(run)
+            last = run[-1]
+            if original[last] not in _ISOLATE_INITIATORS:
+                break
+            pdi = matching_pdi.get(last)
+            if pdi is None:
+                break
+            run_index = run_for_index[pdi]
+
+        first = sequence_indices[0]
+        first_position = active_position[first]
+        previous_level = (
+            levels[active[first_position - 1]] if first_position > 0 else base_level
+        )
+        sos = _direction(max(levels[first], previous_level))
+
+        last = sequence_indices[-1]
+        last_position = active_position[last]
+        if original[last] in _ISOLATE_INITIATORS and matching_pdi.get(last) is None:
+            following_level = base_level
+        else:
+            following_level = (
+                levels[active[last_position + 1]]
+                if last_position + 1 < len(active)
+                else base_level
+            )
+        eos = _direction(max(levels[last], following_level))
+        sequences.append(_IsolatingRunSequence(sequence_indices, sos, eos))
+    return sequences
+
+
+def _direction(level: int) -> str:
+    return "R" if level & 1 else "L"
+
+
+def _resolve_weak(original: list[str], current: list[str], sos: str) -> list[str]:
     """Phases W1-W7: resolve NSM, numbers and number separators, in order."""
-    sos = "R" if base_level & 1 else "L"
-    t = list(original)
+    t = list(current)
     n = len(t)
 
     # W1: each NSM takes the type of the previous character (sos at the start).
     prev = sos
     for i in range(n):
         if t[i] == "NSM":
-            t[i] = prev
+            t[i] = (
+                "ON"
+                if i > 0 and original[i - 1] in _ISOLATE_INITIATORS | {"PDI"}
+                else prev
+            )
         prev = t[i]
 
     # W2: EN becomes AN when the last strong type seen is AL.
@@ -236,7 +538,7 @@ def _resolve_weak(original: list[str], base_level: int) -> list[str]:
 
 
 def _resolve_brackets(
-    text: str, original: list[str], types: list[str], base_level: int
+    text: str, original: list[str], types: list[str], embedding_level: int, sos: str
 ) -> None:
     """Phase N0: resolve each pair of matched brackets to a single direction.
 
@@ -245,14 +547,14 @@ def _resolve_brackets(
     mirrored to ``]``: a correctly resolved bracket keeps both sides consistent.
     `original` carries the pre-W1 classes, needed only for the NSM clause below.
     """
-    e = "R" if base_level & 1 else "L"  # embedding direction
+    e = _direction(embedding_level)
     o = "L" if e == "R" else "R"  # opposite direction
     for open_i, close_i in _bracket_pairs(text, types):
         inside = {_n0_strong(types[k]) for k in range(open_i + 1, close_i)}
         if e in inside:  # N0.b: a strong matching the embedding direction
             direction = e
         elif o in inside:  # N0.c: only the opposite strong direction inside
-            prev = _prev_strong(types, open_i, base_level)
+            prev = _prev_strong(types, open_i, sos)
             direction = o if prev == o else e  # c.1 / c.2
         else:  # N0.d: no strong type inside -> leave the brackets as ON
             continue
@@ -294,40 +596,34 @@ def _bracket_pairs(text: str, types: list[str]) -> list[tuple[int, int]]:
     return pairs
 
 
-def _resolve_neutral(types: list[str], base_level: int) -> list[str]:
+def _resolve_neutral(
+    types: list[str], levels: list[int], sos: str, eos: str
+) -> list[str]:
     """Phases N1-N2: resolve runs of neutral / isolate-formatting characters."""
-    e = "R" if base_level & 1 else "L"
-    sos = e
     t = list(types)
     n = len(t)
-    neutral = {"B", "S", "WS", "ON"}
     i = 0
     while i < n:
-        if t[i] in neutral:
+        if t[i] in _NEUTRAL_ISOLATES:
             j = i
-            while j < n and t[j] in neutral:
+            while j < n and t[j] in _NEUTRAL_ISOLATES:
                 j += 1
             before = _neutral_side(t[i - 1]) if i > 0 else sos
-            after = _neutral_side(t[j]) if j < n else e  # eos == e
-            fill = before if before == after else e  # N1 if equal, else N2
+            after = _neutral_side(t[j]) if j < n else eos
             for k in range(i, j):
-                t[k] = fill
+                t[k] = before if before == after else _direction(levels[k])
             i = j
         else:
             i += 1
     return t
 
 
-def _resolve_implicit(types: list[str], base_level: int) -> list[int]:
-    """Phases I1-I2: raise each character's level from its resolved type.
-
-    The text is flat, so every character sits at `base_level` going in; only the
-    bumps differ by parity.
-    """
+def _resolve_implicit(types: list[str], explicit_levels: list[int]) -> list[int]:
+    """Phases I1-I2: raise each character's level from its resolved type."""
     levels: list[int] = []
-    for tp in types:
-        level = base_level
-        if base_level & 1 == 0:  # I1: even (LTR) level
+    for tp, explicit_level in zip(types, explicit_levels):
+        level = explicit_level
+        if explicit_level & 1 == 0:  # I1: even (LTR) level
             if tp == "R":
                 level += 1
             elif tp in ("AN", "EN"):
@@ -375,13 +671,13 @@ def _n0_strong(tp: str) -> str | None:
     return None
 
 
-def _prev_strong(types: list[str], idx: int, base_level: int) -> str:
+def _prev_strong(types: list[str], idx: int, sos: str) -> str:
     """Strong direction (N0 sense) preceding `idx`, or sos if none."""
     for k in range(idx - 1, -1, -1):
         s = _n0_strong(types[k])
         if s is not None:
             return s
-    return "R" if base_level & 1 else "L"
+    return sos
 
 
 def _neutral_side(tp: str) -> str:

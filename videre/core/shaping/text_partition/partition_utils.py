@@ -1,23 +1,11 @@
 """Utilities to partition text by script and font."""
 
+import unicodedata
 from dataclasses import dataclass
 
 from videre.core.shaping.utils import load_freetype_face
 from videre.fonts.provider import get_font_provider
 from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, get_character
-
-_BIDI_CONTROL_CHARS = frozenset(
-    {
-        chr(0x200C),  # ZWNJ - Zero Width Non-Joiner
-        chr(0x200D),  # ZWJ - Zero Width Joiner
-    }
-)
-"""Join controls currently removed before bidi resolution and shaping.
-
-They remain printable because they affect cursive shaping. Keeping them in
-the pipeline requires assigning a bidi level inherited from a neighbour; the
-failing join-control regression tests cover that future work.
-"""
 
 
 @dataclass(slots=True, frozen=True)
@@ -95,9 +83,12 @@ def _shaping_script(text: str) -> str:
 def _split_by_font(text: str, script: str) -> list[PerFont]:
     """Split one script run by font.
 
-    Neutral characters stay with the current font when its cmap supports them.
-    Otherwise the provider selects a fallback. The unused ``script`` argument
-    remains part of the helper contract because callers split by script first.
+    Format and control characters stay attached to the current font even when
+    they have no cmap entry: HarfBuzz needs join controls and variation
+    selectors in the same shaping buffer as the characters they modify.
+    Other neutral characters stay when the cmap supports them; otherwise the
+    provider selects a fallback. The unused ``script`` argument remains part
+    of the helper contract because callers split by script first.
     """
     del script
     if not text:
@@ -117,7 +108,7 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
     chars: list[str] = []
     name, path = anchor_name, anchor_path
     for c in text:
-        if _is_variation_selector(c) or (
+        if _stays_with_current_font(c) or (
             get_character(c).script_is_neutral and _font_supports(path, c)
         ):
             chars.append(c)
@@ -145,3 +136,7 @@ def _font_supports(font_path: str, c: str) -> bool:
 def _is_variation_selector(c: str) -> bool:
     codepoint = ord(c)
     return 0xFE00 <= codepoint <= 0xFE0F or 0xE0100 <= codepoint <= 0xE01EF
+
+
+def _stays_with_current_font(c: str) -> bool:
+    return _is_variation_selector(c) or unicodedata.category(c) in {"Cc", "Cf"}

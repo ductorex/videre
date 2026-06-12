@@ -1,6 +1,7 @@
 """Glyph rasterizer. Independent from surface rendering backend, only based on freetype."""
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import freetype as ft
 import numpy as np
@@ -91,14 +92,15 @@ _GLYPH_ZERO = Glyph(None, 0, 0, 0, 0)
 class GlyphRasterizer:
     """Rasterize HarfBuzz glyph IDs to Glyph objects via freetype-py.
 
-    Each glyph is rendered once and cached by
+    Each colored bitmap is rendered once and cached by
     `(font_path, size_px, bold, italic, glyph_id, color)`. Bold is applied
     by emboldening the glyph outline before rasterization (so the bitmap
     grows in both directions); italic is applied by setting an affine
     transform on the face before loading the glyph. Both effects mirror
     the synthetic bold/slant configured on the HarfBuzz `Shaper`, so the
     advances computed during shaping align with the bitmap dimensions
-    produced here.
+    produced here. Canonical bitmap bounds are cached separately without
+    retaining their temporary pixel buffer.
     """
 
     __slots__ = ("_glyph_cache",)
@@ -174,6 +176,54 @@ def _rasterize_glyph(
     subpixel: bool,
     phase: int,
 ) -> Glyph:
+    slot = _render_glyph_slot(
+        font_path, size_px, bold, italic, glyph_id, subpixel, phase
+    )
+    bitmap = slot.bitmap
+    bitmap_left = slot.bitmap_left
+    bitmap_top = slot.bitmap_top
+    width, rows, pitch = bitmap.width, bitmap.rows, bitmap.pitch
+    pixel_mode = bitmap.pixel_mode
+
+    if width == 0 or rows == 0:
+        image = None
+    elif pixel_mode == _FT_PIXEL_MODE_BGRA:
+        image = _bgra_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch)
+    elif pixel_mode == _FT_PIXEL_MODE_GRAY:
+        image = _gray_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch, rgba)
+    else:
+        # Other formats (FT_PIXEL_MODE_MONO, _LCD, etc.) are rare for our
+        # use case; skip them rather than risk a wrong conversion.
+        image = None
+
+    if image is None:
+        return Glyph(None, 0, 0, bitmap_left, bitmap_top)
+    return Glyph(image, width, rows, bitmap_left, bitmap_top)
+
+
+@lru_cache(maxsize=16384)
+def glyph_bitmap_bounds(
+    font_path: str, size_px: int, bold: bool, italic: bool, glyph_id: int
+) -> tuple[int, int]:
+    """Exact canonical bitmap bounds `(left, right)` used by the rasterizer."""
+    if glyph_id == 0:
+        return (0, 0)
+    slot = _render_glyph_slot(
+        font_path, size_px, bold, italic, glyph_id, subpixel=False, phase=0
+    )
+    return (slot.bitmap_left, slot.bitmap_left + slot.bitmap.width)
+
+
+def _render_glyph_slot(
+    font_path: str,
+    size_px: int,
+    bold: bool,
+    italic: bool,
+    glyph_id: int,
+    subpixel: bool,
+    phase: int,
+):
+    """Load, transform, embolden and rasterize one FreeType glyph slot."""
     face = load_freetype_face(font_path)
     face.set_pixel_sizes(0, size_px)
     matrix, delta = _italic_transform() if italic else _identity_transform()
@@ -213,26 +263,7 @@ def _rasterize_glyph(
             FT_Outline_Embolden(face.glyph.outline._FT_Outline, strength)
 
     face.glyph.render(_FT_RENDER_MODE_NORMAL)
-    bitmap = face.glyph.bitmap
-    bitmap_left = face.glyph.bitmap_left
-    bitmap_top = face.glyph.bitmap_top
-    width, rows, pitch = bitmap.width, bitmap.rows, bitmap.pitch
-    pixel_mode = bitmap.pixel_mode
-
-    if width == 0 or rows == 0:
-        image = None
-    elif pixel_mode == _FT_PIXEL_MODE_BGRA:
-        image = _bgra_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch)
-    elif pixel_mode == _FT_PIXEL_MODE_GRAY:
-        image = _gray_to_numpy_array(bytes(bitmap.buffer), width, rows, pitch, rgba)
-    else:
-        # Other formats (FT_PIXEL_MODE_MONO, _LCD, etc.) are rare for our
-        # use case; skip them rather than risk a wrong conversion.
-        image = None
-
-    if image is None:
-        return Glyph(None, 0, 0, bitmap_left, bitmap_top)
-    return Glyph(image, width, rows, bitmap_left, bitmap_top)
+    return face.glyph
 
 
 def _gray_to_numpy_array(

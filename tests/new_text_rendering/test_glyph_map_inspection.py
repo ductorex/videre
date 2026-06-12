@@ -57,6 +57,16 @@ def _all_positions(glines: list[GlyphLine]) -> list[int]:
     return [g.logical_position for gl in glines for g in gl.glyphs]
 
 
+def _all_source_positions(glines: list[GlyphLine]) -> set[int]:
+    """Every source position covered by a visible glyph or invisible anchor."""
+    return {
+        position
+        for line in glines
+        for glyph in line.glyphs
+        for position in range(glyph.logical_position, glyph.source_end)
+    }
+
+
 def _glyphs_at(glines: list[GlyphLine], pos: int) -> list:
     return [g for gl in glines for g in gl.glyphs if g.logical_position == pos]
 
@@ -107,12 +117,16 @@ def test_wrap_keeps_every_visible_char_once(shaper) -> None:
     assert len(visible_hits) == len(set(visible_hits))
 
 
-def test_wrap_drops_only_whitespace_at_breaks(shaper) -> None:
+def test_wrap_hides_only_whitespace_at_breaks_without_losing_source(shaper) -> None:
     text = "alpha beta gamma"
     glines = _glyph_lines(text, shaper, width=100)
-    dropped = set(range(len(text))) - set(_all_positions(glines))
-    assert dropped  # something was dropped (the break spaces)
-    assert all(text[i].isspace() for i in dropped)
+    hidden = [glyph for line in glines for glyph in line.glyphs if not glyph.paint]
+
+    assert hidden
+    assert all(
+        text[glyph.logical_position : glyph.source_end].isspace() for glyph in hidden
+    )
+    assert _all_source_positions(glines) == set(range(len(text)))
 
 
 def test_ltr_visual_order_equals_logical_order(shaper) -> None:

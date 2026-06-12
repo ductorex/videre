@@ -194,9 +194,9 @@ def test_split_by_font_emoji_in_latin_text_splits_pieces() -> None:
 
 
 def test_unicode_printable_rejects_explicit_bidi_formatters() -> None:
-    """Sanity check that LRE/RLE/PDF/LRO/RLO/LRI/RLI/FSI/PDI are
-    classified as non-printable so `partitioner` filters them out before
-    handing the text to vibidi."""
+    """The legacy printable predicate still classifies explicit bidi
+    formatters as non-printable. The shaping partitioner no longer uses this
+    predicate destructively: it preserves them for vibidi and source editing."""
     from videre.fonts.unicode_utils import Unicode
 
     for c in (LRE, RLE, PDF):

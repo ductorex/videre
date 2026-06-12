@@ -15,8 +15,9 @@ consumable **glues** (gaps):
   under char wrap, one kept box per space so the gap splits like any cluster.
 
 Word-wrap and cluster-wrap differ only in how units are atomized — same
-algorithm. `real_right` (ink overhang past the advance) is measured exactly as
-the legacy wrap, so italics / `f` / `T` at a line edge are never clipped.
+algorithm. The complete ink envelope (`real_left` / `real_right`) is measured
+from the rasterizer's exact bitmap bounds, so negative bearings and terminal
+overhangs are both reserved at line edges.
 No `ShapedWord` / `source_text` reconstruction: atoms carry their glyphs and
 point back at their `TextUnit`, so sub-lines rebuild directly.
 
@@ -34,7 +35,7 @@ mapping. "(n)" = the gap's n spaces kept verbatim.
   absent  word        preserve      kept(n)   kept(n)   kept(n)
   > 0     char        collapse      1 space   1 space   1 space
   > 0     char        preserve      kept[a]   kept(n)   kept[a]
-  > 0     word        collapse      dropped   1 space   dropped
+  > 0     word        collapse      hidden    1 space   hidden
   > 0     word        preserve      kept[b]   kept(n)   kept[c]
 
 `width` absent => no wrap => `wrap_words` is irrelevant (the char / word rows
@@ -51,10 +52,12 @@ the wrapped sub-line when `width > 0`.
       (indivisible under word wrap). The gap's width still counts toward
       fitting (a minor deviation from CSS pre-wrap's true zero-cost hanging).
 
-Edge trimming (drop) is exclusive to word wrap: only `> 0 + word + collapse`
-drops gaps at line edges. With char wrap or no wrap an edge space is kept (it
-disambiguates a word boundary from a mid-word char break) — `collapse` merely
-shrinks runs to one space there. `preserve` never drops a space anywhere.
+Edge trimming is exclusive to word wrap: only `> 0 + word + collapse` hides
+gaps at line edges. Hidden gaps keep one zero-width source anchor for editing,
+but contribute no paint or advance. With char wrap or no wrap an edge space is
+kept (it disambiguates a word boundary from a mid-word char break) —
+`collapse` merely shrinks runs to one space there. `preserve` never hides a
+space.
 
 `space_policy` (resolved upstream: AUTO -> COLLAPSE when wrapping by word, else
 PRESERVE) and `wrap_words` select the behaviour:
@@ -63,13 +66,14 @@ PRESERVE) and `wrap_words` select the behaviour:
   no width; it never trims edges.
 - char wrap (`preserve_char` in `_atomize`): every gap becomes kept per-space
   boxes regardless of policy, so gaps split and are never dropped.
-- word wrap: a gap is one glue; COLLAPSE drops it at edges / breaks
-  (`_strip_edge_glues` + `_greedy`), PRESERVE hangs the break glue on the head.
+- word wrap: a gap is one glue; COLLAPSE hides it at edges / breaks while
+  retaining a zero-width source anchor (`_strip_edge_glues` + `_greedy`),
+  PRESERVE hangs the break glue on the head.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable, Iterator
 
 from videre.core.constants import TextSpacePolicy
@@ -79,7 +83,7 @@ from videre.core.shaping.glyph_partition import (
     ShapedUnit,
     measure_glyphs,
 )
-from videre.core.shaping.text_partition.model import LineBidi, TextUnit
+from videre.core.shaping.text_partition.model import TextUnit
 
 
 @dataclass(slots=True)
@@ -93,6 +97,7 @@ class _Atom:
     unit: TextUnit
     glyphs: list[PositionedGlyph]
     advance: float
+    real_left: float
     real_right: float
     is_glue: bool
     can_break_before: bool
@@ -130,11 +135,15 @@ def _wrap_line(
     # is never dropped. Edge trimming (strip / glue-consume) is word-wrap-only —
     # and in char wrap there are no glues, so `_strip_edge_glues` is a no-op.
     atoms = _atomize(line, wrap_words, preserve_char=not wrap_words)
-    for group in _greedy(atoms, width, collapse):
+    groups = _greedy(atoms, width, collapse)
+    emitted: list[list[_Atom]] = []
+    for group in groups:
         if collapse:
             group = _strip_edge_glues(group)
         if group:
-            yield _rebuild(group, line.bidi)
+            emitted.append(group)
+    for index, group in enumerate(emitted):
+        yield _rebuild(group, line, keep_terminator=index == len(emitted) - 1)
 
 
 # ---------------------------------------------------------------------------
@@ -167,13 +176,33 @@ def _atomize(
         if unit.is_gap:
             if preserve_char:
                 for chunk in _clusters(su.glyphs):
-                    adv, rr = measure_glyphs(chunk)
-                    atoms.append(_Atom(unit, chunk, adv, rr, False, True))
+                    measure = measure_glyphs(chunk)
+                    atoms.append(
+                        _Atom(
+                            unit,
+                            chunk,
+                            measure.advance,
+                            measure.left,
+                            measure.right,
+                            False,
+                            True,
+                        )
+                    )
                 prev_was_box = True
                 prev_split = True
             else:
-                adv, rr = measure_glyphs(su.glyphs)
-                atoms.append(_Atom(unit, su.glyphs, adv, rr, True, True))
+                measure = measure_glyphs(su.glyphs)
+                atoms.append(
+                    _Atom(
+                        unit,
+                        su.glyphs,
+                        measure.advance,
+                        measure.left,
+                        measure.right,
+                        True,
+                        True,
+                    )
+                )
                 prev_was_box = False
                 prev_split = False
             continue
@@ -192,8 +221,18 @@ def _atomize(
                 )  # word boundary between adjacent units
             if chunk[0].logical_position in unit.no_break_before:
                 cbb = False
-            adv, rr = measure_glyphs(chunk)
-            atoms.append(_Atom(unit, chunk, adv, rr, False, cbb))
+            measure = measure_glyphs(chunk)
+            atoms.append(
+                _Atom(
+                    unit,
+                    chunk,
+                    measure.advance,
+                    measure.left,
+                    measure.right,
+                    False,
+                    cbb,
+                )
+            )
             prev_was_box = True
         prev_split = split
     return atoms
@@ -210,7 +249,12 @@ def _clusters(glyphs: list[PositionedGlyph]) -> list[list[PositionedGlyph]]:
     while i < n:
         j = i + 1
         lp = glyphs[i].logical_position
-        while j < n and glyphs[j].logical_position == lp:
+        source_end = glyphs[i].source_end
+        while (
+            j < n
+            and glyphs[j].logical_position == lp
+            and glyphs[j].source_end == source_end
+        ):
             j += 1
         out.append(glyphs[i:j])
         i = j
@@ -234,28 +278,40 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
     lines: list[list[_Atom]] = []
     current: list[_Atom] = []
     cur_adv = 0.0
-    cur_rr = 0.0
+    cur_left = 0.0
+    cur_right = 0.0
     last_break: int | None = None  # index in `current` to break before
     while queue:
         atom = queue[0]
-        trial_rr = max(cur_rr, cur_adv + atom.real_right)
-        if not current or trial_rr <= width:
+        trial_left = min(cur_left, cur_adv + atom.real_left)
+        trial_right = max(cur_right, cur_adv + atom.real_right)
+        if not current or trial_right - trial_left <= width:
             if current and atom.can_break_before:
                 last_break = len(current)
             current.append(atom)
             cur_adv += atom.advance
-            cur_rr = trial_rr
+            cur_left = trial_left
+            cur_right = trial_right
             queue.pop(0)
             continue
         # Overflow, current non-empty.
         if atom.is_glue:
             # An overflowing glue (inter-word space) ends the line. collapse:
             # consume it (a trailing space never pushes the preceding word to
-            # the next line). preserve: hang it on the line end (kept).
-            if not collapse:
+            # the next line), but retain a zero-width source anchor. preserve:
+            # hang it on the line end (kept).
+            if collapse:
+                current.append(_source_anchor(atom))
+            else:
                 current.append(atom)
             lines.append(current)
-            current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
+            current, cur_adv, cur_left, cur_right, last_break = (
+                [],
+                0.0,
+                0.0,
+                0.0,
+                None,
+            )
             queue.pop(0)
             continue
         if atom.can_break_before:
@@ -269,26 +325,41 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
             # A trailing glue left in `current` is dropped (collapse, by
             # `_strip_edge_glues`) or hung (preserve), exactly as via last_break.
             lines.append(current)
-            current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
+            current, cur_adv, cur_left, cur_right, last_break = (
+                [],
+                0.0,
+                0.0,
+                0.0,
+                None,
+            )
         elif last_break is not None:
             brk = current[last_break]
             if brk.is_glue and not collapse:
                 head = current[: last_break + 1]  # preserve: hang it on the head
                 tail = current[last_break + 1 :]
             elif brk.is_glue:
-                head = current[:last_break]  # collapse: drop the break glue
+                # The gap has no painted width, but remains one selectable
+                # source item attached to the preceding display line.
+                head = [*current[:last_break], _source_anchor(brk)]
                 tail = current[last_break + 1 :]
             else:
                 head = current[:last_break]
                 tail = current[last_break:]
             lines.append(head)
             queue = tail + queue
-            current, cur_adv, cur_rr, last_break = [], 0.0, 0.0, None
+            current, cur_adv, cur_left, cur_right, last_break = (
+                [],
+                0.0,
+                0.0,
+                0.0,
+                None,
+            )
         else:
             # Glued to the current run with no legal break: overflow it whole.
             current.append(atom)
             cur_adv += atom.advance
-            cur_rr = trial_rr
+            cur_left = trial_left
+            cur_right = trial_right
             queue.pop(0)
     if current:
         lines.append(current)
@@ -301,19 +372,59 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
 
 
 def _strip_edge_glues(group: list[_Atom]) -> list[_Atom]:
-    """Drop leading / trailing glues of a sub-line: an inter-word space that
-    lands at a line edge after wrapping is not rendered (matches the legacy
-    drop of leading/trailing whitespace, and CSS line-edge trimming).
-    Inter-word glues in the middle stay."""
+    """Hide leading / trailing glues without dropping their source ranges.
+
+    Each trimmed gap becomes a zero-width, non-painted anchor. This preserves a
+    display line for all-whitespace input and lets caret / selection map the
+    collapsed visual item back to every source space. Inter-word glues in the
+    middle stay painted normally.
+    """
     lo, hi = 0, len(group)
     while lo < hi and group[lo].is_glue:
         lo += 1
     while hi > lo and group[hi - 1].is_glue:
         hi -= 1
-    return group[lo:hi]
+    if lo == hi:
+        return [_source_anchor(atom) for atom in group]
+    return [
+        *(_source_anchor(atom) for atom in group[:lo]),
+        *group[lo:hi],
+        *(_source_anchor(atom) for atom in group[hi:]),
+    ]
 
 
-def _rebuild(group: list[_Atom], bidi: LineBidi) -> ShapedTextLine:
+def _source_anchor(atom: _Atom) -> _Atom:
+    """Turn a shaped gap into one invisible zero-width source item."""
+    if not atom.glyphs:
+        return atom
+    source_start = min(glyph.logical_position for glyph in atom.glyphs)
+    source_end = max(glyph.source_end for glyph in atom.glyphs)
+    anchor = replace(
+        atom.glyphs[0],
+        x_advance=0.0,
+        x_offset=0.0,
+        y_offset=0.0,
+        ink_left=0.0,
+        ink_right=0.0,
+        is_gap=False,
+        logical_position=source_start,
+        source_end=source_end,
+        paint=False,
+    )
+    return _Atom(
+        unit=atom.unit,
+        glyphs=[anchor],
+        advance=0.0,
+        real_left=0.0,
+        real_right=0.0,
+        is_glue=False,
+        can_break_before=False,
+    )
+
+
+def _rebuild(
+    group: list[_Atom], line: ShapedTextLine, *, keep_terminator: bool
+) -> ShapedTextLine:
     """Regroup consecutive atoms of the same `TextUnit` back into `ShapedUnit`s.
     A breakable unit split across sub-lines yields one `ShapedUnit` per
     sub-line, each holding its slice of glyphs. `bidi` is the line's context,
@@ -331,4 +442,18 @@ def _rebuild(group: list[_Atom], bidi: LineBidi) -> ShapedTextLine:
             cur_glyphs.extend(atom.glyphs)
     if cur_unit is not None:
         units.append(ShapedUnit(cur_unit, cur_glyphs))
-    return ShapedTextLine(units=units, bidi=bidi)
+    glyphs = [glyph for unit in units for glyph in unit.glyphs]
+    source_start = min((glyph.logical_position for glyph in glyphs), default=0)
+    source_end = max((glyph.source_end for glyph in glyphs), default=source_start)
+    return ShapedTextLine(
+        units=units,
+        bidi=line.bidi,
+        edit_units=tuple(
+            unit
+            for unit in line.edit_units
+            if unit.source_start < source_end and unit.source_end > source_start
+        ),
+        source_start=source_start,
+        source_end=source_end,
+        terminator=line.terminator if keep_terminator else None,
+    )

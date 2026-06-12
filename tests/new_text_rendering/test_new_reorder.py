@@ -86,3 +86,18 @@ def test_digits_in_rtl_run_use_real_levels(shaper: Shaper) -> None:
     assert positions.index(8) < positions.index(4)  # "123" visually before אבג
     assert [p for p in positions if p in (8, 9, 10)] == [8, 9, 10]  # digits LTR
     assert [p for p in positions if p in (4, 5, 6)] == [6, 5, 4]  # Hebrew reversed
+
+
+def test_explicit_override_reorders_visible_glyphs_without_losing_anchors(
+    shaper: Shaper,
+) -> None:
+    text = "a\u202eabc\u202cz"
+    positions = _positions(text, shaper)
+
+    assert [position for position in positions if position not in {1, 5}] == [
+        0,
+        4,
+        3,
+        2,
+        6,
+    ]

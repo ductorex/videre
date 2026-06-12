@@ -25,12 +25,14 @@ from videre.core.shaping.glyph_partition import (
     ShapedTextLine,
     ShapedUnit,
 )
+from videre.core.shaping.rasterizer import glyph_bitmap_bounds
 from videre.core.shaping.text_partition.model import Line, TextUnit
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
     glyph_metrics,
 )
+from videre.core.text_editing import EditUnitKind
 
 # Third element of the `synthetic_bold` tuple. False means HarfBuzz grows
 # the glyph advances to absorb the embolden; True would keep the original
@@ -117,11 +119,10 @@ class ShapedGlyph:
     Use it to find legal break positions: two consecutive glyphs with
     different clusters delimit a cluster boundary safe to wrap on.
 
-    `ink_left` / `ink_right` describe the glyph's bitmap bounding box
-    along the x-axis, **in pixels and relative to the glyph's origin**
-    (= `pen_x + x_offset` at draw time). They come straight from
-    HarfBuzz `font.get_glyph_extents` (`x_bearing` and
-    `x_bearing + width` respectively). Most glyphs have
+    `ink_left` / `ink_right` describe the glyph's pixel bitmap envelope
+    along the x-axis, relative to its origin (`pen_x + x_offset` at draw
+    time). They are derived from FreeType's hinted metrics and the same
+    synthetic bold/slant transformations as the rasterizer. Most glyphs have
     `ink_right <= x_advance`, but italic letters and a few sidebearing-
     light glyphs (e.g. `f`, `T`, certain punctuation, RTL letters with
     swashes) overhang past the advance — which means the wrap engine
@@ -233,21 +234,14 @@ class Shaper:
         # HarfBuzz applies the embolden growth on top of what our
         # callback returns, via `font.synthetic_bold`.
         #
-        # We still query FreeType separately for the bitmap extent
-        # (`metr.width`, `metr.horiBearingX`) because the wrap engine
-        # needs the actual hinted bitmap edges to detect overflow, and
-        # HarfBuzz's `get_glyph_extents` reads the unhinted glyf bbox.
-        # The bitmap-side bold compensation mirrors the rasterizer's
-        # `FT_Outline_Embolden`, which grows the outline by `strength`
-        # on every side (so `+2*strength` total to bitmap width).
-        # Italic shear doesn't change the advance — only the bitmap leans
-        # — so no compensation needed there.
-        bold_bitmap_extra = 2 * SYNTHETIC_BOLD_STRENGTH * size_px if bold else 0.0
+        # The wrap engine needs the exact painted bitmap edges, not HarfBuzz's
+        # unhinted outline bbox. `glyph_bitmap_bounds` uses the rasterizer's
+        # shared FreeType preparation, including synthetic bold and slant.
         out: list[ShapedGlyph] = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            _, ft_bearing, ft_w = glyph_metrics(font_path, size_px, info.codepoint)
-            ft_x_bearing = ft_bearing / 64
-            ft_width = ft_w / 64 + bold_bitmap_extra
+            ink_left, ink_right = glyph_bitmap_bounds(
+                font_path, size_px, bold, italic, info.codepoint
+            )
             out.append(
                 ShapedGlyph(
                     glyph_id=info.codepoint,
@@ -256,8 +250,8 @@ class Shaper:
                     y_advance=pos.y_advance / 64,
                     x_offset=pos.x_offset / 64,
                     y_offset=pos.y_offset / 64,
-                    ink_left=ft_x_bearing,
-                    ink_right=ft_x_bearing + ft_width,
+                    ink_left=float(ink_left),
+                    ink_right=float(ink_right),
                 )
             )
         return tuple(out)
@@ -276,13 +270,25 @@ def shape_line(
         _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
         for unit in line.components
     ]
-    return ShapedTextLine(units=units, bidi=line.bidi)
+    return ShapedTextLine(
+        units=units,
+        bidi=line.bidi,
+        edit_units=line.edit_units,
+        source_start=line.source_start,
+        source_end=line.source_end,
+        terminator=line.terminator,
+    )
 
 
 def _shape_unit(
     unit: TextUnit, shaper: Shaper, size_px: int, *, bold: bool, italic: bool
 ) -> ShapedUnit:
-    text = "".join(lc.character.c for lc in unit.characters)
+    text = "".join(
+        "\ufffd"
+        if character.edit_unit.kind is EditUnitKind.INVALID
+        else character.character.c
+        for character in unit.characters
+    )
     shaped = shaper.shape(
         text=text,
         font_path=unit.font_path,
@@ -292,21 +298,41 @@ def _shape_unit(
         bold=bold,
         italic=italic,
     )
-    glyphs = [
-        PositionedGlyph(
-            glyph_id=g.glyph_id,
-            x_advance=g.x_advance,
-            x_offset=g.x_offset,
-            y_offset=g.y_offset,
-            ink_left=g.ink_left,
-            ink_right=g.ink_right,
-            font_path=unit.font_path,
-            bold=bold,
-            italic=italic,
-            is_rtl=unit.is_rtl,
-            is_gap=unit.is_gap,
-            logical_position=unit.characters[g.cluster].logical_position,
+    cluster_starts = sorted({glyph.cluster for glyph in shaped})
+    cluster_ends = {
+        cluster: (
+            cluster_starts[i + 1]
+            if i + 1 < len(cluster_starts)
+            else len(unit.characters)
         )
-        for g in shaped
-    ]
+        for i, cluster in enumerate(cluster_starts)
+    }
+    glyphs: list[PositionedGlyph] = []
+    for glyph in shaped:
+        characters = unit.characters[glyph.cluster : cluster_ends[glyph.cluster]]
+        kinds = {character.edit_unit.kind for character in characters}
+        paint = bool(kinds & {EditUnitKind.TEXT, EditUnitKind.INVALID})
+        is_tab = EditUnitKind.TAB in kinds
+        glyphs.append(
+            PositionedGlyph(
+                glyph_id=glyph.glyph_id,
+                x_advance=(
+                    glyph.x_advance if paint else float(size_px) if is_tab else 0.0
+                ),
+                x_offset=glyph.x_offset if paint else 0.0,
+                y_offset=glyph.y_offset if paint else 0.0,
+                ink_left=glyph.ink_left if paint else 0.0,
+                ink_right=glyph.ink_right if paint else 0.0,
+                font_path=unit.font_path,
+                bold=bold,
+                italic=italic,
+                is_rtl=unit.is_rtl,
+                is_gap=unit.is_gap,
+                logical_position=characters[0].logical_position,
+                source_end=max(
+                    character.edit_unit.source_end for character in characters
+                ),
+                paint=paint,
+            )
+        )
     return ShapedUnit(unit=unit, glyphs=glyphs)

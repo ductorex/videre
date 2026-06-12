@@ -146,13 +146,21 @@ def test_cluster_wrap_can_break_inside_latin_word(shaper: Shaper) -> None:
 
 
 def test_wrap_break_consumes_inter_word_gap(shaper: Shaper) -> None:
-    """When the line breaks at an inter-word space, that gap is dropped: no
-    sub-line starts or ends with a gap unit."""
+    """A break gap contributes no painted space or width at a line edge.
+
+    Its source range may remain as an invisible gap unit for caret/selection.
+    """
     sline = _shaped("alpha beta gamma delta epsilon zeta", shaper)
     out = list(wrap_lines([sline], width=120, wrap_words=True))
     for sl in out:
-        assert not sl.units[0].unit.is_gap
-        assert not sl.units[-1].unit.is_gap
+        painted = [
+            unit for unit in sl.units if any(glyph.paint for glyph in unit.glyphs)
+        ]
+        assert not painted[0].unit.is_gap
+        assert not painted[-1].unit.is_gap
+        for unit in sl.units:
+            if unit.unit.is_gap and not any(glyph.paint for glyph in unit.glyphs):
+                assert all(glyph.x_advance == 0 for glyph in unit.glyphs)
 
 
 def test_inter_word_gap_kept_when_not_breaking(shaper: Shaper) -> None:

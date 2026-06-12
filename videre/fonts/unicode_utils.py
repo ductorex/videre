@@ -12,13 +12,11 @@ Cs = "Cs"  # surrogates
 Cn = "Cn"  # non-character or reserved
 UNPRINTABLE = (Cc, Co, Cs, Cn)
 
-# UAX#9 explicit bidi formatters: invisible directional marks that
-# affect bidi resolution but have no visual representation. Treated as
-# non-printable so they are stripped from text before shaping / bidi
-# resolution. ZWNJ (U+200C) and ZWJ (U+200D) are NOT listed here even
-# though they are also stripped by UAX#9's X9 rule: they affect cursive
-# shaping in Arabic / Indic scripts, so consumers may legitimately want
-# to keep them in source text and route them to the shaper.
+# UAX#9 explicit bidi formatters have no visual representation. The legacy
+# printable predicate rejects them, but the shaping pipeline preserves raw text
+# and classifies these characters as editing units before bidi resolution.
+# ZWNJ (U+200C) and ZWJ (U+200D) remain printable because they also affect
+# cursive shaping in Arabic / Indic scripts.
 _BIDI_FORMATTERS: frozenset[str] = frozenset(
     chr(c)
     for c in (

@@ -12,14 +12,12 @@ routing reuse the helpers in `partition_utils` (font lookup via
   whitespace flag. Leading / trailing whitespace is captured too. This gives
   `space_policy` (collapse / preserve) and justification real units to act on.
 - **Original-text positions.** Every `LogicalCharacter` keeps its index in the
-  ORIGINAL text, tracked across line-terminator normalization and the
-  unprintable / bidi-control filtering, so caret / selection mapping stays
-  exact.
+  ORIGINAL text. Structural and invisible characters are classified as edit
+  units rather than filtered, so caret / selection mapping stays exact.
 - **Direction, not level.** vibidi resolves the full UAX#9 levels internally
   but exposes only each character's direction (`is_rtl`); units cut on that,
-  and only the per-line `base_is_rtl` is kept. Any visual reorder is a separate
-  downstream step that derives the pseudo-levels it needs from
-  `(is_rtl, base_is_rtl)`.
+  and only the per-line `base_is_rtl` is kept. Visual reorder is a separate
+  downstream step that asks vibidi for the line's resolved L2 order.
 """
 
 from __future__ import annotations
@@ -34,7 +32,6 @@ from videre.core.shaping.text_partition.model import (
     TextUnit,
 )
 from videre.core.shaping.text_partition.partition_utils import (
-    _BIDI_CONTROL_CHARS,
     _shaping_script,
     _split_by_font,
     _split_by_script,
@@ -44,68 +41,71 @@ from videre.core.shaping.text_partition.word_splitter import (
     WordSpan,
     split_word_spans,
 )
+from videre.core.text_editing import EditUnit, EditUnitKind, segment_edit_units
 from videre.core.vibidi.vibidi import vibidi
 from videre.fonts.provider import get_font_provider
-from videre.fonts.unicode_utils import Unicode, get_character
+from videre.fonts.unicode_utils import get_character
 
 
 def partition_text(text: str) -> TextPartition:
     """Segment `text` into a `TextPartition` ready for shaping / wrapping."""
-    lines = tuple(_partition_line(raw, start) for raw, start in _iter_lines(text))
-    return TextPartition(text=text, lines=lines)
+    edit_units = segment_edit_units(text)
+    lines = tuple(
+        _partition_line(text, start, end, units, terminator)
+        for start, end, units, terminator in _iter_lines(text, edit_units)
+    )
+    return TextPartition(text=text, edit_units=edit_units, lines=lines)
 
 
-def _iter_lines(text: str) -> Iterator[tuple[str, int]]:
-    """Yield ``(raw_line_text, start_offset)`` for each logical line.
+def _iter_lines(
+    text: str, edit_units: tuple[EditUnit, ...]
+) -> Iterator[tuple[int, int, tuple[EditUnit, ...], EditUnit | None]]:
+    """Yield source ranges + edit units for each author-authored line.
 
-    Recognized terminators: ``\\r\\n``, ``\\r`` alone, ``\\n`` alone (each
-    starts a new line; consecutive terminators yield empty lines).
-    ``start_offset`` is the index of the line's first character in the
-    ORIGINAL `text`, so every kept character maps back to its source position
-    even though terminators occupy 1 (``\\n`` / ``\\r``) or 2 (``\\r\\n``) code
-    points. Always yields at least one line (matches the legacy
-    `_split_by_line`).
+    UAX #29 makes ``\\r\\n`` one editing unit. All Unicode mandatory-break
+    controls classified by `segment_edit_units` terminate a line while staying
+    represented in the source model.
     """
     start = 0
-    i = 0
-    n = len(text)
-    while i < n:
-        c = text[i]
-        if c == "\r":
-            yield text[start:i], start
-            # \r\n is a single terminator.
-            i += 2 if i + 1 < n and text[i + 1] == "\n" else 1
-            start = i
-        elif c == "\n":
-            yield text[start:i], start
-            i += 1
-            start = i
+    line_units: list[EditUnit] = []
+    for unit in edit_units:
+        if unit.kind is EditUnitKind.LINE_BREAK:
+            yield start, unit.source_start, tuple(line_units), unit
+            start = unit.source_end
+            line_units = []
         else:
-            i += 1
-    # Trailing segment (also the whole string when there is no terminator, and
-    # the empty-input case -> a single empty line).
-    yield text[start:n], start
+            line_units.append(unit)
+    yield start, len(text), tuple(line_units), None
 
 
-def _partition_line(raw: str, start: int) -> Line:
-    """Build one `Line` from a raw line and its start offset in the original."""
-    # Filter unprintable + bidi-control characters (UAX#9 X9), keeping each
-    # surviving character's ORIGINAL position so `logical_position` indexes
-    # `TextPartition.text`, not the filtered string. `positions` runs parallel
-    # to `line_text`, exactly like the bidi `levels` below.
-    kept = [
-        (c, start + i)
-        for i, c in enumerate(raw)
-        if Unicode.printable(c) and c not in _BIDI_CONTROL_CHARS
-    ]
-    line_text = "".join(c for c, _ in kept)
-    positions = [p for _, p in kept]
+def _partition_line(
+    source: str,
+    start: int,
+    end: int,
+    edit_units: tuple[EditUnit, ...],
+    terminator: EditUnit | None,
+) -> Line:
+    """Build one `Line` without destructively filtering its source."""
+    line_text = source[start:end]
+    positions = list(range(start, end))
+    unit_by_position = {
+        position: unit
+        for unit in edit_units
+        for position in range(unit.source_start, unit.source_end)
+    }
 
     vibidi_text = vibidi(line_text)
     bidi = LineBidi(vibidi_text, tuple(positions))
     base_is_rtl = vibidi_text.base_is_rtl
     if not line_text:
-        return Line(components=(), bidi=bidi)
+        return Line(
+            components=(),
+            edit_units=edit_units,
+            source_start=start,
+            source_end=end,
+            terminator=terminator,
+            bidi=bidi,
+        )
     is_rtls = [pos.is_rtl for pos in vibidi_text.logical_positions]
 
     components: list[TextUnit] = []
@@ -115,6 +115,7 @@ def _partition_line(raw: str, start: int) -> Line:
                 _gap_unit(
                     line_text[span.start : span.end],
                     positions[span.start : span.end],
+                    unit_by_position,
                     base_is_rtl,
                 )
             )
@@ -128,15 +129,28 @@ def _partition_line(raw: str, start: int) -> Line:
                 line_text[span.start : span.end],
                 is_rtls[span.start : span.end],
                 positions[span.start : span.end],
+                unit_by_position,
                 is_breakable=not span.atomic,
                 break_before=positions[span.start] if span.break_before else None,
                 no_break_before=no_break_before,
             )
         )
-    return Line(components=tuple(components), bidi=bidi)
+    return Line(
+        components=tuple(components),
+        edit_units=edit_units,
+        source_start=start,
+        source_end=end,
+        terminator=terminator,
+        bidi=bidi,
+    )
 
 
-def _gap_unit(text: str, positions: list[int], base_is_rtl: bool) -> TextUnit:
+def _gap_unit(
+    text: str,
+    positions: list[int],
+    unit_by_position: dict[int, EditUnit],
+    base_is_rtl: bool,
+) -> TextUnit:
     """An explicit whitespace gap. Inherits the line's base direction (UAX#9
     gives inter-word neutrals the paragraph direction), routes to the font the
     provider picks for its first character, and is never breakable. Keeps the
@@ -145,7 +159,8 @@ def _gap_unit(text: str, positions: list[int], base_is_rtl: bool) -> TextUnit:
     name, path = get_font_provider().get_font_info(text[0])
     return TextUnit(
         characters=tuple(
-            LogicalCharacter(get_character(c), p) for c, p in zip(text, positions)
+            LogicalCharacter(get_character(c), p, unit_by_position[p])
+            for c, p in zip(text, positions)
         ),
         font_name=name,
         font_path=path,
@@ -162,6 +177,7 @@ def _word_units(
     text: str,
     is_rtls: list[bool],
     positions: list[int],
+    unit_by_position: dict[int, EditUnit],
     *,
     is_breakable: bool,
     break_before: int | None,
@@ -190,7 +206,7 @@ def _word_units(
                 units.append(
                     TextUnit(
                         characters=tuple(
-                            LogicalCharacter(get_character(c), p)
+                            LogicalCharacter(get_character(c), p, unit_by_position[p])
                             for c, p in zip(f_text, f_pos)
                         ),
                         font_name=per_font.font_name,

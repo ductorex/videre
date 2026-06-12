@@ -3,12 +3,9 @@
 The data file (fetched for the same Unicode version as `unicodedata`, see
 `data/BidiCharacterTest.txt`) is large; if it is absent the test is skipped.
 
-We exercise only the subset vibidi targets: lines with NO explicit formatting
-character (embeddings, overrides and isolates). vibidi assumes flat text --
-videre strips these upstream -- and isolates in particular are NOT removed by
-rule X9, so they aren't flagged 'x' in the data; we filter them by bidi class.
-For every remaining line we check the resolved paragraph level, the
-per-character embedding levels and the L2 visual order.
+Every conformance case is exercised, including explicit embeddings, overrides,
+isolates and X9-removed characters. For each line we check the resolved
+paragraph level, per-character embedding levels and L2 visual order.
 
 vibidi deliberately omits L1 (videre resets trailing whitespace itself when it
 consumes wrap gaps), but the data's levels and ordering DO include L1. So the
@@ -30,13 +27,9 @@ _POLICY = {
     "2": RtlPolicy.INFER,
 }
 _L1_RESET = {"WS", "FSI", "LRI", "RLI", "PDI"}
-# Explicit formatting characters (X9-removed embeddings/overrides + the isolates,
-# which X9 keeps but vibidi's flat-text core does not model). Lines using any of
-# these are filtered out: they are out of scope and stripped by videre upstream.
-_OUT_OF_SCOPE = {"LRE", "RLE", "LRO", "RLO", "PDF", "LRI", "RLI", "FSI", "PDI", "BN"}
 
 
-def _apply_l1(text: str, levels: list[int], base: int) -> list[int]:
+def _apply_l1(text: str, levels: list[int | None], base: int) -> list[int | None]:
     """UAX#9 L1 on a single line: S/B, and trailing whitespace, go to `base`.
 
     Uses the original bidi classes, as L1 mandates. vibidi skips this rule; we
@@ -45,6 +38,8 @@ def _apply_l1(text: str, levels: list[int], base: int) -> list[int]:
     out = list(levels)
     trailing = True  # at end-of-line a whitespace/isolate run is resettable
     for i in range(len(text) - 1, -1, -1):
+        if out[i] is None:
+            continue
         cls = unicodedata.bidirectional(text[i])
         if cls in ("S", "B"):
             out[i] = base
@@ -57,7 +52,7 @@ def _apply_l1(text: str, levels: list[int], base: int) -> list[int]:
     return out
 
 
-def _load_cases() -> list[tuple[int, str, RtlPolicy, int, list[int], list[int]]]:
+def _load_cases() -> list[tuple[int, str, RtlPolicy, int, list[int | None], list[int]]]:
     if not os.path.exists(_DATA):
         return []
     cases = []
@@ -68,8 +63,6 @@ def _load_cases() -> list[tuple[int, str, RtlPolicy, int, list[int], list[int]]]
                 continue
             cps, direction, plevel, levels_s, order_s = line.split(";")
             text = "".join(chr(int(h, 16)) for h in cps.split())
-            if any(unicodedata.bidirectional(c) in _OUT_OF_SCOPE for c in text):
-                continue  # explicit formatters / isolates: out of flat-text scope
             level_toks = levels_s.split()
             cases.append(
                 (
@@ -77,7 +70,7 @@ def _load_cases() -> list[tuple[int, str, RtlPolicy, int, list[int], list[int]]]
                     text,
                     _POLICY[direction],
                     int(plevel),
-                    [int(t) for t in level_toks],
+                    [None if t == "x" else int(t) for t in level_toks],
                     [int(t) for t in order_s.split()] if order_s else [],
                 )
             )
@@ -92,8 +85,19 @@ def test_bidi_character_conformance() -> None:
     for lineno, text, policy, exp_para, exp_levels, exp_order in cases:
         vt = vibidi(text, policy)
         base = 1 if vt.base_is_rtl else 0
-        levels = _apply_l1(text, [p._level for p in vt.logical_positions], base)
-        order = _l2_order(levels, base)
+        levels = _apply_l1(
+            text,
+            [
+                None if position._removed else position._level
+                for position in vt.logical_positions
+            ],
+            base,
+        )
+        active_indices = [
+            index for index, level in enumerate(levels) if level is not None
+        ]
+        active_levels = [level for level in levels if level is not None]
+        order = [active_indices[index] for index in _l2_order(active_levels, base)]
         if (base, levels, order) != (exp_para, exp_levels, exp_order):
             cps = " ".join(f"{ord(c):04X}" for c in text)
             failures.append(

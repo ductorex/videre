@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from videre.core.shaping.text_partition.model import LineBidi, TextUnit
+from videre.core.text_editing import EditUnit
 
 
 @dataclass(slots=True, frozen=True)
@@ -54,6 +55,13 @@ class PositionedGlyph:
     # in logical order. Replaces the old parallel `codepoints` list (no more
     # length coupling).
     logical_position: int
+    # Explicit half-open source range of the HarfBuzz cluster. This is not
+    # inferred from the next visible glyph: controls may have no ink, and one
+    # ligature cluster may span several editing units.
+    source_end: int
+    # False for source controls that HarfBuzz represents with an invisible
+    # placeholder glyph. They still contribute a zero-width layout item.
+    paint: bool
 
 
 @dataclass(slots=True)
@@ -83,6 +91,10 @@ class ShapedTextLine:
 
     bidi: LineBidi
     units: list[ShapedUnit] = field(default_factory=list)
+    edit_units: tuple[EditUnit, ...] = ()
+    source_start: int = 0
+    source_end: int = 0
+    terminator: EditUnit | None = None
 
     @property
     def base_is_rtl(self) -> bool:
@@ -99,18 +111,39 @@ class GlyphLine:
     """
 
     glyphs: list[PositionedGlyph] = field(default_factory=list)
+    edit_units: tuple[EditUnit, ...] = ()
+    source_start: int = 0
+    source_end: int = 0
+    terminator: EditUnit | None = None
+    base_is_rtl: bool = False
 
 
-def measure_glyphs(glyphs: list[PositionedGlyph]) -> tuple[float, float]:
-    """`(advance, real_right)` of a glyph sequence: cumulative `x_advance` and
-    the rightmost ink edge from the sequence's left, using the same
-    `int(round(...))` rounding as the rasterizer — the single measurement
-    shared by the wrap engine and the paint pass, so both agree on whether a
-    glyph fits."""
+@dataclass(slots=True, frozen=True)
+class GlyphMeasure:
+    """Horizontal geometry of a glyph sequence relative to its pen origin."""
+
+    advance: float
+    left: float
+    right: float
+
+    @property
+    def width(self) -> float:
+        return self.right - self.left
+
+
+def measure_glyphs(glyphs: list[PositionedGlyph]) -> GlyphMeasure:
+    """Measure advance and the complete horizontal ink envelope.
+
+    Negative left bearings and terminal overhangs are retained. The logical
+    advance interval is included as well, so whitespace and invisible controls
+    keep their layout width. Glyph origins use the paint path's rounding.
+    """
     pen = 0.0
+    real_left = 0.0
     real_right = 0.0
     for g in glyphs:
-        draw_x = int(round(pen + g.x_offset + g.ink_left))
-        real_right = max(real_right, draw_x + (g.ink_right - g.ink_left))
+        origin = int(round(pen + g.x_offset))
+        real_left = min(real_left, origin + g.ink_left)
+        real_right = max(real_right, origin + g.ink_right)
         pen += g.x_advance
-    return pen, max(real_right, pen)
+    return GlyphMeasure(pen, min(real_left, 0.0), max(real_right, pen))

@@ -15,7 +15,8 @@ from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.shaping.rasterizer import GlyphRasterizer
 from videre.core.shaping.render import render_char, render_text
-from videre.core.shaping.shaper import Shaper
+from videre.core.shaping.shaper import Shaper, shape_line
+from videre.core.shaping.text_partition.partitioner import partition_text
 
 BLACK = Color(0, 0, 0)
 
@@ -93,6 +94,20 @@ def test_glyph_overhang_is_not_clipped(
     line_ink = int((pixels_alpha(line) > 0).sum())
     glyph_ink = int((pixels_alpha(glyph) > 0).sum())
     assert line_ink == glyph_ink
+
+
+@pytest.mark.parametrize(("text", "italic"), [("f", True), ("J", False)])
+def test_shaped_ink_bounds_match_the_rasterized_bitmap(
+    shaper, rasterizer, text, italic
+) -> None:
+    (line,) = partition_text(text).lines
+    glyph = shape_line(line, shaper, 16, italic=italic).units[0].glyphs[0]
+    sprite = rasterizer.render_single_glyph(
+        glyph.font_path, 16, glyph.bold, glyph.italic, glyph.glyph_id, BLACK
+    )
+
+    assert glyph.ink_left == sprite.bitmap_left
+    assert glyph.ink_right == sprite.bitmap_left + sprite.width
 
 
 # -- Wrapping ----------------------------------------------------------------

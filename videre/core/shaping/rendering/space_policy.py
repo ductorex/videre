@@ -13,6 +13,8 @@ space is meaningful. PRESERVE needs no pre-pass (gaps are kept verbatim). See
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from videre.core.constants import TextSpacePolicy
 from videre.core.shaping.glyph_partition import ShapedTextLine, ShapedUnit
 
@@ -37,13 +39,20 @@ def collapse_spaces(line: ShapedTextLine) -> ShapedTextLine:
     stays, shown as one space.
 
     Reducing keeps the gap's first glyph (its width = one space); the dropped
-    spaces' source positions are absorbed by the neighbouring cluster in the
-    caret layer's source tiling (`build_rendered_text`), so selection across a
-    collapsed gap still covers them."""
-    reduced = [
-        ShapedUnit(su.unit, su.glyphs[:1])
-        if su.unit.is_gap and len(su.glyphs) > 1
-        else su
-        for su in line.units
-    ]
-    return ShapedTextLine(units=reduced, bidi=line.bidi)
+    spaces' source positions are folded into the retained glyph's explicit
+    source range, so selection across a collapsed gap still covers them."""
+    reduced: list[ShapedUnit] = []
+    for su in line.units:
+        if su.unit.is_gap and len(su.glyphs) > 1:
+            first = replace(su.glyphs[0], source_end=su.glyphs[-1].source_end)
+            reduced.append(ShapedUnit(su.unit, [first]))
+        else:
+            reduced.append(su)
+    return ShapedTextLine(
+        units=reduced,
+        bidi=line.bidi,
+        edit_units=line.edit_units,
+        source_start=line.source_start,
+        source_end=line.source_end,
+        terminator=line.terminator,
+    )

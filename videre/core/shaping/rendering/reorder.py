@@ -23,14 +23,28 @@ def reorder_line(line: ShapedTextLine) -> GlyphLine:
     """Flatten `line` into a `GlyphLine` in visual order via vibidi's L2."""
     glyphs = [g for unit in line.units for g in unit.glyphs]
     if not glyphs:
-        return GlyphLine(glyphs=[])
+        return GlyphLine(
+            glyphs=[],
+            edit_units=line.edit_units,
+            source_start=line.source_start,
+            source_end=line.source_end,
+            terminator=line.terminator,
+            base_is_rtl=line.base_is_rtl,
+        )
     bidi = line.bidi
     # Glyphs carry their ORIGINAL-text position; vibidi indexes the filtered line
     # text. Invert `positions` to translate, then ask vibidi for the visual order
     # of this sub-line's interval and rank each glyph by it.
     orig_to_index = {orig: i for i, orig in enumerate(bidi.positions)}
     indices = [orig_to_index[g.logical_position] for g in glyphs]
-    visual = bidi.vibidi_text.reorder(min(indices), max(indices) + 1)
+    visual = bidi.vibidi_text.reorder_retaining_controls(min(indices), max(indices) + 1)
     rank = {pos.logical: pos.visual for pos in visual}
     order = sorted(range(len(glyphs)), key=lambda i: rank[indices[i]])
-    return GlyphLine(glyphs=[glyphs[i] for i in order])
+    return GlyphLine(
+        glyphs=[glyphs[i] for i in order],
+        edit_units=line.edit_units,
+        source_start=line.source_start,
+        source_end=line.source_end,
+        terminator=line.terminator,
+        base_is_rtl=line.base_is_rtl,
+    )
