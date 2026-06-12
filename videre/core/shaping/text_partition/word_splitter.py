@@ -43,6 +43,9 @@ _LB_TRAILING = frozenset({"EX", "IS", "CL", "CP", "BA", "NS", "IN", "HY"})
 _LB_LEADING = frozenset({"OP"})
 _LB_AMBIGUOUS = frozenset({"QU"})
 _LB_WHITESPACE = frozenset({"SP", "BK", "CR", "LF", "NL", "ZW"})
+_LB_COMBINING = frozenset({"CM", "ZWJ"})
+_LB_COMBINING_RESET = frozenset({"BK", "CR", "LF", "NL", "SP", "ZW"})
+_LB_BREAK_AFTER = frozenset({"HY"})
 
 
 @dataclass(slots=True, frozen=True)
@@ -50,6 +53,8 @@ class WordSpan:
     start: int
     end: int
     atomic: bool
+    break_before: bool = False
+    no_break_before: tuple[int, ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -194,7 +199,7 @@ def split_word_spans(text: str) -> list[TextSpan]:
         return []
 
     boundaries = word_boundaries(text)
-    line_props = [_line_property(c) for c in text]
+    line_props = _resolve_line_properties([_line_property(c) for c in text])
     raw = list(zip(boundaries, boundaries[1:]))
     parts: list[tuple[int, int, str, bool]] = []
     sep_pending = True
@@ -250,12 +255,32 @@ def _is_whitespace_span(props: list[str], start: int, end: int) -> bool:
     return all(prop in _LB_WHITESPACE for prop in props[start:end])
 
 
+def _resolve_line_properties(props: list[str]) -> list[str]:
+    """Apply UAX #14 LB9 inheritance for combining marks and ZWJ.
+
+    A variation selector has Line_Break=CM. It inherits the preceding base
+    character's class, so an ideograph plus selector remains an ID fragment
+    for Videre's CJK shaping profile.
+    """
+    resolved: list[str] = []
+    for prop in props:
+        if prop not in _LB_COMBINING:
+            resolved.append(prop)
+        elif not resolved or resolved[-1] in _LB_COMBINING_RESET:
+            resolved.append("AL")
+        else:
+            resolved.append(resolved[-1])
+    return resolved
+
+
 def _classify_span(
     props: list[str], start: int, end: int, sep_left: bool, sep_right: bool
 ) -> str:
     classes = set(props[start:end])
     if classes <= _LB_BREAKABLE:
         return "cjk"
+    if classes <= _LB_BREAK_AFTER:
+        return "trail_break"
     if classes <= _LB_TRAILING:
         return "trail"
     if classes <= _LB_LEADING:
@@ -268,19 +293,34 @@ def _classify_span(
 def _merge_profiled_words(parts: list[tuple[int, int, str, bool]]) -> list[WordSpan]:
     result: list[WordSpan] = []
     i = 0
+    break_next = False
     while i < len(parts):
         start, end, kind, sep_before = parts[i]
+        if sep_before:
+            break_next = False
+        break_before = break_next
+        break_next = False
         if kind == "cjk":
             j = i + 1
             while j < len(parts) and parts[j][2] == "cjk" and not parts[j][3]:
                 end = parts[j][1]
                 j += 1
-            result.append(WordSpan(start, end, atomic=False))
+            result.append(WordSpan(start, end, atomic=False, break_before=break_before))
             i = j
             continue
-        if kind == "trail" and result and not sep_before:
+        if kind in {"trail", "trail_break"} and result and not sep_before:
             previous = result[-1]
-            result[-1] = WordSpan(previous.start, end, previous.atomic)
+            no_break_before = previous.no_break_before
+            if not previous.atomic:
+                no_break_before += tuple(range(start, end))
+            result[-1] = WordSpan(
+                previous.start,
+                end,
+                previous.atomic,
+                previous.break_before,
+                no_break_before,
+            )
+            break_next = kind == "trail_break"
             i += 1
             continue
         if kind == "lead":
@@ -295,15 +335,27 @@ def _merge_profiled_words(parts: list[tuple[int, int, str, bool]]) -> list[WordS
                     while k < len(parts) and parts[k][2] == "cjk" and not parts[k][3]:
                         end = parts[k][1]
                         k += 1
-                    result.append(WordSpan(start, end, atomic=False))
+                    result.append(
+                        WordSpan(
+                            start,
+                            end,
+                            atomic=False,
+                            break_before=break_before,
+                            no_break_before=tuple(range(start + 1, parts[j][0] + 1)),
+                        )
+                    )
                     i = k
                 else:
-                    result.append(WordSpan(start, end, atomic=True))
+                    result.append(
+                        WordSpan(start, end, atomic=True, break_before=break_before)
+                    )
                     i = j + 1
                 continue
-            result.append(WordSpan(start, parts[j - 1][1], atomic=True))
+            result.append(
+                WordSpan(start, parts[j - 1][1], atomic=True, break_before=break_before)
+            )
             i = j
             continue
-        result.append(WordSpan(start, end, atomic=True))
+        result.append(WordSpan(start, end, atomic=True, break_before=break_before))
         i += 1
     return result

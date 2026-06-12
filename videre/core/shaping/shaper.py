@@ -91,12 +91,14 @@ class _FreetypeFontFuncsForHb:
         return glyph_metrics(self._font_path, self._size_px, glyph_id)[0]
 
     def _nominal_glyph(self, _font: Font, unicode: int, _user_data: object) -> int:
-        return self._hb_default_font.get_nominal_glyph(unicode)
+        return self._hb_default_font.get_nominal_glyph(unicode) or 0
 
     def _variation_glyph(
         self, _font: Font, unicode: int, variation_selector: int, _user_data: object
     ) -> int:
-        return self._hb_default_font.get_variation_glyph(unicode, variation_selector)
+        return (
+            self._hb_default_font.get_variation_glyph(unicode, variation_selector) or 0
+        )
 
 
 @dataclass(slots=True, frozen=True)

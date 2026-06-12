@@ -117,7 +117,9 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
     chars: list[str] = []
     name, path = anchor_name, anchor_path
     for c in text:
-        if get_character(c).script_is_neutral and _font_supports(path, c):
+        if _is_variation_selector(c) or (
+            get_character(c).script_is_neutral and _font_supports(path, c)
+        ):
             chars.append(c)
             continue
 
@@ -138,3 +140,8 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
 def _font_supports(font_path: str, c: str) -> bool:
     """Whether ``font_path`` has a glyph for ``c``."""
     return load_freetype_face(font_path).get_char_index(ord(c)) != 0
+
+
+def _is_variation_selector(c: str) -> bool:
+    codepoint = ord(c)
+    return 0xFE00 <= codepoint <= 0xFE0F or 0xE0100 <= codepoint <= 0xE01EF

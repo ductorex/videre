@@ -120,12 +120,17 @@ def _partition_line(raw: str, start: int) -> Line:
             )
             continue
         assert isinstance(span, WordSpan)
+        no_break_before = frozenset(
+            positions[offset] for offset in span.no_break_before
+        )
         components.extend(
             _word_units(
                 line_text[span.start : span.end],
                 is_rtls[span.start : span.end],
                 positions[span.start : span.end],
                 is_breakable=not span.atomic,
+                break_before=positions[span.start] if span.break_before else None,
+                no_break_before=no_break_before,
             )
         )
     return Line(components=tuple(components), bidi=bidi)
@@ -147,12 +152,20 @@ def _gap_unit(text: str, positions: list[int], base_is_rtl: bool) -> TextUnit:
         script="Zyyy",
         is_rtl=base_is_rtl,
         is_breakable=False,
+        can_break_before=False,
+        no_break_before=frozenset(),
         is_gap=True,
     )
 
 
 def _word_units(
-    text: str, is_rtls: list[bool], positions: list[int], *, is_breakable: bool
+    text: str,
+    is_rtls: list[bool],
+    positions: list[int],
+    *,
+    is_breakable: bool,
+    break_before: int | None,
+    no_break_before: frozenset[int],
 ) -> list[TextUnit]:
     """Split one word into TextUnits by (direction, script, font).
 
@@ -185,6 +198,10 @@ def _word_units(
                         script=_shaping_script(f_text),
                         is_rtl=is_rtl,
                         is_breakable=is_breakable,
+                        can_break_before=(
+                            break_before is not None and f_pos[0] == break_before
+                        ),
+                        no_break_before=no_break_before.intersection(f_pos),
                         is_gap=False,
                     )
                 )

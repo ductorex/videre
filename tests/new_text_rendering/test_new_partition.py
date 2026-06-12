@@ -74,6 +74,19 @@ def test_cjk_break_has_no_gap() -> None:
     assert all(not u.is_gap for u in line.components)
 
 
+def test_cjk_variation_selector_stays_in_breakable_run() -> None:
+    # U+3402 U+E0100 is a registered Adobe-Japan1 ideographic variation
+    # sequence. The selector must stay attached to its base without splitting
+    # the surrounding CJK run into separate shaping units.
+    text = "\u3402\U000e0100\u6587"
+    (line,) = partition_text(text).lines
+
+    assert len(line.components) == 1
+    (unit,) = line.components
+    assert "".join(lc.character.c for lc in unit.characters) == text
+    assert unit.is_breakable is True
+
+
 # -- Logical positions index the original text ------------------------------
 
 

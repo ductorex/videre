@@ -183,9 +183,15 @@ def _atomize(
             if k > 0:
                 cbb = True
             elif not prev_was_box:
-                cbb = False  # line start, or right after a glue (the glue breaks)
+                # At line start this value is irrelevant. Right after a glue,
+                # the glue itself owns the break opportunity.
+                cbb = unit.can_break_before
             else:
-                cbb = split or prev_split  # word boundary between adjacent units
+                cbb = (
+                    unit.can_break_before or split or prev_split
+                )  # word boundary between adjacent units
+            if chunk[0].logical_position in unit.no_break_before:
+                cbb = False
             adv, rr = measure_glyphs(chunk)
             atoms.append(_Atom(unit, chunk, adv, rr, False, cbb))
             prev_was_box = True

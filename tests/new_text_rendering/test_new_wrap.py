@@ -103,6 +103,30 @@ def test_breakable_cjk_splits_under_word_wrap(shaper: Shaper) -> None:
     assert flat == _nongap_positions(sline)
 
 
+def test_cjk_wrap_does_not_leave_parentheses_alone(shaper: Shaper) -> None:
+    text = "(\u4e2d\u6587)"
+    sline = _shaped(text, shaper)
+    ideograph_width = int(_advance(_shaped("\u4e2d", shaper)))
+    out = list(wrap_lines([sline], width=ideograph_width, wrap_words=True))
+
+    lines = [_nongap_positions(line) for line in out]
+    assert len(lines) > 1
+    assert all(positions != [0] for positions in lines)
+    assert all(positions != [len(text) - 1] for positions in lines)
+
+
+def test_word_wrap_can_break_after_hyphen(shaper: Shaper) -> None:
+    text = "porte-monnaie"
+    sline = _shaped(text, shaper)
+    prefix_end = text.index("-") + 1
+    prefix_width = int(_advance(_shaped(text[:prefix_end], shaper)))
+    out = list(wrap_lines([sline], width=prefix_width, wrap_words=True))
+
+    assert len(out) == 2
+    assert max(_nongap_positions(out[0])) == prefix_end - 1
+    assert min(_nongap_positions(out[1])) == prefix_end
+
+
 # -- Cluster wrap ------------------------------------------------------------
 
 

@@ -96,3 +96,16 @@ def test_bold_italic_flagged_on_glyphs(shaper: Shaper) -> None:
     sline = shape_line(part.lines[0], shaper, 16, bold=True, italic=True)
     (g,) = sline.units[0].glyphs
     assert g.bold is True and g.italic is True
+
+
+@pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
+def test_registered_ideographic_variation_sequence_reaches_harfbuzz(
+    shaper: Shaper,
+) -> None:
+    text = "\u3402\U000e0100\u6587"
+    _, (sline,) = _shape(text, shaper)
+    positions = {glyph.logical_position for glyph in _all_glyphs(sline)}
+
+    # The selector belongs to its base cluster at position 0; it must not
+    # become an independently shaped cluster at source position 1.
+    assert positions == {0, 2}

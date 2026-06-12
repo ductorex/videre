@@ -91,6 +91,13 @@ class TextUnit:
     # True if this unit can be break by character.
     # Used when text is wrapped by words and there's not enough space left on a line to display this unit.
     is_breakable: bool
+    # Explicit word-wrap opportunity before this unit. This covers boundaries
+    # such as the position after a hyphen, even when both neighbouring units
+    # are otherwise atomic.
+    can_break_before: bool
+    # Source positions whose cluster must stay attached to the preceding one.
+    # Used for punctuation attached to a breakable run, e.g. `(中文)`.
+    no_break_before: frozenset[int]
     # True if all characters in this unit are spaces
     # NB: A gap unit may have a specific rendering. Example: if split by word, a gap with n>1 spaces may be rendered
     # as just 1 space. Or, if text is justified, gap rendered width may be independent of gap space count.
