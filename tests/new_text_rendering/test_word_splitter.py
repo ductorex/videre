@@ -127,3 +127,22 @@ def test_profile_returns_source_spans_and_explicit_gaps() -> None:
 )
 def test_videre_profile(text: str, expected: list[tuple[str, bool | None]]) -> None:
     assert _span_values(text) == expected
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Conditional hyphenation is not implemented: a soft hyphen (U+00AD) "
+    "is Word_Break=Format, so WB4 absorbs it and no break opportunity is emitted "
+    "despite its Line_Break=BA. See word_splitter.py's module docstring. When this "
+    "is wired up, drop the xfail and update the docstrings / CLAUDE.md / AGENTS.md.",
+)
+def test_soft_hyphen_offers_a_hyphenation_opportunity() -> None:
+    # Desired behaviour: a soft hyphen marks a conditional break inside the word
+    # (its UAX #14 Line_Break is BA), mirroring the hard hyphen which already
+    # yields a break opportunity. Today it is silently swallowed into one atomic
+    # word. The exact future API is open, so the invariant asserted here is only
+    # that *some* break opportunity exists at the soft-hyphen position.
+    word_spans = [
+        s for s in split_word_spans("encyclo­pedia") if isinstance(s, WordSpan)
+    ]
+    assert any(s.break_before for s in word_spans) or len(word_spans) > 1

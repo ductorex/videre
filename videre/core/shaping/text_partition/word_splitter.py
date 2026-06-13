@@ -13,6 +13,13 @@ default word-boundary rules WB1-WB999. The profiled layer,
 
 All outputs are source offsets. No intermediate substring needs to be found
 again by the partitioner.
+
+Not handled — conditional hyphenation: a soft hyphen (U+00AD) is
+``Word_Break=Format``, so WB4 absorbs it into the surrounding word and no break
+opportunity is emitted at its position, even though its UAX #14 ``Line_Break=BA``
+would allow one (hard hyphens, ZWSP and CJK edges still do). Wiring it up would
+mean re-injecting the break here — ``EditUnitKind.SOFT_HYPHEN`` preserves the
+information — and drawing a hyphen glyph at the break in the renderer.
 """
 
 from __future__ import annotations
