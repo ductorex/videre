@@ -18,6 +18,7 @@ class Pipeline:
         "_in_state",
         "_in_selection",
         "_rendered",
+        "_boundaries",
         "_cursor_is_select_start",
         "out_state",
         "_out_selection",
@@ -31,11 +32,17 @@ class Pipeline:
         in_state: CursorState,
         selection: tuple[int, int] | None,
         rendered: TextRenderingResult,
+        boundaries: frozenset[int] | None = None,
     ):
         self._in_text = in_text
         self._in_state = in_state
         self._in_selection = selection
         self._rendered = rendered
+        # Edit-unit boundary offsets (source positions). When provided,
+        # per-character moves snap onto the nearest cluster boundary so a
+        # single arrow press never lands the caret in the middle of a
+        # multi-codepoint grapheme. None = no snapping (raw renderer step).
+        self._boundaries = boundaries
 
         self._cursor_is_select_start = False
         self.out_state: CursorState = in_state
@@ -85,10 +92,24 @@ class Pipeline:
         )
 
     def move_to_next_char(self):
-        self.out_state = self._rendered.next_visual(self._in_state)
+        self.out_state = self._step_char(forward=True)
 
     def move_to_previous_char(self):
-        self.out_state = self._rendered.prev_visual(self._in_state)
+        self.out_state = self._step_char(forward=False)
+
+    def _step_char(self, *, forward: bool) -> CursorState:
+        """One visual glyph-step, then keep stepping (same direction) until
+        the source position lands on an edit-unit boundary. With no
+        boundaries, this is a single raw renderer step (legacy behaviour)."""
+        step = self._rendered.next_visual if forward else self._rendered.prev_visual
+        state = step(self._in_state)
+        if self._boundaries is not None:
+            while state.pos not in self._boundaries:
+                moved = step(state)
+                if moved.pos == state.pos:  # clamped at document edge
+                    break
+                state = moved
+        return state
 
     def move_to_next_word(self):
         self.out_state = self._rendered.next_visual_word(self._in_state, self._in_text)
@@ -131,6 +152,7 @@ def compute_key_x(
     shift: bool | int,
     rendered: TextRenderingResult,
     right: bool = True,
+    boundaries: frozenset[int] | None = None,
 ) -> Pipeline:
     """Compute the new cursor position / selection after an arrow-key
     press. Movement primitives are pulled from `rendered` (the
@@ -139,9 +161,18 @@ def compute_key_x(
     one or the bidi-aware shaped one. `cursor_state` is the opaque
     navigation state the backend handed out for the previous cursor
     position; the new state is exposed as `Pipeline.out_state`.
+
+    `boundaries` are the edit-unit boundary offsets of `text`; when given,
+    per-character moves snap onto cluster boundaries (so the caret never
+    stops inside a multi-codepoint grapheme). Selection follows for free,
+    since `update_select` reads the post-move `out_state.visual_pos`.
     """
     pp = Pipeline(
-        in_text=text, in_state=cursor_state, selection=selection, rendered=rendered
+        in_text=text,
+        in_state=cursor_state,
+        selection=selection,
+        rendered=rendered,
+        boundaries=boundaries,
     )
     proc_1_get_select = None
     proc_2_set_select = None

@@ -539,3 +539,154 @@ def test_select_and_text_input(fake_win):
     assert ti.value == "lolratatad"
     assert ti._get_cursor() == len("lolratata")
     assert ti._get_selection() is None
+
+
+# ---------------------------------------------------------------------------
+# Grapheme-cluster editing: every text-mutating / cursor operation works at
+# edit-unit (grapheme) granularity, so a multi-codepoint cluster is never
+# split. "é" is e + combining acute (one 2-codepoint cluster); the text
+# "aéb" has edit-unit boundaries (0, 1, 3, 4).
+# ---------------------------------------------------------------------------
+
+_COMBINING = "aéb"  # a | e+combining-acute | b
+
+
+def _focus_at_start(fake_win, ti):
+    """Focus the input and leave the cursor at source position 0."""
+    fake_win.user.click_at(ti.global_x, ti.global_y)
+    fake_win.render()
+    assert ti._get_cursor() == 0
+
+
+def test_grapheme_backspace_removes_whole_cluster(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text=_COMBINING)
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+    ti._set_cursor_to_pos(len(_COMBINING))  # source position 4 (end)
+    fake_win.render()
+
+    fake_user.keyboard_entry("backspace")
+    fake_win.render()
+    assert ti.value == "aé"  # removed 'b'
+    assert ti._get_cursor() == 3
+
+    fake_user.keyboard_entry("backspace")
+    fake_win.render()
+    assert ti.value == "a"  # removed the whole 2-codepoint cluster, not half
+    assert ti._get_cursor() == 1
+
+
+def test_grapheme_delete_removes_whole_cluster(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text=_COMBINING)
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+    ti._set_cursor_to_pos(1)  # right after 'a', at the cluster's left edge
+    fake_win.render()
+
+    fake_user.keyboard_entry("delete")
+    fake_win.render()
+    assert ti.value == "ab"  # the whole cluster is gone
+    assert ti._get_cursor() == 1
+
+
+def test_grapheme_backspace_from_inside_cluster(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text=_COMBINING)
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+    ti._set_cursor_to_pos(2)  # between 'e' and its combining mark
+    fake_win.render()
+
+    fake_user.keyboard_entry("backspace")
+    fake_win.render()
+    assert ti.value == "ab"  # whole cluster removed, never a lone half
+    assert ti._get_cursor() == 1
+
+
+def test_grapheme_arrows_skip_whole_cluster(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text=_COMBINING)
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+
+    fake_user.keyboard_entry("right")  # past 'a'
+    fake_win.render()
+    assert ti._get_cursor() == 1
+    fake_user.keyboard_entry("right")  # over the 2-codepoint cluster in one press
+    fake_win.render()
+    assert ti._get_cursor() == 3
+    fake_user.keyboard_entry("right")  # past 'b'
+    fake_win.render()
+    assert ti._get_cursor() == 4
+
+    fake_user.keyboard_entry("left")
+    fake_win.render()
+    assert ti._get_cursor() == 3
+    fake_user.keyboard_entry("left")  # back over the whole cluster in one press
+    fake_win.render()
+    assert ti._get_cursor() == 1
+    fake_user.keyboard_entry("left")
+    fake_win.render()
+    assert ti._get_cursor() == 0
+
+
+def test_grapheme_shift_selection_deletes_whole_clusters(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text=_COMBINING)
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+
+    fake_user.keyboard_entry("right", shift=True)  # select 'a'
+    fake_win.render()
+    fake_user.keyboard_entry("right", shift=True)  # extend over the whole cluster
+    fake_win.render()
+    fake_user.keyboard_entry("backspace")
+    fake_win.render()
+    assert ti.value == "b"  # both whole clusters removed
+    assert ti._get_cursor() == 0
+
+
+def test_grapheme_copy_copies_whole_cluster(fake_win):
+    fake_user = fake_win.user
+    clipboard_store = {"content": ""}
+    original_copy = Clipboard._copy
+    original_paste = Clipboard._paste
+    Clipboard._copy = staticmethod(lambda text: clipboard_store.update(content=text))
+    Clipboard._paste = staticmethod(lambda: clipboard_store["content"])
+    try:
+        ti = videre.TextInput(text=_COMBINING)
+        fake_win.controls = [ti]
+        fake_win.render()
+        _focus_at_start(fake_win, ti)
+
+        fake_user.keyboard_entry("right", shift=True)  # select 'a'
+        fake_win.render()
+        fake_user.keyboard_entry("right", shift=True)  # select the whole cluster too
+        fake_win.render()
+        fake_user.keyboard_entry("c", ctrl=True)
+        fake_win.render()
+        # The whole cluster lands on the clipboard, not a dangling "ae".
+        assert clipboard_store["content"] == "aé"
+    finally:
+        Clipboard._copy = original_copy
+        Clipboard._paste = original_paste
+
+
+def test_grapheme_text_input_inserts_on_a_boundary(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text="é")  # a single combining cluster
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+
+    fake_user.text_input("x")
+    fake_win.render()
+    assert ti.value == "xé"  # inserted before the cluster, not inside it
+    assert ti._get_cursor() == 1  # cursor on a boundary

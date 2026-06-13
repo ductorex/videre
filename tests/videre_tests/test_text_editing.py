@@ -2,6 +2,8 @@ import pytest
 
 from videre.core.text_editing import (
     EditUnitKind,
+    align_to_boundary,
+    expand_to_edit_units,
     grapheme_boundaries,
     next_edit_unit,
     previous_edit_unit,
@@ -64,3 +66,54 @@ def test_previous_and_next_use_whole_edit_units() -> None:
     assert next_edit_unit(units, 0) == units[0]
     assert next_edit_unit(units, 1) == units[0]
     assert next_edit_unit(units, 2) == units[1]
+
+
+def test_expand_to_edit_units_grows_partial_indices_to_whole_clusters() -> None:
+    # "a", "e\u0301" (combining), "b" -> units (0,1) (1,3) (3,4)
+    units = segment_edit_units("ae\u0301b")
+
+    # An index inside the combining cluster pulls in the whole cluster.
+    assert expand_to_edit_units(units, {2}) == frozenset({1, 2})
+    # A code-unit-aligned index that is already a whole cluster is unchanged.
+    assert expand_to_edit_units(units, {0}) == frozenset({0})
+    # Non-contiguous indices (as a bidi selection produces) each grow.
+    assert expand_to_edit_units(units, {0, 2}) == frozenset({0, 1, 2})
+    # Empty stays empty.
+    assert expand_to_edit_units(units, set()) == frozenset()
+
+
+def test_expand_to_edit_units_is_identity_on_single_codepoint_clusters() -> None:
+    units = segment_edit_units("abcd")
+    assert expand_to_edit_units(units, {1, 3}) == frozenset({1, 3})
+
+
+def test_expand_to_edit_units_covers_an_emoji_zwj_family() -> None:
+    family = "\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"
+    units = segment_edit_units(family)  # one 7-codepoint cluster
+    assert expand_to_edit_units(units, {3}) == frozenset(range(7))
+
+
+@pytest.mark.parametrize(
+    ("position", "direction", "expected"),
+    [
+        (2, 0, 1),  # nearest, tie -> left edge of "e\u0301"
+        (2, -1, 1),  # snap left
+        (2, 1, 3),  # snap right
+        (1, 0, 1),  # already a boundary
+        (3, 0, 3),  # already a boundary
+        (0, 0, 0),  # clamp low
+        (-5, 0, 0),  # clamp below start
+        (4, 0, 4),  # clamp at end
+        (9, 0, 4),  # clamp past end
+    ],
+)
+def test_align_to_boundary(position: int, direction: int, expected: int) -> None:
+    # Boundaries of "ae\u0301b": (0, 1, 3, 4)
+    boundaries = (0, 1, 3, 4)
+    assert align_to_boundary(boundaries, position, direction) == expected
+
+
+def test_align_to_boundary_nearest_without_tie() -> None:
+    boundaries = (0, 1, 5)  # a wide cluster spanning [1, 5)
+    assert align_to_boundary(boundaries, 2) == 1  # closer to left
+    assert align_to_boundary(boundaries, 4) == 5  # closer to right

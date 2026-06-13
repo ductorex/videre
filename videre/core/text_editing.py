@@ -8,7 +8,9 @@ shaping free to inspect the individual code points inside each range.
 
 from __future__ import annotations
 
+import bisect
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from functools import lru_cache
@@ -151,6 +153,57 @@ def next_edit_unit(
         if unit.source_end > source_position:
             return unit
     return None
+
+
+def expand_to_edit_units(
+    units: tuple[EditUnit, ...], indices: Iterable[int]
+) -> frozenset[int]:
+    """Expand source ``indices`` to the full range of every edit unit they touch.
+
+    Selection-based deletion and copy operate on a set of source indices that
+    may, in bidi-mixed text, be non-contiguous. Mapping each index back to its
+    edit unit and taking the whole unit range guarantees that an operation
+    never keeps or removes only part of a grapheme cluster.
+    """
+    if not units:
+        return frozenset()
+    starts = [unit.source_start for unit in units]
+    covered: set[int] = set()
+    for index in indices:
+        k = bisect.bisect_right(starts, index) - 1
+        if 0 <= k < len(units):
+            unit = units[k]
+            if unit.source_start <= index < unit.source_end:
+                covered.update(range(unit.source_start, unit.source_end))
+    return frozenset(covered)
+
+
+def align_to_boundary(
+    boundaries: tuple[int, ...], position: int, direction: int = 0
+) -> int:
+    """Snap ``position`` onto an edit-unit boundary.
+
+    ``boundaries`` is the sorted offset tuple produced by
+    :func:`grapheme_boundaries` (equivalently ``(0, *(u.source_end for u in
+    units))``). ``direction`` selects which boundary to land on when
+    ``position`` falls inside a cluster: ``< 0`` the boundary at/just before
+    it, ``> 0`` the boundary at/just after it, ``0`` the nearest (ties go
+    left). A ``position`` already on a boundary is returned unchanged.
+    """
+    if position <= boundaries[0]:
+        return boundaries[0]
+    if position >= boundaries[-1]:
+        return boundaries[-1]
+    hi = bisect.bisect_left(boundaries, position)
+    if boundaries[hi] == position:
+        return position
+    left = boundaries[hi - 1]
+    right = boundaries[hi]
+    if direction < 0:
+        return left
+    if direction > 0:
+        return right
+    return left if (position - left) <= (right - position) else right
 
 
 @lru_cache(maxsize=4096)
