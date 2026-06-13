@@ -3,7 +3,8 @@
 import unicodedata
 from dataclasses import dataclass
 
-from videre.core.shaping.utils import load_freetype_face
+from videre.core.text_editing import grapheme_boundaries
+from videre.fonts.coverage import is_variation_selector
 from videre.fonts.provider import get_font_provider
 from videre.fonts.unicode_utils import NEUTRAL_SCRIPTS, get_character
 
@@ -105,37 +106,36 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
         anchor_name, anchor_path = provider.get_font_info(text[0])
 
     result: list[PerFont] = []
-    chars: list[str] = []
+    chunks: list[str] = []
     name, path = anchor_name, anchor_path
-    for c in text:
-        if _stays_with_current_font(c) or (
-            get_character(c).script_is_neutral and _font_supports(path, c)
-        ):
-            chars.append(c)
+    boundaries = grapheme_boundaries(text)
+    for start, end in zip(boundaries, boundaries[1:]):
+        cluster = text[start:end]
+        if all(_stays_with_current_font(c) for c in cluster):
+            chunks.append(cluster)
             continue
 
-        char_name, char_path = provider.get_font_info(c)
+        preferred = (
+            name if all(get_character(c).script_is_neutral for c in cluster) else None
+        )
+        char_name, char_path = provider.get_font_info_for_cluster(
+            cluster, preferred_font_name=preferred
+        )
         if char_name == name:
-            chars.append(c)
+            chunks.append(cluster)
             continue
-        if chars:
-            result.append(PerFont("".join(chars), name, path))
+        if chunks:
+            result.append(PerFont("".join(chunks), name, path))
         name, path = char_name, char_path
-        chars = [c]
+        chunks = [cluster]
 
-    if chars:
-        result.append(PerFont("".join(chars), name, path))
+    if chunks:
+        result.append(PerFont("".join(chunks), name, path))
     return result
 
 
-def _font_supports(font_path: str, c: str) -> bool:
-    """Whether ``font_path`` has a glyph for ``c``."""
-    return load_freetype_face(font_path).get_char_index(ord(c)) != 0
-
-
 def _is_variation_selector(c: str) -> bool:
-    codepoint = ord(c)
-    return 0xFE00 <= codepoint <= 0xFE0F or 0xE0100 <= codepoint <= 0xE01EF
+    return is_variation_selector(c)
 
 
 def _stays_with_current_font(c: str) -> bool:

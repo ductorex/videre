@@ -88,6 +88,24 @@ def test_cjk_variation_selector_stays_in_breakable_run() -> None:
     assert unit.is_breakable is True
 
 
+def test_emoji_zwj_cluster_routes_as_one_font_unit() -> None:
+    text = "\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"
+    (line,) = partition_text(text).lines
+
+    assert len(line.components) == 1
+    (unit,) = line.components
+    assert unit.font_name == "Noto Emoji Regular"
+    assert "".join(lc.character.c for lc in unit.characters) == text
+
+
+def test_kawi_conjunct_routes_to_shaping_capable_font() -> None:
+    text = "\U00011f12\U00011f42\U00011f12"
+    (line,) = partition_text(text).lines
+
+    assert len(line.components) == 1
+    assert line.components[0].font_name == "Noto Sans Kawi Regular"
+
+
 # -- Logical positions index the original text ------------------------------
 
 

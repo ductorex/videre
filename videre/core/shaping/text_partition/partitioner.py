@@ -186,9 +186,9 @@ def _word_units(
     """Split one word into TextUnits by (direction, script, font).
 
     Cuts on direction (each character's `is_rtl`, from vibidi) then script then
-    font: HarfBuzz only needs a direction per run, and consecutive code points
-    are grouped while they share it. `is_breakable` is the word's `not atomic`,
-    propagated to each of its units.
+    font: HarfBuzz only needs a direction per run, and consecutive grapheme
+    clusters are grouped while they share one cluster-capable font.
+    `is_breakable` is the word's `not atomic`, propagated to each unit.
     """
     units: list[TextUnit] = []
     for d_lo, d_hi in _runs(is_rtls):

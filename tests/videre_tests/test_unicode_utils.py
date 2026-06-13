@@ -14,6 +14,17 @@ def test_printable_private_use():
     assert Unicode.printable("\ue000") is False
 
 
+def test_font_coverage_profile() -> None:
+    assert Unicode.FONT_COVERAGE_VERSION == "16.0.0"
+    assert Unicode.requires_font_glyph("A")
+    assert Unicode.requires_font_glyph(" ")
+    assert Unicode.requires_font_glyph("\u0301")
+    assert not Unicode.requires_font_glyph("\ue000")  # Private use
+    assert not Unicode.requires_font_glyph("\ufe0f")  # Variation selector
+    assert not Unicode.requires_font_glyph("\u200d")  # ZWJ
+    assert not Unicode.requires_font_glyph("\v")  # Control
+
+
 def test_blocks():
     blocks = Unicode.blocks()
     assert isinstance(blocks, dict)

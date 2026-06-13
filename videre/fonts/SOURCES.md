@@ -4,6 +4,9 @@ Catalogue des fichiers présents dans `videre/fonts/`, leur source upstream, et 
 
 Pour les variantes Bold/Italic/BoldItalic disponibles upstream et non encore téléchargées, voir `docs/font-bold-italic-availability.md`.
 
+Le dernier audit fichier par fichier des versions upstream et de leur couverture
+est consigné dans `videre/fonts/FONT_UPDATE_AUDIT.md`.
+
 ## Licences présentes dans le dépôt
 
 - `videre/fonts/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre **toutes** les polices Noto, indépendamment du sous-dossier (`noto/`, `noto-serif/`, `noto-mono/`).
@@ -14,13 +17,18 @@ Toutes ces licences autorisent l'usage commercial, la modification et la redistr
 
 ## Décompte
 
-- Source 1 (`notofonts/notofonts.github.io`) : 165 familles
+- Source 1 (`notofonts/notofonts.github.io`) : 168 familles
 - Source 2 (`notofonts/noto-cjk`) : 5 familles (Variable TTF)
 - Source 2bis (`notofonts/noto-cjk` SubsetOTF) : 10 familles (Light + Regular static OTF)
 - Source 3 (`google/fonts`) : 1 famille
 - Source 4 (`babelstone.co.uk`) : 1 famille
 - Source 5 (`Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project`) : 2 familles
-- **Total** : 184 fichiers
+- **Total** : 187 fichiers
+
+Parmi ces 187 fichiers, 177 participent au routage des caractères et séquences.
+Les cinq fontes variables CJK et les cinq variantes CJK Regular sont conservées
+pour référence, mais ne sont pas chargées par `FontProvider` ; les cinq variantes
+CJK Light sont utilisées à leur place.
 
 ## Source 1 : `notofonts/notofonts.github.io`
 
@@ -158,6 +166,7 @@ Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`).
 | `noto/unhinted/TTF/NotoSansSylotiNagri-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSylotiNagri/unhinted/ttf/NotoSansSylotiNagri-Regular.ttf> |
 | `noto/unhinted/TTF/NotoSansSymbols-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSymbols/unhinted/ttf/NotoSansSymbols-Regular.ttf> |
 | `noto/unhinted/TTF/NotoSansSymbols2-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSymbols2/unhinted/ttf/NotoSansSymbols2-Regular.ttf> |
+| `noto/unhinted/TTF/NotoSansSunuwar-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSunuwar/unhinted/ttf/NotoSansSunuwar-Regular.ttf> |
 | `noto/unhinted/TTF/NotoSansSyriac-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriac/unhinted/ttf/NotoSansSyriac-Regular.ttf> |
 | `noto/unhinted/TTF/NotoSansSyriacEastern-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriacEastern/unhinted/ttf/NotoSansSyriacEastern-Regular.ttf> |
 | `noto/unhinted/TTF/NotoSansSyriacWestern-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansSyriacWestern/unhinted/ttf/NotoSansSyriacWestern-Regular.ttf> |
@@ -186,12 +195,14 @@ Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`).
 | `noto/unhinted/TTF/NotoZnamennyMusicalNotation-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoZnamennyMusicalNotation/unhinted/ttf/NotoZnamennyMusicalNotation-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifAhom-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifAhom/unhinted/ttf/NotoSerifAhom-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifDogra-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifDogra/unhinted/ttf/NotoSerifDogra-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifKhojki-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifKhojki/unhinted/ttf/NotoSerifKhojki-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifMakasar-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifMakasar/unhinted/ttf/NotoSerifMakasar-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifNPHmong-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifNPHmong/unhinted/ttf/NotoSerifNPHmong-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifOldUyghur/unhinted/ttf/NotoSerifOldUyghur-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifOttomanSiyaq-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifOttomanSiyaq/unhinted/ttf/NotoSerifOttomanSiyaq-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifTangut/unhinted/ttf/NotoSerifTangut-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifTibetan-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifTibetan/unhinted/ttf/NotoSerifTibetan-Regular.ttf> |
+| `noto-serif/unhinted/TTF/NotoSerifTodhri-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifTodhri/unhinted/ttf/NotoSerifTodhri-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifToto/unhinted/ttf/NotoSerifToto-Regular.ttf> |
 | `noto-serif/unhinted/TTF/NotoSerifYezidi-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSerifYezidi/unhinted/ttf/NotoSerifYezidi-Regular.ttf> |
 | `noto-mono/unhinted/TTF/NotoSansMono-Regular.ttf` | <https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMono/unhinted/ttf/NotoSansMono-Regular.ttf> |
@@ -245,9 +256,14 @@ Licence : OFL 1.1 (`videre/fonts/LICENSE_OFL.txt`). Texte spécifique aussi disp
 
 | Fichier local | URL upstream |
 |---|---|
-| `noto/unhinted/TTF/NotoEmoji-Regular.ttf` | <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/static/NotoEmoji-Regular.ttf> |
+| `noto/unhinted/TTF/NotoEmoji-Regular.ttf` | <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf> |
 
-Note : le fichier statique Regular peut être absent du sous-dossier `static/` selon les versions du repo. Le variable font équivalent est à <https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf> (axe `wght` 300-900). Vérifier au moment du re-téléchargement.
+Le fichier statique Regular local n'est plus publié directement dans le dépôt
+Google Fonts. L'upstream actuel est la fonte variable indiquée ci-dessus
+(`wght` 300-700, valeur par défaut 400), de même version 3.002 et de même
+couverture Unicode. Une mise à jour doit soit recréer une instance statique à
+`wght=400`, soit tester puis adopter la fonte variable ou
+`NotoColorEmoji.ttf`.
 
 ## Source 4 : `babelstone.co.uk`
 
@@ -257,7 +273,7 @@ Page d'accueil de la fonte : <https://www.babelstone.co.uk/Fonts/Han.html>.
 
 | Fichier local | URL upstream |
 |---|---|
-| `other-ttf/BabelStoneHan.ttf` | <https://www.babelstone.co.uk/Download/BabelStoneHan.ttf> |
+| `other-ttf/BabelStoneHan.ttf` | <https://www.babelstone.co.uk/Fonts/Download/BabelStoneHan.ttf> |
 
 ## Source 5 : `Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project`
 
@@ -278,6 +294,55 @@ Note : l'URL upstream est versionnée (V2.9.5792 = release du 2026-01-01). Pour 
 
 Pas de tracking de version actuel. Le metadata `name` table de chaque TTF contient une chaîne version, lisible via `fontTools.ttLib.TTFont(path)['name'].getDebugName(5)`. À ajouter au catalogue ci-dessus si un pinning précis devient nécessaire.
 
+## Données Unicode de couverture
+
+Les fichiers de couverture générés ne reposent pas seulement sur le `cmap` des
+polices. Ils utilisent aussi les registres Unicode officiels suivants :
+
+- `StandardizedVariants.txt` pour les séquences de variation standardisées ;
+- `emoji-variation-sequences.txt` pour les présentations texte/emoji ;
+- `emoji-sequences.txt` pour les séquences emoji ;
+- `emoji-zwj-sequences.txt` pour les séquences emoji utilisant ZWJ ;
+- `IVD_Sequences.txt` pour les variantes idéographiques enregistrées dans
+  l'Ideographic Variation Database.
+
+Les URL exactes, la version Unicode et la version IVD sont enregistrées dans
+`unicode-sequences.json`. Ce fichier est régénéré par
+`tools/update_unicode_font_data.py`.
+
 ## Mise à jour
 
-Pour rafraîchir une police, télécharger l'URL upstream correspondante et écraser le fichier local. Vérifier ensuite que les variantes disponibles upstream listées dans `docs/font-bold-italic-availability.md` sont toujours cohérentes.
+Pour rafraîchir une police :
+
+1. Télécharger l'URL upstream correspondante et écraser le fichier local.
+2. Vérifier que les variantes disponibles upstream listées dans
+   `docs/font-bold-italic-availability.md` sont toujours cohérentes.
+3. Régénérer les capacités, le routage et le rapport de couverture :
+
+   ```bash
+   uv run python -m videre.fonts._gen_char_cov
+   ```
+
+4. Vérifier le résultat lisible :
+
+   ```bash
+   uv run python -m videre.fonts._cov_stats
+   ```
+
+5. Exécuter les tests qui comparent les fichiers JSON de production à une
+   nouvelle génération :
+
+   ```bash
+   uv run pytest tests/videre_tests/test_fonts.py
+   ```
+
+Lors d'un changement de version Unicode ou IVD, régénérer d'abord le registre
+des séquences :
+
+```bash
+uv run python tools/update_unicode_font_data.py
+uv run python -m videre.fonts._gen_char_cov
+```
+
+Les artefacts de production concernés sont `font-to-characters.json`,
+`font-capabilities.json`, `sequence-to-font.json` et `coverage-report.json`.

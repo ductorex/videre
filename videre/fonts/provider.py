@@ -12,6 +12,12 @@ import json
 import os
 from functools import cache
 
+from videre.fonts.coverage import (
+    UNICODE_VERSION,
+    FontCapabilities,
+    requires_standalone_glyph,
+    variation_pairs,
+)
 from videre.fonts.font_utils import FontUtils
 
 
@@ -97,11 +103,19 @@ class FontProvider:
         _font_name_to_path[_fonts[_characters[c]]]
     """
 
-    __slots__ = ("_font_name_to_path", "_fonts", "_characters")
+    __slots__ = (
+        "_font_name_to_path",
+        "_fonts",
+        "_characters",
+        "_capabilities",
+        "_sequence_to_font",
+    )
 
     @classmethod
     def _load_font_to_characters(cls):
-        with open(os.path.join(FOLDER_FONT, "font-to-characters.json")) as file:
+        with open(
+            os.path.join(FOLDER_FONT, "font-to-characters.json"), encoding="utf-8"
+        ) as file:
             font_to_characters: dict[str, str] = json.load(file)
         return cls._parse_font_to_characters(font_to_characters)
 
@@ -118,9 +132,46 @@ class FontProvider:
                 char_to_indice[char] = indice
         return fonts, char_to_indice
 
+    @classmethod
+    def _load_capabilities(cls) -> dict[str, FontCapabilities]:
+        path = os.path.join(FOLDER_FONT, "font-capabilities.json")
+        with open(path, encoding="utf-8") as file:
+            value = json.load(file)
+        if value["schema_version"] != 1:
+            raise ValueError(
+                f"Unsupported font capability schema: {value['schema_version']}"
+            )
+        if value["unicode_version"] != UNICODE_VERSION:
+            raise ValueError(
+                "Stale font capabilities: "
+                f"{value['unicode_version']} != {UNICODE_VERSION}"
+            )
+        return {
+            name: FontCapabilities.from_json(capability)
+            for name, capability in value["fonts"].items()
+        }
+
+    @classmethod
+    def _load_sequence_to_font(cls) -> dict[str, str]:
+        path = os.path.join(FOLDER_FONT, "sequence-to-font.json")
+        with open(path, encoding="utf-8") as file:
+            value = json.load(file)
+        if value["schema_version"] != 1:
+            raise ValueError(
+                f"Unsupported sequence routing schema: {value['schema_version']}"
+            )
+        if value["unicode_version"] != UNICODE_VERSION:
+            raise ValueError(
+                "Stale sequence routing: "
+                f"{value['unicode_version']} != {UNICODE_VERSION}"
+            )
+        return value["sequences"]
+
     def __init__(self):
         self._font_name_to_path: dict[str, str] = get_fonts()
         self._fonts, self._characters = self._load_font_to_characters()
+        self._capabilities = self._load_capabilities()
+        self._sequence_to_font = self._load_sequence_to_font()
 
     def has_font_info(self, character: str) -> bool:
         return character in self._characters
@@ -133,6 +184,60 @@ class FontProvider:
             name = FONT_NOTO_REGULAR.name
             path = FONT_NOTO_REGULAR.path
         return name, path
+
+    def get_font_info_for_cluster(
+        self, text: str, preferred_font_name: str | None = None
+    ) -> tuple[str, str]:
+        """Choose one font for a complete grapheme/shaping cluster."""
+        if not text:
+            raise ValueError("Cannot select a font for an empty cluster")
+
+        sequence_font = self._sequence_to_font.get(text)
+        if sequence_font is not None:
+            return sequence_font, self._font_name_to_path[sequence_font]
+
+        visible = [
+            character for character in text if requires_standalone_glyph(character)
+        ]
+        if not visible:
+            if preferred_font_name is not None:
+                return (
+                    preferred_font_name,
+                    self._font_name_to_path[preferred_font_name],
+                )
+            return self.get_font_info(text[0])
+
+        pairs = variation_pairs(text)
+        advertised = (
+            {
+                name
+                for name, capability in self._capabilities.items()
+                if capability.advertises_variations(text)
+            }
+            if pairs
+            else set()
+        )
+
+        preferred = []
+        if preferred_font_name is not None:
+            preferred.append(preferred_font_name)
+        for character in visible:
+            name, _ = self.get_font_info(character)
+            if name not in preferred:
+                preferred.append(name)
+
+        candidates = preferred + [
+            name for name in self._capabilities if name not in preferred
+        ]
+        for name in candidates:
+            capability = self._capabilities[name]
+            if not capability.supports_visible_codepoints(text):
+                continue
+            if advertised and name not in advertised:
+                continue
+            return name, self._font_name_to_path[name]
+
+        return self.get_font_info(visible[0])
 
 
 @cache

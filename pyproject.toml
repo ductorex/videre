@@ -66,6 +66,10 @@ split-on-trailing-comma = false
 include = ["videre/core/shaping/shaper.py"]
 rules = { "unresolved-import" = "ignore" }
 
+[[tool.ty.overrides]]
+include = ["videre/fonts/_gen_char_cov.py"]
+rules = { "unresolved-import" = "ignore" }
+
 [tool.poe.tasks]
 format = "ruff format"
 lint = "ruff check --fix"

@@ -6,6 +6,12 @@ from unicodedata import category, unidata_version
 import unicodedataplus  # ty: ignore
 from fontTools import unicodedata as ft_unicodedata
 
+from videre.fonts.coverage import (
+    UNICODE_VERSION,
+    font_coverage_characters,
+    requires_standalone_glyph,
+)
+
 Cc = "Cc"  # control characters
 Co = "Co"  # private use
 Cs = "Cs"  # surrogates
@@ -39,7 +45,10 @@ NEUTRAL_SCRIPTS = (_COMMON_SCRIPT, _INHERITED_SCRIPT)
 
 
 class Unicode:
+    # Kept for the legacy printable predicate. Font coverage has its own
+    # explicit Unicode 16 profile below.
     VERSION = unidata_version
+    FONT_COVERAGE_VERSION = UNICODE_VERSION
 
     @classmethod
     def characters(cls):
@@ -59,6 +68,14 @@ class Unicode:
         https://stackoverflow.com/a/68992289
         """
         return category(c) not in UNPRINTABLE and c not in _BIDI_FORMATTERS
+
+    @classmethod
+    def font_coverage_characters(cls):
+        yield from font_coverage_characters()
+
+    @classmethod
+    def requires_font_glyph(cls, c: str) -> bool:
+        return requires_standalone_glyph(c)
 
     @classmethod
     def block(cls, c: str) -> str:
