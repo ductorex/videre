@@ -52,27 +52,22 @@ def load_freetype_face(font_path: str) -> ft.Face:
 
 
 @cache
-def glyph_metrics(font_path: str, size_px: int, glyph_id: int) -> tuple[int, int, int]:
-    """Cached FreeType metrics of one glyph, in 26.6 fixed-point:
-    ``(horizontal_advance, horizontal_bearing_x, width)``.
+def glyph_advance(font_path: str, size_px: int, glyph_id: int) -> int:
+    """Cached FreeType horizontal advance of one glyph, in 26.6 fixed-point.
 
-    Independent of bold / italic on purpose: synthetic bold's advance growth
-    and bitmap widening, and synthetic italic's shear, are all applied
-    downstream (HarfBuzz ``synthetic_bold``, the shaper's ``bold_bitmap_extra``,
-    the rasterizer's affine transform) — never to the base glyph loaded here.
-    So the key is only ``(font_path, size_px, glyph_id)``. (The rasterized glyph
-    *bitmap* does vary with bold / italic, but that lives in the rasterizer's
-    own cache.)
+    Loaded without bold / italic on purpose: the bold advance growth is added
+    downstream by HarfBuzz ``synthetic_bold`` (and the slant by
+    ``synthetic_slant``), never on the base glyph here — so the cache key is
+    only ``(font_path, size_px, glyph_id)``.
 
     Loading a glyph through FreeType is the dominant cost of shaping; memoizing
-    it removes the redundant ``load_glyph`` the HarfBuzz advance callback and
-    the shaper's ink-extent loop would otherwise each do, per glyph, per render.
+    the advance removes the redundant ``load_glyph`` the HarfBuzz advance
+    callback would otherwise do per glyph, per render.
     """
     face = load_freetype_face(font_path)
     face.set_pixel_sizes(0, size_px)
     face.load_glyph(glyph_id)
-    m = face.glyph.metrics
-    return (m.horiAdvance, m.horiBearingX, m.width)
+    return face.glyph.metrics.horiAdvance
 
 
 @cache

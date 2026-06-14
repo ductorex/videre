@@ -30,7 +30,7 @@ from videre.core.shaping.text_partition.model import Line, TextUnit
 from videre.core.shaping.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
-    glyph_metrics,
+    glyph_advance,
 )
 from videre.core.text_editing import EditUnitKind
 
@@ -90,7 +90,7 @@ class _FreetypeFontFuncsForHb:
         # Cached per (font, size, glyph): a hit touches no FreeType face, so it
         # also sidesteps the shared-face pixel-size contention this used to
         # guard against.
-        return glyph_metrics(self._font_path, self._size_px, glyph_id)[0]
+        return glyph_advance(self._font_path, self._size_px, glyph_id)
 
     def _nominal_glyph(self, _font: Font, unicode: int, _user_data: object) -> int:
         return self._hb_default_font.get_nominal_glyph(unicode) or 0

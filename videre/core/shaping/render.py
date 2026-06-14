@@ -232,34 +232,29 @@ def _line_clusters(
 ) -> list[tuple[int, int, int, int, bool]]:
     """Group glyphs into clusters (consecutive same `logical_position`) and
     return `(source_start, source_end, x_start, x_end, is_rtl)` per cluster,
-    with x relative to the line's `x_offset`. Same pen + justify arithmetic as
-    `_paint_line`, so caret geometry matches the painted glyphs."""
+    with x relative to the line's `x_offset`. Cluster bounds are read off the
+    shared `_pen_track`, so caret geometry matches the painted glyphs by
+    construction."""
     glyphs = line.glyphs
-    if not glyphs:
-        clusters: list[tuple[int, int, int, int, bool]] = []
-    else:
-        gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
-        clusters = []
-        pen = 0.0
-        i = 0
-        n = len(glyphs)
-        while i < n:
-            source_start = glyphs[i].logical_position
-            source_end = glyphs[i].source_end
-            rtl = glyphs[i].is_rtl
-            x_start = int(round(pen))
-            j = i
-            while (
-                j < n
-                and glyphs[j].logical_position == source_start
-                and glyphs[j].source_end == source_end
-            ):
-                pen += glyphs[j].x_advance
-                if j in gap_ends:
-                    pen += justify_extra
-                j += 1
-            clusters.append((source_start, source_end, x_start, int(round(pen)), rtl))
-            i = j
+    track = _pen_track(glyphs, justify_extra)
+    clusters: list[tuple[int, int, int, int, bool]] = []
+    i = 0
+    n = len(glyphs)
+    while i < n:
+        source_start = glyphs[i].logical_position
+        source_end = glyphs[i].source_end
+        rtl = glyphs[i].is_rtl
+        j = i
+        while (
+            j < n
+            and glyphs[j].logical_position == source_start
+            and glyphs[j].source_end == source_end
+        ):
+            j += 1
+        clusters.append(
+            (source_start, source_end, int(round(track[i])), int(round(track[j])), rtl)
+        )
+        i = j
     if line.terminator is not None:
         x = (
             clusters[0][2]
@@ -296,14 +291,12 @@ def _paint_line(
 ) -> None:
     if not glyphs:
         return
-    gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
-    pen_x = float(x_offset)
-    line_start = pen_x
+    track = _pen_track(glyphs, justify_extra)
     for i, g in enumerate(glyphs):
         # The phase is part of the bitmap's cache key, so resolve it from the
         # float pen BEFORE rasterizing. In pixel mode `subpixel_split` returns
         # `(round(origin), 0)`, so this stays bit-for-bit the pixel-aligned path.
-        int_x, phase = subpixel_split(pen_x + g.x_offset, subpixel)
+        int_x, phase = subpixel_split(x_offset + track[i] + g.x_offset, subpixel)
         if g.paint:
             sprite = rasterizer.render_single_glyph(
                 g.font_path,
@@ -319,12 +312,10 @@ def _paint_line(
                 blit_x = int_x + sprite.bitmap_left
                 blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
                 backend.blit(out, _sprite_surface(backend, sprite), (blit_x, blit_y))
-        pen_x += g.x_advance
-        if i in gap_ends:
-            pen_x += justify_extra
 
     if underline:
-        line_width = pen_x - line_start
+        line_width = track[-1]
+        line_start = float(x_offset)
         ul_offset, ul_thickness = underline_metrics(glyphs[0].font_path, size)
         if bold:
             ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * size))
@@ -355,6 +346,26 @@ def _gap_run_ends(glyphs: list[PositionedGlyph]) -> frozenset[int]:
         for i, g in enumerate(glyphs)
         if g.is_gap and (i + 1 == len(glyphs) or not glyphs[i + 1].is_gap)
     )
+
+
+def _pen_track(glyphs: list[PositionedGlyph], justify_extra: float) -> list[float]:
+    """Pen origin before each glyph, relative to the line's `x_offset`.
+
+    `track[i]` is the origin of glyph `i`; the trailing `track[-1]` is the
+    line's total advance width (so `len(track) == len(glyphs) + 1`). JUSTIFY
+    slack is added once after the last glyph of each gap run. This is the single
+    source of truth for horizontal placement, shared by `_paint_line` (glyph
+    blit origin) and `_line_clusters` (cluster x-bounds) so the painted glyphs
+    and the caret geometry can never drift apart."""
+    gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
+    track = [0.0]
+    pen = 0.0
+    for i, g in enumerate(glyphs):
+        pen += g.x_advance
+        if i in gap_ends:
+            pen += justify_extra
+        track.append(pen)
+    return track
 
 
 def _justify_extra(

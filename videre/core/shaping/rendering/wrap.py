@@ -73,6 +73,7 @@ PRESERVE) and `wrap_words` select the behaviour:
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, replace
 from typing import Iterable, Iterator
 
@@ -274,7 +275,7 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
 
     A gap (glue) at a break is dropped under `collapse` (consumed) and kept
     ("hung" on the head line) under preserve."""
-    queue = list(atoms)
+    queue = deque(atoms)
     lines: list[list[_Atom]] = []
     current: list[_Atom] = []
     cur_adv = 0.0
@@ -292,7 +293,7 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
             cur_adv += atom.advance
             cur_left = trial_left
             cur_right = trial_right
-            queue.pop(0)
+            queue.popleft()
             continue
         # Overflow, current non-empty.
         if atom.is_glue:
@@ -312,7 +313,7 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
                 0.0,
                 None,
             )
-            queue.pop(0)
+            queue.popleft()
             continue
         if atom.can_break_before:
             # The overflowing atom is itself a legal break point, so break right
@@ -346,7 +347,11 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
                 head = current[:last_break]
                 tail = current[last_break:]
             lines.append(head)
-            queue = tail + queue
+            # Push `tail` back to the front for the next line. `extendleft` adds
+            # items one by one (reversing them), so feed `reversed(tail)` to land
+            # them in original order — equivalent to the old `tail + queue`, O(len
+            # tail) instead of O(len queue).
+            queue.extendleft(reversed(tail))
             current, cur_adv, cur_left, cur_right, last_break = (
                 [],
                 0.0,
@@ -360,7 +365,7 @@ def _greedy(atoms: list[_Atom], width: int, collapse: bool) -> list[list[_Atom]]
             cur_adv += atom.advance
             cur_left = trial_left
             cur_right = trial_right
-            queue.pop(0)
+            queue.popleft()
     if current:
         lines.append(current)
     return lines
