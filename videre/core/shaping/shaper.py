@@ -1,9 +1,10 @@
-"""Shape a partition `Line` into glyphs via HarfBuzz, keeping the unit link.
+"""Shape a partition `Line` into glyphs via HarfBuzz, as a flat cluster list.
 
-Produces a `ShapedTextLine`: the line's `TextUnit`s in logical order, each
-carrying its `PositionedGlyph`s. Within a unit the glyphs are in HarfBuzz
-output order (visual left-to-right, so reversed vs logical for an RTL unit);
-the units themselves stay in logical order until the L2 reorder (after wrap).
+Produces a `ShapedTextLine`: the line's `ShapedCluster`s in logical order, each
+pre-measured and carrying its `PositionedGlyph`s. Within a cluster the glyphs
+are in HarfBuzz output order (visual left-to-right, so reversed vs logical for
+an RTL cluster); the clusters themselves stay in logical order until the L2
+reorder (after wrap).
 
 `logical_position` is read straight off the unit's `LogicalCharacter`s via the
 HarfBuzz cluster index, so it is correct in both reading directions: for an
@@ -22,8 +23,9 @@ from uharfbuzz import Buffer, Face, Font, FontFuncs, ot_font_set_funcs, shape
 
 from videre.core.shaping.glyph_partition import (
     PositionedGlyph,
+    ShapedCluster,
     ShapedTextLine,
-    ShapedUnit,
+    build_clusters,
 )
 from videre.core.shaping.rasterizer import glyph_bitmap_bounds
 from videre.core.shaping.text_partition.model import Line, TextUnit
@@ -266,14 +268,14 @@ def shape_line(
     italic: bool = False,
 ) -> ShapedTextLine:
     """Shape every component of `line` (gaps included) into a `ShapedTextLine`."""
-    units = [
-        _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
+    clusters = [
+        cluster
         for unit in line.components
+        for cluster in _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
     ]
     return ShapedTextLine(
-        units=units,
+        clusters=clusters,
         bidi=line.bidi,
-        edit_units=line.edit_units,
         source_start=line.source_start,
         source_end=line.source_end,
         terminator=line.terminator,
@@ -282,7 +284,7 @@ def shape_line(
 
 def _shape_unit(
     unit: TextUnit, shaper: Shaper, size_px: int, *, bold: bool, italic: bool
-) -> ShapedUnit:
+) -> list[ShapedCluster]:
     text = "".join(
         "\ufffd"
         if character.edit_unit.kind is EditUnitKind.INVALID
@@ -335,4 +337,4 @@ def _shape_unit(
                 paint=paint,
             )
         )
-    return ShapedUnit(unit=unit, glyphs=glyphs)
+    return build_clusters(glyphs, unit)

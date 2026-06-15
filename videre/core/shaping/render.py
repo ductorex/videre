@@ -14,6 +14,8 @@ so there is a single source of truth for cluster geometry.
 
 from __future__ import annotations
 
+import bisect
+
 from videre.colors import Color, Colors
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
@@ -23,6 +25,7 @@ from videre.core.shaping.glyph_partition import (
     GlyphLine,
     GlyphMeasure,
     PositionedGlyph,
+    ShapedTextLine,
     measure_glyphs,
 )
 from videre.core.shaping.rasterizer import Glyph, GlyphRasterizer, subpixel_split
@@ -45,6 +48,7 @@ from videre.core.shaping.utils import (
     line_metrics,
     underline_metrics,
 )
+from videre.core.text_editing import EditUnit, segment_edit_units
 from videre.fonts.provider import get_font_provider
 
 # Translucent blue selection highlight (matches the legacy renderer). The
@@ -77,11 +81,31 @@ def build_glyph_lines(
     italic: bool = False,
 ) -> list[tuple[GlyphLine, bool]]:
     """Run the whole pipeline, returning `(glyph_line, is_paragraph_end)` per
-    display line in visual order."""
+    display line in visual order. = shape (text-only) then `layout_glyph_lines`
+    (width-dependent)."""
+    shaped_lines = [
+        shape_line(line, shaper, size, bold=bold, italic=italic)
+        for line in partition_text(text).lines
+    ]
+    return layout_glyph_lines(
+        shaped_lines, width=width, wrap_words=wrap_words, space_policy=space_policy
+    )
+
+
+def layout_glyph_lines(
+    shaped_lines: list[ShapedTextLine],
+    *,
+    width: int | None = None,
+    wrap_words: bool = False,
+    space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+) -> list[tuple[GlyphLine, bool]]:
+    """Width-dependent half of the pipeline: collapse + wrap + reorder per
+    already-shaped line, returning `(glyph_line, is_paragraph_end)` in visual
+    order. The shape (partition + `shape_line`) is done upstream and cached by
+    the document; only this part is replayed on resize."""
     policy = resolve_space_policy(space_policy, wrap_words)
     out: list[tuple[GlyphLine, bool]] = []
-    for line in partition_text(text).lines:
-        shaped = shape_line(line, shaper, size, bold=bold, italic=italic)
+    for shaped in shaped_lines:
         if policy is TextSpacePolicy.COLLAPSE:
             shaped = collapse_spaces(shaped)
         subs = (
@@ -114,9 +138,8 @@ def render_text(
     subpixel: bool = False,
     selection: tuple[int, int] | None = None,
 ) -> tuple[RenderedText, Rendering]:
-    """Paint `text` and return `(caret info, surface)`."""
-    color = color or Colors.black
-    m = font_metrics(size, height_delta)
+    """Paint `text` and return `(caret info, surface)`. = shape + layout + paint;
+    the document path splits these (shape once, `paint_glyph_lines` per width)."""
     lines = build_glyph_lines(
         text,
         shaper,
@@ -127,6 +150,46 @@ def render_text(
         bold=bold,
         italic=italic,
     )
+    return paint_glyph_lines(
+        lines,
+        backend=backend,
+        rasterizer=rasterizer,
+        size=size,
+        color=color,
+        width=width,
+        align=align,
+        underline=underline,
+        bold=bold,
+        height_delta=height_delta,
+        compact=compact,
+        subpixel=subpixel,
+        edit_units=segment_edit_units(text),
+        selection=selection,
+    )
+
+
+def paint_glyph_lines(
+    lines: list[tuple[GlyphLine, bool]],
+    *,
+    backend: AbstractBackend,
+    rasterizer: GlyphRasterizer,
+    size: int,
+    color: Color | None = None,
+    width: int | None = None,
+    align: TextAlign | None = None,
+    underline: bool = False,
+    bold: bool = False,
+    height_delta: int = 2,
+    compact: bool = True,
+    subpixel: bool = False,
+    edit_units: tuple[EditUnit, ...] = (),
+    selection: tuple[int, int] | None = None,
+) -> tuple[RenderedText, Rendering]:
+    """Lay out + paint pre-built visual glyph lines (the output of
+    `layout_glyph_lines`) into `(caret info, surface)`. Width-only — no shaping,
+    so this is what the document replays on resize."""
+    color = color or Colors.black
+    m = font_metrics(size, height_delta)
 
     # `compact` drops the leading line gap unless the first line is an
     # author-authored blank line (a leading `\n`), matching the legacy / CSS.
@@ -146,6 +209,7 @@ def render_text(
     # caret needs. `paint` keeps the glyphs + baseline for the second pass.
     raw_lines: list[RawLine] = []
     paint: list[tuple[list[PositionedGlyph], int, float, int]] = []
+    eu_starts = [eu.source_start for eu in edit_units]
     for i, (gl, is_end) in enumerate(lines):
         measure = measures[i]
         extra = _justify_extra(gl, measure, align, width, is_end)
@@ -155,7 +219,7 @@ def render_text(
                 y_top=baselines[i] - m.ascender,
                 y_bottom=baselines[i] + m.descender,
                 x_offset=x_offset,
-                clusters=_line_clusters(gl, extra),
+                clusters=_line_items(gl, extra, eu_starts),
                 source_start=gl.source_start,
                 source_end=(
                     gl.terminator.source_end
@@ -213,9 +277,9 @@ def render_char(
         return backend.zero()
     for line in partition_text(c).lines:
         sline = shape_line(line, shaper, size, bold=bold, italic=italic)
-        for unit in sline.units:
-            if unit.glyphs:
-                g = unit.glyphs[0]
+        for cluster in sline.clusters:
+            if cluster.glyphs:
+                g = cluster.glyphs[0]
                 if not g.paint:
                     return backend.zero()
                 glyph = rasterizer.render_single_glyph(
@@ -227,41 +291,53 @@ def render_char(
     return backend.zero()
 
 
-def _line_clusters(
-    line: GlyphLine, justify_extra: float
+def _line_items(
+    line: GlyphLine, justify_extra: float, edit_unit_starts: list[int]
 ) -> list[tuple[int, int, int, int, bool]]:
-    """Group glyphs into clusters (consecutive same `logical_position`) and
-    return `(source_start, source_end, x_start, x_end, is_rtl)` per cluster,
-    with x relative to the line's `x_offset`. Cluster bounds are read off the
-    shared `_pen_track`, so caret geometry matches the painted glyphs by
-    construction."""
-    glyphs = line.glyphs
-    track = _pen_track(glyphs, justify_extra)
-    clusters: list[tuple[int, int, int, int, bool]] = []
+    """Per visual EDIT UNIT, return `(source_start, source_end, x_start, x_end,
+    is_rtl)`, x relative to the line's `x_offset`. Consecutive visual clusters in
+    the same edit unit are merged into one item, so every caret position lands on
+    a grapheme boundary (a ligature spanning several graphemes stays one item —
+    the caret skips it whole, as the snapping did before). x-bounds come from the
+    shared `_pen_track`. With no `edit_unit_starts`, degrades to one item per
+    cluster."""
+    track = _pen_track(line.glyphs, justify_extra)
+    items: list[tuple[int, int, int, int, bool]] = []
+    clusters = line.clusters
+    n = len(clusters)
     i = 0
-    n = len(glyphs)
+    offset = 0
     while i < n:
-        source_start = glyphs[i].logical_position
-        source_end = glyphs[i].source_end
-        rtl = glyphs[i].is_rtl
-        j = i
-        while (
-            j < n
-            and glyphs[j].logical_position == source_start
-            and glyphs[j].source_end == source_end
-        ):
-            j += 1
-        clusters.append(
-            (source_start, source_end, int(round(track[i])), int(round(track[j])), rtl)
+        end_offset = offset + len(clusters[i].glyphs)
+        j = i + 1
+        if edit_unit_starts:
+            eu = _edit_unit_index(edit_unit_starts, clusters[i].logical_position)
+            while (
+                j < n
+                and _edit_unit_index(edit_unit_starts, clusters[j].logical_position)
+                == eu
+            ):
+                end_offset += len(clusters[j].glyphs)
+                j += 1
+        group = clusters[i:j]
+        items.append(
+            (
+                min(c.logical_position for c in group),
+                max(c.source_end for c in group),
+                int(round(track[offset])),
+                int(round(track[end_offset])),
+                group[0].is_rtl,
+            )
         )
+        offset = end_offset
         i = j
     if line.terminator is not None:
         x = (
-            clusters[0][2]
-            if line.base_is_rtl and clusters
-            else (clusters[-1][3] if clusters else 0)
+            items[0][2]
+            if line.base_is_rtl and items
+            else (items[-1][3] if items else 0)
         )
-        item = (
+        term = (
             line.terminator.source_start,
             line.terminator.source_end,
             x,
@@ -269,10 +345,16 @@ def _line_clusters(
             line.base_is_rtl,
         )
         if line.base_is_rtl:
-            clusters.insert(0, item)
+            items.insert(0, term)
         else:
-            clusters.append(item)
-    return clusters
+            items.append(term)
+    return items
+
+
+def _edit_unit_index(starts: list[int], pos: int) -> int:
+    """Index of the edit unit containing source position `pos` (edit units tile
+    the text, sorted by `source_start`)."""
+    return bisect.bisect_right(starts, pos) - 1
 
 
 def _paint_line(
@@ -355,7 +437,7 @@ def _pen_track(glyphs: list[PositionedGlyph], justify_extra: float) -> list[floa
     line's total advance width (so `len(track) == len(glyphs) + 1`). JUSTIFY
     slack is added once after the last glyph of each gap run. This is the single
     source of truth for horizontal placement, shared by `_paint_line` (glyph
-    blit origin) and `_line_clusters` (cluster x-bounds) so the painted glyphs
+    blit origin) and `_line_items` (edit-unit x-bounds) so the painted glyphs
     and the caret geometry can never drift apart."""
     gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
     track = [0.0]

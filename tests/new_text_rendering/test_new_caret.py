@@ -276,7 +276,7 @@ def test_italic_overhang_padding_does_not_change_caret_advance(
     rendered, _ = _render("ff", fake_win, shaper, rasterizer, italic=True)
     (line,) = partition_text("ff").lines
     shaped = shape_line(line, shaper, 16, italic=True)
-    advance = sum(glyph.x_advance for unit in shaped.units for glyph in unit.glyphs)
+    advance = sum(glyph.x_advance for c in shaped.clusters for glyph in c.glyphs)
 
     x_start = rendered.visual_state(0).pixel.x
     x_end = rendered.visual_state(2).pixel.x

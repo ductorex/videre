@@ -10,11 +10,9 @@ from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, Rendering
 from videre.core.text_editing import (
     EditUnit,
-    align_to_boundary,
     expand_to_edit_units,
     next_edit_unit,
     previous_edit_unit,
-    segment_edit_units,
 )
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
@@ -33,7 +31,6 @@ class TextInput(AbstractLayout):
         "_cursor_pos",
         "_cursor_state",
         "_selecting_pivot",
-        "_edit_segmentation",
     )
     __size__ = 1
     __capture_mouse__ = True
@@ -62,12 +59,6 @@ class TextInput(AbstractLayout):
         self._cursor_pos: int = len(self._text.text)
         self._cursor_state: CursorState | None = None
         self._selecting_pivot: int | None = None
-        # Cache of (text, edit_units, boundaries) for the current text,
-        # so editing/navigation re-uses one segmentation per keystroke
-        # instead of re-segmenting on every operation.
-        self._edit_segmentation: tuple[str, tuple[EditUnit, ...], tuple[int, ...]] | (
-            None
-        ) = None
 
         self._set_focus(False)
         self._set_selection(None)
@@ -159,43 +150,33 @@ class TextInput(AbstractLayout):
         return self._cursor_pos
 
     def _ensure_state(self) -> CursorState:
-        """Return a valid navigation state for the current cursor.
-        Derives one from the backend if the cache is empty."""
+        """Return a valid navigation state for the current cursor, deriving one
+        from the backend if the cache is empty.
+
+        `visual_state` aligns the source position onto an edit-unit boundary
+        (a grapheme on the shaped backend; a no-op on the legacy codepoint one),
+        so we re-sync `_cursor_pos` to it. That alignment — not an explicit
+        snapping pass — is what keeps the cursor off the middle of a cluster,
+        including right after an insertion that stored a raw position."""
         if self._cursor_state is None:
             rendered = self._text._rendered
             assert rendered is not None
             self._cursor_state = rendered.visual_state(self._cursor_pos)
+            self._cursor_pos = self._cursor_state.pos
         return self._cursor_state
 
-    def _segmentation(self) -> tuple[tuple[EditUnit, ...], tuple[int, ...]]:
-        """Return `(edit_units, boundaries)` for the current text, cached.
-
-        `boundaries` is the sorted tuple of edit-unit boundary offsets
-        (`(0, *(u.source_end for u in units))`), used to snap positions
-        onto grapheme-cluster edges. Re-computed only when `text` changes."""
-        text = self._text.text
-        cache = self._edit_segmentation
-        if cache is None or cache[0] != text:
-            units = segment_edit_units(text)
-            boundaries = (0, *(unit.source_end for unit in units))
-            cache = (text, units, boundaries)
-            self._edit_segmentation = cache
-        return cache[1], cache[2]
-
-    def _snap_state_to_cluster(
-        self, state: CursorState, direction: int = 0
-    ) -> CursorState:
-        """Snap a navigation state's source position onto an edit-unit
-        boundary, re-deriving the state only when it actually moves. On a
-        bidi-aware backend the click/step already lands on a cluster edge,
-        so this is a no-op and the original (bidi-anchored) state is kept."""
-        _, boundaries = self._segmentation()
-        snapped = align_to_boundary(boundaries, state.pos, direction)
-        if snapped == state.pos:
-            return state
-        rendered = self._text._rendered
-        assert rendered is not None
-        return rendered.visual_state(snapped)
+    def _edit_units(self) -> tuple[EditUnit, ...]:
+        """Edit units of the current text, taken from the backend's document —
+        the single segmentation the renderer also aligns its navigation on, so
+        `TextInput` neither re-segments nor snaps. Each backend's document
+        decides the granularity (grapheme for shaped, codepoint for legacy);
+        reading it rather than guessing locally keeps editing consistent with
+        the live renderer. Rebuilt from the backend when a text mutation dropped
+        the cache (`_document` is None until the next draw)."""
+        doc = self._text._document
+        if doc is None:
+            doc = self._text._get_document(self.get_window())
+        return doc.edit_units
 
     def _selection_source_indices(self) -> tuple[int, ...]:
         """Sorted tuple of source indices covered by the current
@@ -212,7 +193,7 @@ class TextInput(AbstractLayout):
         assert rendered is not None
         start, end = selection
         raw = rendered.visual_range_to_source_set(start, end)
-        units, _ = self._segmentation()
+        units = self._edit_units()
         return tuple(sorted(expand_to_edit_units(units, raw)))
 
     def _delete_selection(self) -> int:
@@ -258,9 +239,7 @@ class TextInput(AbstractLayout):
         # we convert mouse position into widget coordinates.
         rendered = self._text._rendered
         assert rendered is not None
-        state = self._snap_state_to_cluster(
-            rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
-        )
+        state = rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
         # `_selecting_pivot` is a visual position (= index in the
         # visual codepoint sequence), so the selection ribbon stays
         # contiguous on screen even when the underlying source range
@@ -275,9 +254,7 @@ class TextInput(AbstractLayout):
         self._debug("mouse_down_move")
         rendered = self._text._rendered
         assert rendered is not None
-        state = self._snap_state_to_cluster(
-            rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
-        )
+        state = rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
 
         pivot = self._selecting_pivot
         if state.visual_pos < pivot:
@@ -302,26 +279,22 @@ class TextInput(AbstractLayout):
 
     def _insert_text(self, inserted: str):
         """Insert `inserted` at the cursor, replacing any selection first.
-        Insertion point and the resulting cursor are both aligned to
-        edit-unit boundaries so a grapheme cluster is never split open
-        (insertion in the middle of a cluster, or a cursor left mid-cluster
-        after the text re-segments around the inserted run)."""
+
+        No explicit boundary alignment: `insert_at` is the current cursor
+        (already on a boundary), and the resulting raw position
+        `insert_at + len(inserted)` is aligned by the contract at the next
+        `_ensure_state` (the shaped backend snaps it onto the surrounding
+        grapheme; the legacy codepoint one leaves it untouched)."""
         if self._has_selection():
-            # Replace selected text. `_delete_selection` removes the
-            # source indices under the visual selection and returns the
-            # cursor source position where insertion should happen (the
-            # start of the first removed edit unit — already a boundary).
+            # Replace selected text. `_delete_selection` removes the source
+            # indices under the visual selection and returns the cursor source
+            # position where insertion should happen.
             insert_at = self._delete_selection()
         else:
             insert_at = self._get_cursor()
-        _, boundaries = self._segmentation()
-        insert_at = align_to_boundary(boundaries, insert_at)
         in_text = self._text.text
         self._text.text = in_text[:insert_at] + inserted + in_text[insert_at:]
-        _, new_boundaries = self._segmentation()
-        self._set_cursor_to_pos(
-            align_to_boundary(new_boundaries, insert_at + len(inserted))
-        )
+        self._set_cursor_to_pos(insert_at + len(inserted))
 
     def handle_text_input(self, text: str):
         self._debug("text_input", repr(text))
@@ -342,7 +315,7 @@ class TextInput(AbstractLayout):
                 # as one, even when the cursor sits inside it.
                 in_text = self._text.text
                 in_pos = self._get_cursor()
-                units, _ = self._segmentation()
+                units = self._edit_units()
                 if key.backspace:
                     if key.ctrl:
                         out_pos = get_previous_word_start_position(in_text, in_pos)
@@ -369,7 +342,6 @@ class TextInput(AbstractLayout):
         elif key.left or key.right:
             rendered = self._text._rendered
             assert rendered is not None
-            _, boundaries = self._segmentation()
             ret = compute_key_x(
                 text=self._text.text,
                 cursor_state=self._ensure_state(),
@@ -378,7 +350,6 @@ class TextInput(AbstractLayout):
                 shift=key.shift,
                 right=bool(key.right),
                 rendered=rendered,
-                boundaries=frozenset(boundaries),
             )
             self._set_cursor_to_state(ret.out_state)
             self._set_selection(*ret.out_selection)

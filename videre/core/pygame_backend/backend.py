@@ -326,7 +326,6 @@ class PygameBackend(Pygame):
         size: int,
         strong: bool = False,
         italic: bool = False,
-        underline: bool = False,
         height_delta: int | None = None,
     ) -> AbstractTextRendering:
         return PygameTextRendering(
@@ -335,7 +334,6 @@ class PygameBackend(Pygame):
             size=size,
             strong=strong,
             italic=italic,
-            underline=underline,
             height_delta=height_delta,
         )
 

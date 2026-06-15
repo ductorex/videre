@@ -42,15 +42,12 @@ def _force_shaped(monkeypatch):
     """Make the pygame backend hand out a `ShapedTextRendering` instead of the
     legacy `PygameTextRendering`, for every Window created during these tests."""
 
-    def shaped(
-        self, size, strong=False, italic=False, underline=False, height_delta=None
-    ):
+    def shaped(self, size, strong=False, italic=False, height_delta=None):
         return ShapedTextRendering(
             self,
             size=size,
             bold=strong,
             italic=italic,
-            underline=underline,
             height_delta=2 if height_delta is None else height_delta,
         )
 

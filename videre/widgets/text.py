@@ -2,7 +2,11 @@ from typing import Any
 
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.rendering_result import Rendering, TextRenderingResult
+from videre.core.rendering_result import (
+    AbstractTextDocument,
+    Rendering,
+    TextRenderingResult,
+)
 from videre.widgets.widget import Widget
 
 
@@ -28,11 +32,12 @@ class Text(Widget):
         "underline",
         "selection",
     }
-    __slots__ = ("_rendered",)
+    __slots__ = ("_rendered", "_document")
 
-    # Properties that do not affect characters layout or size
-    # in the rendered, then can be set without re-rendering the text.
-    __neutral_props__ = {"color", "underline", "selection"}
+    # Properties that change the shape itself (not just the layout): changing one
+    # invalidates the cached `ShapedDocument`. Width / wrap / align only re-lay
+    # out, so they keep the document — that is the resize win.
+    __document_props__ = {"text", "size", "strong", "italic", "height_delta"}
 
     def __init__(
         self,
@@ -50,6 +55,7 @@ class Text(Widget):
     ):
         super().__init__(**kwargs)
         self._rendered: TextRenderingResult | None = None
+        self._document: AbstractTextDocument | None = None
         self._set_wprops(size=size, height_delta=height_delta)
         self.text = text
         self.wrap = wrap
@@ -63,8 +69,13 @@ class Text(Widget):
     def _set_wprop(self, name: str, value: Any):
         if value != self._get_wprop(name):
             super()._set_wprop(name, value)
-            if name not in self.__neutral_props__:
-                self._rendered = None
+            # `_rendered` is NOT nulled here: `draw()` (run on any `has_changed()`)
+            # replaces it, so it always holds the last painted frame. Nulling it
+            # would leave it None between a mutation and the next draw — which
+            # `TextInput` would read as a missing render (assert) rather than the
+            # caret still on screen.
+            if name in self.__document_props__:
+                self._document = None
 
     @property
     def text(self) -> str:
@@ -154,20 +165,26 @@ class Text(Widget):
             size=self.size,
             strong=self.strong,
             italic=self.italic,
-            underline=self.underline,
             height_delta=self.height_delta,
         )
+
+    def _get_document(self, window) -> AbstractTextDocument:
+        """Cache the shaped document (text-only shape) across frames; a resize
+        keeps it and only `render(width)` is replayed."""
+        if self._document is None:
+            self._document = self._text_rendering(window).document(self.text)
+        return self._document
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Rendering:
         wrap = self.wrap
-        text_ret, surface_ret = self._text_rendering(window).render_text(
-            text=self.text,
+        text_ret, surface_ret = self._get_document(window).render(
+            width=(None if wrap is None else width),
             color=self.color,
             wrap_words=(wrap == TextWrap.WORD),
-            width=(None if wrap is None else width),
             align=(None if wrap is None else self.align),
+            underline=self.underline,
             selection=self.selection,
         )
         self._rendered = text_ret

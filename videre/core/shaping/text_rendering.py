@@ -9,6 +9,7 @@ from videre.colors import Color
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.shaping.document import ShapedDocument
 from videre.core.shaping.rasterizer import GlyphRasterizer
 from videre.core.shaping.render import render_char, render_text
 from videre.core.shaping.rendering.layout import RenderedText
@@ -21,7 +22,6 @@ class ShapedTextRendering(AbstractTextRendering):
         "_size",
         "_bold",
         "_italic",
-        "_underline",
         "_height_delta",
         "_compact",
         "_subpixel",
@@ -35,7 +35,6 @@ class ShapedTextRendering(AbstractTextRendering):
         size: int = 14,
         bold: bool = False,
         italic: bool = False,
-        underline: bool = False,
         height_delta: int = 2,
         compact: bool = True,
         subpixel: bool = False,
@@ -47,7 +46,6 @@ class ShapedTextRendering(AbstractTextRendering):
         self._size = size
         self._bold = bold
         self._italic = italic
-        self._underline = underline
         self._height_delta = height_delta
         self._compact = compact
         # Sub-pixel glyph positioning. `render_text` threads it down to `_paint_line`.
@@ -76,6 +74,7 @@ class ShapedTextRendering(AbstractTextRendering):
         align: TextAlign | None = None,
         wrap_words: bool = False,
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+        underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, Rendering]:
         return render_text(
@@ -91,9 +90,26 @@ class ShapedTextRendering(AbstractTextRendering):
             align=align,
             bold=self._bold,
             italic=self._italic,
-            underline=self._underline,
+            underline=underline,
             height_delta=self._height_delta,
             compact=self._compact,
             subpixel=self._subpixel,
             selection=selection,
+        )
+
+    def document(self, text: str) -> ShapedDocument:
+        """Build a cacheable document (text-only shape, shared with the resize
+        and edit-unit paths). `document.render(width, ...)` re-lays-out without
+        re-shaping. See docs/text-document-and-contract.md."""
+        return ShapedDocument(
+            text,
+            backend=self._backend,
+            shaper=self._shaper,
+            rasterizer=self._rasterizer,
+            size=self._size,
+            bold=self._bold,
+            italic=self._italic,
+            height_delta=self._height_delta,
+            compact=self._compact,
+            subpixel=self._subpixel,
         )

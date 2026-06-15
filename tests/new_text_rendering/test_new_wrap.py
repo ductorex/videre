@@ -31,13 +31,11 @@ def _shaped(text: str, shaper: Shaper, size: int = 16):
 
 
 def _nongap_positions(line) -> list[int]:
-    return [
-        g.logical_position for u in line.units if not u.unit.is_gap for g in u.glyphs
-    ]
+    return [g.logical_position for c in line.clusters if not c.is_gap for g in c.glyphs]
 
 
 def _advance(line) -> float:
-    return sum(g.x_advance for u in line.units for g in u.glyphs)
+    return sum(g.x_advance for c in line.clusters for g in c.glyphs)
 
 
 # -- Passthrough edge cases --------------------------------------------------
@@ -55,7 +53,7 @@ def test_empty_line_passes_through(shaper: Shaper) -> None:
     sline = shape_line(line, shaper, 16)
     out = list(wrap_lines([sline], width=100, wrap_words=True))
     assert len(out) == 1
-    assert not out[0].units
+    assert not out[0].clusters
 
 
 # -- Word wrap ---------------------------------------------------------------
@@ -76,7 +74,7 @@ def test_word_wrap_multi_word_lines_fit_width(shaper: Shaper) -> None:
     width = 120
     out = list(wrap_lines([sline], width=width, wrap_words=True))
     for sl in out:
-        nongap = [u for u in sl.units if not u.unit.is_gap]
+        nongap = [c for c in sl.clusters if not c.is_gap]
         if len(nongap) > 1:  # a line that packed several words must fit
             assert _advance(sl) <= width
 
@@ -153,14 +151,12 @@ def test_wrap_break_consumes_inter_word_gap(shaper: Shaper) -> None:
     sline = _shaped("alpha beta gamma delta epsilon zeta", shaper)
     out = list(wrap_lines([sline], width=120, wrap_words=True))
     for sl in out:
-        painted = [
-            unit for unit in sl.units if any(glyph.paint for glyph in unit.glyphs)
-        ]
-        assert not painted[0].unit.is_gap
-        assert not painted[-1].unit.is_gap
-        for unit in sl.units:
-            if unit.unit.is_gap and not any(glyph.paint for glyph in unit.glyphs):
-                assert all(glyph.x_advance == 0 for glyph in unit.glyphs)
+        painted = [c for c in sl.clusters if any(glyph.paint for glyph in c.glyphs)]
+        assert not painted[0].is_gap
+        assert not painted[-1].is_gap
+        for c in sl.clusters:
+            if c.is_gap and not any(glyph.paint for glyph in c.glyphs):
+                assert all(glyph.x_advance == 0 for glyph in c.glyphs)
 
 
 def test_inter_word_gap_kept_when_not_breaking(shaper: Shaper) -> None:
@@ -168,8 +164,10 @@ def test_inter_word_gap_kept_when_not_breaking(shaper: Shaper) -> None:
     sline = _shaped("hi bye", shaper)
     out = list(wrap_lines([sline], width=500, wrap_words=True))
     assert len(out) == 1
-    kinds = [u.unit.is_gap for u in out[0].units]
-    assert kinds == [False, True, False]
+    gaps = [c.is_gap for c in out[0].clusters]
+    # The inter-word gap is kept, in the middle (not trimmed at an edge).
+    assert any(gaps)
+    assert not gaps[0] and not gaps[-1]
 
 
 def test_trailing_gap_does_not_strand_last_fitting_word(shaper: Shaper) -> None:

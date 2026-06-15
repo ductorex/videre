@@ -149,14 +149,12 @@ class Window:
         size: int | None = None,
         strong: bool = False,
         italic: bool = False,
-        underline: bool = False,
         height_delta: int | None = None,
     ):
         return self._backend.text_rendering(
             size=size or self._font_size_pts,
             strong=strong,
             italic=italic,
-            underline=underline,
             height_delta=height_delta,
         )
 

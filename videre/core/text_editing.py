@@ -90,6 +90,16 @@ def segment_edit_units(text: str) -> tuple[EditUnit, ...]:
     )
 
 
+def segment_codepoints(text: str) -> tuple[EditUnit, ...]:
+    """One edit unit per codepoint (still classified). The legacy renderer
+    composes nothing — no shaping, no ligatures — so its natural editing
+    granularity *is* the codepoint, not the grapheme. The legacy document uses
+    this so its ``edit_units`` match its codepoint-by-codepoint visual
+    navigation, letting ``TextInput`` drop its compatibility snapping layer.
+    """
+    return tuple(EditUnit(i, i + 1, _classify_unit(text[i])) for i in range(len(text)))
+
+
 def grapheme_boundaries(text: str) -> tuple[int, ...]:
     """Return extended-grapheme boundary offsets for ``text``."""
     if not text:
@@ -176,34 +186,6 @@ def expand_to_edit_units(
             if unit.source_start <= index < unit.source_end:
                 covered.update(range(unit.source_start, unit.source_end))
     return frozenset(covered)
-
-
-def align_to_boundary(
-    boundaries: tuple[int, ...], position: int, direction: int = 0
-) -> int:
-    """Snap ``position`` onto an edit-unit boundary.
-
-    ``boundaries`` is the sorted offset tuple produced by
-    :func:`grapheme_boundaries` (equivalently ``(0, *(u.source_end for u in
-    units))``). ``direction`` selects which boundary to land on when
-    ``position`` falls inside a cluster: ``< 0`` the boundary at/just before
-    it, ``> 0`` the boundary at/just after it, ``0`` the nearest (ties go
-    left). A ``position`` already on a boundary is returned unchanged.
-    """
-    if position <= boundaries[0]:
-        return boundaries[0]
-    if position >= boundaries[-1]:
-        return boundaries[-1]
-    hi = bisect.bisect_left(boundaries, position)
-    if boundaries[hi] == position:
-        return position
-    left = boundaries[hi - 1]
-    right = boundaries[hi]
-    if direction < 0:
-        return left
-    if direction > 0:
-        return right
-    return left if (position - left) <= (right - position) else right
 
 
 @lru_cache(maxsize=4096)

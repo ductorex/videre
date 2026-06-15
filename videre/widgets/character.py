@@ -85,7 +85,7 @@ class Character(Widget):
             size = window.symbol_size
 
         rendering = window.text_rendering(
-            size=size, strong=self.strong, italic=self.italic, underline=self.underline
+            size=size, strong=self.strong, italic=self.italic
         )
         return rendering
 

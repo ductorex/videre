@@ -101,7 +101,7 @@ def test_shaped_ink_bounds_match_the_rasterized_bitmap(
     shaper, rasterizer, text, italic
 ) -> None:
     (line,) = partition_text(text).lines
-    glyph = shape_line(line, shaper, 16, italic=italic).units[0].glyphs[0]
+    glyph = shape_line(line, shaper, 16, italic=italic).clusters[0].glyphs[0]
     sprite = rasterizer.render_single_glyph(
         glyph.font_path, 16, glyph.bold, glyph.italic, glyph.glyph_id, BLACK
     )

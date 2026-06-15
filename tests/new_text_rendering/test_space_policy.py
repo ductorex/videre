@@ -62,7 +62,7 @@ def _shaped(text: str, shaper: Shaper):
 
 
 def _gap_glyphs(line) -> int:
-    return sum(len(u.glyphs) for u in line.units if u.unit.is_gap)
+    return sum(len(c.glyphs) for c in line.clusters if c.is_gap)
 
 
 # -- resolve_space_policy ----------------------------------------------------
@@ -87,7 +87,7 @@ def test_resolve_keeps_explicit_policy() -> None:
 def test_collapse_reduces_inner_gap_to_one_glyph(shaper: Shaper) -> None:
     line = collapse_spaces(_shaped("a   b", shaper))
     assert _gap_glyphs(line) == 1  # 3 spaces -> 1
-    assert sum(len(u.glyphs) for u in line.units if not u.unit.is_gap) == 2
+    assert sum(len(c.glyphs) for c in line.clusters if not c.is_gap) == 2
 
 
 def test_collapse_keeps_edge_gaps_shrunk_to_one(shaper: Shaper) -> None:
@@ -95,14 +95,14 @@ def test_collapse_keeps_edge_gaps_shrunk_to_one(shaper: Shaper) -> None:
     # run, including leading / trailing, is just shrunk to one space.
     line = collapse_spaces(_shaped("  a  ", shaper))
     assert _gap_glyphs(line) == 2  # leading + trailing, one glyph each
-    assert len(line.units) == 3  # gap, "a", gap
-    assert line.units[0].unit.is_gap and line.units[-1].unit.is_gap
+    assert len(line.clusters) == 3  # gap, "a", gap
+    assert line.clusters[0].is_gap and line.clusters[-1].is_gap
 
 
 def test_collapse_all_whitespace_line_shrinks_to_one_space(shaper: Shaper) -> None:
     line = collapse_spaces(_shaped("   ", shaper))
-    assert len(line.units) == 1
-    assert line.units[0].unit.is_gap
+    assert len(line.clusters) == 1
+    assert line.clusters[0].is_gap
     assert _gap_glyphs(line) == 1
 
 

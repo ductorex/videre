@@ -19,11 +19,13 @@ from videre.core.pygame_backend.font_factory_utils import (
 )
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import (
+    AbstractTextDocument,
     AbstractTextRendering,
     CursorState,
     Rendering,
     TextRenderingResult,
 )
+from videre.core.text_editing import EditUnit, segment_codepoints
 
 if TYPE_CHECKING:
     from videre.core.pygame_backend.backend import PygameBackend
@@ -264,6 +266,49 @@ class PygameTextRenderingResult(TextRenderingResult):
         return rects
 
 
+class PygameTextDocument(AbstractTextDocument):
+    """Transparent legacy document: re-runs `render_text` on each `render` (the
+    legacy is transitional, so no cached parse). `edit_units` is one unit per
+    codepoint — the legacy composes nothing, so its editing granularity matches
+    its codepoint-by-codepoint visual navigation (see `segment_codepoints`)."""
+
+    __slots__ = ("_rendering", "_text")
+
+    def __init__(self, rendering: "PygameTextRendering", text: str) -> None:
+        self._rendering = rendering
+        self._text = text
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+    @property
+    def edit_units(self) -> tuple[EditUnit, ...]:
+        return segment_codepoints(self._text)
+
+    def render(
+        self,
+        width: int | None = None,
+        *,
+        color: Color | None = None,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+        underline: bool = False,
+        selection: tuple[int, int] | None = None,
+    ) -> tuple[TextRenderingResult, Rendering]:
+        return self._rendering.render_text(
+            self._text,
+            width,
+            color=color,
+            align=align,
+            wrap_words=wrap_words,
+            space_policy=space_policy,
+            underline=underline,
+            selection=selection,
+        )
+
+
 class PygameTextRendering(AbstractTextRendering):
     def __init__(
         self,
@@ -272,7 +317,6 @@ class PygameTextRendering(AbstractTextRendering):
         size: int,
         strong=False,
         italic=False,
-        underline=False,
         height_delta=2,
         compact: bool = True,
     ):
@@ -287,7 +331,6 @@ class PygameTextRendering(AbstractTextRendering):
         self._size: int = size
         self._strong: bool = strong
         self._italic: bool = italic
-        self._underline: bool = bool(underline)
 
         self._height_delta = height_delta
         self._font_sizes = FontSizes(base, size, height_delta)
@@ -310,6 +353,7 @@ class PygameTextRendering(AbstractTextRendering):
         align: TextAlign | None = None,
         wrap_words: bool = False,
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+        underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[TextRenderingResult, Rendering]:
         # todo handle space_policy
@@ -321,12 +365,15 @@ class PygameTextRendering(AbstractTextRendering):
         else:
             new_width, height, lines = self._get_word_tasks(text, width, compact)
         surface = self._render_word_lines(
-            new_width, height, lines, align, color, selection
+            new_width, height, lines, align, color, underline, selection
         )
         result = PygameTextRenderingResult(
             lines, self._font_sizes, surface.get_width(), surface.get_height()
         )
         return result, surface
+
+    def document(self, text: str) -> "PygameTextDocument":
+        return PygameTextDocument(self, text)
 
     def _render_word_lines(
         self,
@@ -335,6 +382,7 @@ class PygameTextRendering(AbstractTextRendering):
         lines: list[Line[WordTask]],
         align: TextAlign | None,
         color: Color | None,
+        underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> Rendering:
         align_words(lines, width, align)
@@ -344,7 +392,7 @@ class PygameTextRendering(AbstractTextRendering):
             self._backend.box(out, rect, Color(100, 100, 255, 100))
         pygame_color = None if color is None else self._backend.new_color(color)
         for line in lines:
-            self._draw_underline(line, out, pygame_color)
+            self._draw_underline(line, out, pygame_color, underline)
             ly = line.y
             lx = line.x
             for word in line.elements:
@@ -439,9 +487,13 @@ class PygameTextRendering(AbstractTextRendering):
         return rects
 
     def _draw_underline(
-        self, line: Line[WordTask], out: Rendering, color: PygameColor | None
+        self,
+        line: Line[WordTask],
+        out: Rendering,
+        color: PygameColor | None,
+        underline: bool,
     ):
-        if self._underline and line:
+        if underline and line:
             c = "_"
             x1 = line.elements[0].x + line.elements[0].tasks[0].bounds.x
             x2 = line.limit()
@@ -452,8 +504,8 @@ class PygameTextRendering(AbstractTextRendering):
             us = surface.convert_alpha()
             width = x2 - x1
             height = box.height
-            underline = self._backend.smoothscale(PygameRendering(us), width, height)
-            self._backend.blit(out, underline, (x1, line.y - box.y))
+            stroke = self._backend.smoothscale(PygameRendering(us), width, height)
+            self._backend.blit(out, stroke, (x1, line.y - box.y))
 
     def _get_char_tasks(
         self, text: str, width: int | None, compact: bool

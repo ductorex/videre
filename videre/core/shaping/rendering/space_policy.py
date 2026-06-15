@@ -16,7 +16,11 @@ from __future__ import annotations
 from dataclasses import replace
 
 from videre.core.constants import TextSpacePolicy
-from videre.core.shaping.glyph_partition import ShapedTextLine, ShapedUnit
+from videre.core.shaping.glyph_partition import (
+    ShapedCluster,
+    ShapedTextLine,
+    measure_glyphs,
+)
 
 
 def resolve_space_policy(
@@ -41,17 +45,40 @@ def collapse_spaces(line: ShapedTextLine) -> ShapedTextLine:
     Reducing keeps the gap's first glyph (its width = one space); the dropped
     spaces' source positions are folded into the retained glyph's explicit
     source range, so selection across a collapsed gap still covers them."""
-    reduced: list[ShapedUnit] = []
-    for su in line.units:
-        if su.unit.is_gap and len(su.glyphs) > 1:
-            first = replace(su.glyphs[0], source_end=su.glyphs[-1].source_end)
-            reduced.append(ShapedUnit(su.unit, [first]))
+    reduced: list[ShapedCluster] = []
+    clusters = line.clusters
+    n = len(clusters)
+    i = 0
+    while i < n:
+        c = clusters[i]
+        if not c.is_gap:
+            reduced.append(c)
+            i += 1
+            continue
+        # One gap unit = a run of gap clusters; only its first has `starts_unit`.
+        j = i + 1
+        while j < n and clusters[j].is_gap and not clusters[j].starts_unit:
+            j += 1
+        run = clusters[i:j]
+        if len(run) > 1:
+            glyph = replace(run[0].glyphs[0], source_end=run[-1].source_end)
+            measure = measure_glyphs([glyph])
+            reduced.append(
+                replace(
+                    run[0],
+                    glyphs=(glyph,),
+                    advance=measure.advance,
+                    ink_left=measure.left,
+                    ink_right=measure.right,
+                    source_end=run[-1].source_end,
+                )
+            )
         else:
-            reduced.append(su)
+            reduced.append(c)
+        i = j
     return ShapedTextLine(
-        units=reduced,
+        clusters=reduced,
         bidi=line.bidi,
-        edit_units=line.edit_units,
         source_start=line.source_start,
         source_end=line.source_end,
         terminator=line.terminator,

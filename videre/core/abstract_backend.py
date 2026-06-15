@@ -123,7 +123,6 @@ class AbstractBackend(ABC):
         size: int,
         strong: bool = False,
         italic: bool = False,
-        underline: bool = False,
         height_delta: int | None = None,
     ) -> AbstractTextRendering: ...
 

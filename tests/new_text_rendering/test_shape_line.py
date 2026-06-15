@@ -10,6 +10,7 @@ import pygame
 import pygame.freetype
 import pytest
 
+from videre.core.shaping.glyph_partition import measure_glyphs
 from videre.core.shaping.shaper import Shaper, shape_line
 from videre.core.shaping.text_partition.partitioner import partition_text
 
@@ -32,13 +33,13 @@ def _shape(text: str, shaper: Shaper, size: int = 16):
 
 
 def _all_glyphs(sline):
-    return [g for u in sline.units for g in u.glyphs]
+    return [g for c in sline.clusters for g in c.glyphs]
 
 
 def test_unit_count_matches_components(shaper: Shaper) -> None:
     part, lines = _shape("hi world", shaper)
     for line, sline in zip(part.lines, lines):
-        assert len(sline.units) == len(line.components)
+        assert sum(c.starts_unit for c in sline.clusters) == len(line.components)
 
 
 def test_base_direction_propagated(shaper: Shaper) -> None:
@@ -71,21 +72,20 @@ def test_rtl_glyphs_are_visual_order_with_correct_logical_positions(
         assert part.text[g.logical_position] in ARAB
 
 
-def test_logical_position_points_into_owning_unit(shaper: Shaper) -> None:
-    """Every glyph's `logical_position` indexes a character of the unit it
-    came from, across a mixed LTR/RTL line."""
+def test_logical_position_points_into_source(shaper: Shaper) -> None:
+    """Every cluster's `logical_position` indexes a real source character, and
+    all glyphs of a cluster share it — across a mixed LTR/RTL line."""
     text = "hi " + ARAB + " world"
     part, lines = _shape(text, shaper)
     for sline in lines:
-        for unit in sline.units:
-            unit_chars = "".join(lc.character.c for lc in unit.unit.characters)
-            for g in unit.glyphs:
-                assert part.text[g.logical_position] in unit_chars
+        for c in sline.clusters:
+            assert 0 <= c.logical_position < len(part.text)
+            assert all(g.logical_position == c.logical_position for g in c.glyphs)
 
 
 def test_glyphs_carry_raster_context(shaper: Shaper) -> None:
     _, (sline,) = _shape("A", shaper)
-    (g,) = sline.units[0].glyphs
+    (g,) = sline.clusters[0].glyphs
     assert g.font_path
     assert g.bold is False and g.italic is False
     assert g.x_advance > 0
@@ -94,7 +94,7 @@ def test_glyphs_carry_raster_context(shaper: Shaper) -> None:
 def test_bold_italic_flagged_on_glyphs(shaper: Shaper) -> None:
     part = partition_text("A")
     sline = shape_line(part.lines[0], shaper, 16, bold=True, italic=True)
-    (g,) = sline.units[0].glyphs
+    (g,) = sline.clusters[0].glyphs
     assert g.bold is True and g.italic is True
 
 
@@ -109,3 +109,19 @@ def test_registered_ideographic_variation_sequence_reaches_harfbuzz(
     # The selector belongs to its base cluster at position 0; it must not
     # become an independently shaped cluster at source position 1.
     assert positions == {0, 2}
+
+
+def test_clusters_parity_with_glyphs_and_measure(shaper: Shaper) -> None:
+    """The shaper's pre-computed cluster geometry equals `measure_glyphs` on the
+    cluster's own glyphs (so wrap/render can stop re-deriving)."""
+    for text in ["hello world", "café", ARAB, "fi", "a  b", "中文 test", "é"]:
+        _, lines = _shape(text, shaper)
+        for sline in lines:
+            for c in sline.clusters:
+                m = measure_glyphs(list(c.glyphs))
+                assert (c.advance, c.ink_left, c.ink_right) == (
+                    m.advance,
+                    m.left,
+                    m.right,
+                )
+                assert c.logical_position == c.glyphs[0].logical_position

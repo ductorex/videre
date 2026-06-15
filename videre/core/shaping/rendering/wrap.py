@@ -18,8 +18,8 @@ Word-wrap and cluster-wrap differ only in how units are atomized — same
 algorithm. The complete ink envelope (`real_left` / `real_right`) is measured
 from the rasterizer's exact bitmap bounds, so negative bearings and terminal
 overhangs are both reserved at line edges.
-No `ShapedWord` / `source_text` reconstruction: atoms carry their glyphs and
-point back at their `TextUnit`, so sub-lines rebuild directly.
+No `ShapedWord` / `source_text` reconstruction: atoms carry their pre-measured
+`ShapedCluster`s, so sub-lines rebuild directly (no glyph regrouping).
 
 Gap (whitespace) policy
 -----------------------
@@ -79,24 +79,21 @@ from typing import Iterable, Iterator
 
 from videre.core.constants import TextSpacePolicy
 from videre.core.shaping.glyph_partition import (
-    PositionedGlyph,
+    ShapedCluster,
     ShapedTextLine,
-    ShapedUnit,
     measure_glyphs,
 )
-from videre.core.shaping.text_partition.model import TextUnit
 
 
 @dataclass(slots=True)
 class _Atom:
-    """An indivisible run of glyphs (a whole atomic unit, or one cluster of a
-    breakable one), or a consumable glue (`is_glue`, a gap). `unit` is the
-    source `TextUnit` (identity used to regroup atoms into `ShapedUnit`s).
-    `can_break_before` marks a legal break opportunity right before this atom
-    (a glue is itself always a break opportunity)."""
+    """An indivisible run of clusters (a whole atomic unit, or one cluster of a
+    breakable one), or a consumable glue (`is_glue`, a gap). `can_break_before`
+    marks a legal break opportunity right before this atom (a glue is itself
+    always a break opportunity). The atom carries its `ShapedCluster`s straight
+    through to `_rebuild` — the cluster flags replace the old `TextUnit` link."""
 
-    unit: TextUnit
-    glyphs: list[PositionedGlyph]
+    clusters: list[ShapedCluster]
     advance: float
     real_left: float
     real_right: float
@@ -121,7 +118,7 @@ def wrap_lines(
         yield from lines
         return
     for line in lines:
-        if not line.units:
+        if not line.clusters:
             yield line
             continue
         yield from _wrap_line(line, width, wrap_words, space_policy)
@@ -164,39 +161,32 @@ def _atomize(
     not break).
 
     A gap is one consumable glue, EXCEPT under `preserve_char` (char + preserve)
-    where it is atomized per character into kept boxes (each a break
-    opportunity, `is_glue=False`) so a gap can split across lines instead of
-    being dropped."""
+    where it is atomized per cluster into kept boxes (each a break opportunity,
+    `is_glue=False`) so a gap can split across lines instead of being dropped.
+
+    Consumes the shaper's pre-measured `ShapedCluster`s: a split unit yields one
+    atom per cluster, taking geometry straight off the cluster (no re-cluster, no
+    per-cluster re-measure). Multi-cluster atoms — a whole atomic unit, or a
+    word-wrap gap glue — re-measure their glyphs for the exact ink envelope,
+    since composing rounded per-cluster envelopes would not match."""
     atoms: list[_Atom] = []
     prev_was_box = False
     prev_split = False
-    for su in line.units:
-        unit = su.unit
-        if not su.glyphs:
-            continue
-        if unit.is_gap:
+    for unit_clusters in _by_unit(line.clusters):
+        first = unit_clusters[0]
+        if first.is_gap:
             if preserve_char:
-                for chunk in _clusters(su.glyphs):
-                    measure = measure_glyphs(chunk)
+                for c in unit_clusters:
                     atoms.append(
-                        _Atom(
-                            unit,
-                            chunk,
-                            measure.advance,
-                            measure.left,
-                            measure.right,
-                            False,
-                            True,
-                        )
+                        _Atom([c], c.advance, c.ink_left, c.ink_right, False, True)
                     )
                 prev_was_box = True
                 prev_split = True
             else:
-                measure = measure_glyphs(su.glyphs)
+                measure = measure_glyphs([g for c in unit_clusters for g in c.glyphs])
                 atoms.append(
                     _Atom(
-                        unit,
-                        su.glyphs,
+                        list(unit_clusters),
                         measure.advance,
                         measure.left,
                         measure.right,
@@ -207,31 +197,30 @@ def _atomize(
                 prev_was_box = False
                 prev_split = False
             continue
-        split = unit.is_breakable or not wrap_words
-        chunks = _clusters(su.glyphs) if split else [su.glyphs]
-        for k, chunk in enumerate(chunks):
-            if k > 0:
-                cbb = True
-            elif not prev_was_box:
-                # At line start this value is irrelevant. Right after a glue,
-                # the glue itself owns the break opportunity.
-                cbb = unit.can_break_before
-            else:
-                cbb = (
-                    unit.can_break_before or split or prev_split
-                )  # word boundary between adjacent units
-            if chunk[0].logical_position in unit.no_break_before:
-                cbb = False
-            measure = measure_glyphs(chunk)
+        split = first.unit_breakable or not wrap_words
+        if split:
+            for k, c in enumerate(unit_clusters):
+                atoms.append(
+                    _Atom(
+                        [c],
+                        c.advance,
+                        c.ink_left,
+                        c.ink_right,
+                        False,
+                        _cluster_break_before(c, k, prev_was_box, prev_split, split),
+                    )
+                )
+                prev_was_box = True
+        else:
+            measure = measure_glyphs([g for c in unit_clusters for g in c.glyphs])
             atoms.append(
                 _Atom(
-                    unit,
-                    chunk,
+                    list(unit_clusters),
                     measure.advance,
                     measure.left,
                     measure.right,
                     False,
-                    cbb,
+                    _cluster_break_before(first, 0, prev_was_box, prev_split, split),
                 )
             )
             prev_was_box = True
@@ -239,27 +228,37 @@ def _atomize(
     return atoms
 
 
-def _clusters(glyphs: list[PositionedGlyph]) -> list[list[PositionedGlyph]]:
-    """Group consecutive glyphs sharing one `logical_position` (= one HarfBuzz
-    cluster: a base plus its marks, or a ligature). Breaking inside a cluster
-    would corrupt the rendering, so these are the smallest splittable chunks.
-    Works for RTL too (positions decrease, but equal ones stay adjacent)."""
-    out: list[list[PositionedGlyph]] = []
-    i = 0
-    n = len(glyphs)
-    while i < n:
-        j = i + 1
-        lp = glyphs[i].logical_position
-        source_end = glyphs[i].source_end
-        while (
-            j < n
-            and glyphs[j].logical_position == lp
-            and glyphs[j].source_end == source_end
-        ):
-            j += 1
-        out.append(glyphs[i:j])
-        i = j
-    return out
+def _by_unit(clusters: list[ShapedCluster]) -> list[list[ShapedCluster]]:
+    """Group a flat cluster list back into its source `TextUnit`s via
+    `starts_unit` (set on each unit's first cluster). The wrap needs the
+    per-unit grouping to mark break opportunities and to keep an atomic unit or
+    a gap whole."""
+    groups: list[list[ShapedCluster]] = []
+    for cluster in clusters:
+        if cluster.starts_unit or not groups:
+            groups.append([cluster])
+        else:
+            groups[-1].append(cluster)
+    return groups
+
+
+def _cluster_break_before(
+    c: ShapedCluster, k: int, prev_was_box: bool, prev_split: bool, split: bool
+) -> bool:
+    """`can_break_before` for cluster `k` of its unit — the break logic that
+    lived inline in the old `_atomize`, reading the cluster's intrinsic flags
+    and combining them with the wrap context."""
+    if k > 0:
+        cbb = True  # between clusters of a split unit
+    elif not prev_was_box:
+        # At line start this value is irrelevant. Right after a glue, the glue
+        # itself owns the break opportunity.
+        cbb = c.unit_can_break_before
+    else:
+        cbb = c.unit_can_break_before or split or prev_split  # word boundary
+    if c.no_break_before:
+        cbb = False
+    return cbb
 
 
 # ---------------------------------------------------------------------------
@@ -400,12 +399,13 @@ def _strip_edge_glues(group: list[_Atom]) -> list[_Atom]:
 
 def _source_anchor(atom: _Atom) -> _Atom:
     """Turn a shaped gap into one invisible zero-width source item."""
-    if not atom.glyphs:
+    if not atom.clusters:
         return atom
-    source_start = min(glyph.logical_position for glyph in atom.glyphs)
-    source_end = max(glyph.source_end for glyph in atom.glyphs)
-    anchor = replace(
-        atom.glyphs[0],
+    source_start = min(c.logical_position for c in atom.clusters)
+    source_end = max(c.source_end for c in atom.clusters)
+    first = atom.clusters[0]
+    glyph = replace(
+        first.glyphs[0],
         x_advance=0.0,
         x_offset=0.0,
         y_offset=0.0,
@@ -416,9 +416,23 @@ def _source_anchor(atom: _Atom) -> _Atom:
         source_end=source_end,
         paint=False,
     )
+    anchor = ShapedCluster(
+        glyphs=(glyph,),
+        advance=0.0,
+        ink_left=0.0,
+        ink_right=0.0,
+        logical_position=source_start,
+        source_end=source_end,
+        is_rtl=first.is_rtl,
+        is_gap=True,
+        paint=False,
+        starts_unit=first.starts_unit,
+        unit_breakable=first.unit_breakable,
+        unit_can_break_before=first.unit_can_break_before,
+        no_break_before=first.no_break_before,
+    )
     return _Atom(
-        unit=atom.unit,
-        glyphs=[anchor],
+        clusters=[anchor],
         advance=0.0,
         real_left=0.0,
         real_right=0.0,
@@ -430,34 +444,16 @@ def _source_anchor(atom: _Atom) -> _Atom:
 def _rebuild(
     group: list[_Atom], line: ShapedTextLine, *, keep_terminator: bool
 ) -> ShapedTextLine:
-    """Regroup consecutive atoms of the same `TextUnit` back into `ShapedUnit`s.
-    A breakable unit split across sub-lines yields one `ShapedUnit` per
-    sub-line, each holding its slice of glyphs. `bidi` is the line's context,
-    carried through so the reorder can call `vibidi_text.reorder`."""
-    units: list[ShapedUnit] = []
-    cur_unit: TextUnit | None = None
-    cur_glyphs: list[PositionedGlyph] = []
-    for atom in group:
-        if atom.unit is not cur_unit:
-            if cur_unit is not None:
-                units.append(ShapedUnit(cur_unit, cur_glyphs))
-            cur_unit = atom.unit
-            cur_glyphs = list(atom.glyphs)
-        else:
-            cur_glyphs.extend(atom.glyphs)
-    if cur_unit is not None:
-        units.append(ShapedUnit(cur_unit, cur_glyphs))
-    glyphs = [glyph for unit in units for glyph in unit.glyphs]
-    source_start = min((glyph.logical_position for glyph in glyphs), default=0)
-    source_end = max((glyph.source_end for glyph in glyphs), default=source_start)
+    """Collect the group's clusters into a wrapped sub-line. No `ShapedUnit`
+    re-glue: the cluster is the carried unit, so a breakable unit split across
+    sub-lines just lands its clusters on each. `bidi` rides along so the reorder
+    can call `vibidi_text.reorder`."""
+    clusters = [cluster for atom in group for cluster in atom.clusters]
+    source_start = min((c.logical_position for c in clusters), default=0)
+    source_end = max((c.source_end for c in clusters), default=source_start)
     return ShapedTextLine(
-        units=units,
+        clusters=clusters,
         bidi=line.bidi,
-        edit_units=tuple(
-            unit
-            for unit in line.edit_units
-            if unit.source_start < source_end and unit.source_end > source_start
-        ),
         source_start=source_start,
         source_end=source_end,
         terminator=line.terminator if keep_terminator else None,

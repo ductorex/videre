@@ -153,8 +153,8 @@ def test_underline_does_not_resize_line(fake_win, size: int) -> None:
     s_off = ShapedTextRendering(fake_win.backend, size=size).render_text(
         text, color=Color(0, 0, 0)
     )[1]
-    s_on = ShapedTextRendering(fake_win.backend, size=size, underline=True).render_text(
-        text, color=Color(0, 0, 0)
+    s_on = ShapedTextRendering(fake_win.backend, size=size).render_text(
+        text, color=Color(0, 0, 0), underline=True
     )[1]
     assert (s_on.get_width(), s_on.get_height()) == (
         s_off.get_width(),
@@ -169,8 +169,8 @@ def test_underline_pixels_below_baseline(
     of the rendered text."""
     asc, _, _ = metrics_16
     text = "abc"  # short, no descenders, easy to inspect
-    s_on = ShapedTextRendering(fake_win.backend, size=16, underline=True).render_text(
-        text, color=Color(0, 0, 0)
+    s_on = ShapedTextRendering(fake_win.backend, size=16).render_text(
+        text, color=Color(0, 0, 0), underline=True
     )[1]
     s_off = ShapedTextRendering(fake_win.backend, size=16).render_text(
         text, color=Color(0, 0, 0)
@@ -195,8 +195,8 @@ def test_underline_color_matches_text(fake_win) -> None:
     """The underline takes the same RGB color as the text."""
     text = "abc"
     color = Color(255, 0, 0)  # red
-    s = ShapedTextRendering(fake_win.backend, size=16, underline=True).render_text(
-        text, color=color
+    s = ShapedTextRendering(fake_win.backend, size=16).render_text(
+        text, color=color, underline=True
     )[1]
     arr_r = pixels_red(s)
     arr_a = pixels_alpha(s)
@@ -224,8 +224,8 @@ def test_underline_multiline_no_glyph_collision(
     asc, desc, line_h = metrics_16
     line_spacing = line_h + 2
     text = "FF\nFF"  # two lines, easy ascender shape
-    s_on = ShapedTextRendering(fake_win.backend, size=16, underline=True).render_text(
-        text, color=Color(0, 0, 0)
+    s_on = ShapedTextRendering(fake_win.backend, size=16).render_text(
+        text, color=Color(0, 0, 0), underline=True
     )[1]
     # Line 2 baseline is at (asc + h_delta) + line_spacing = asc + 2 + line_spacing.
     line2_baseline = asc + 2 + line_spacing

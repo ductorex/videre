@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign, TextSpacePolicy
+from videre.core.text_editing import EditUnit
 
 
 class Rendering(ABC):
@@ -168,5 +169,44 @@ class AbstractTextRendering(ABC):
         align: TextAlign | None = None,
         wrap_words: bool = False,
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+        underline: bool = False,
+        selection: tuple[int, int] | None = None,
+    ) -> tuple[TextRenderingResult, Rendering]: ...
+
+    @abstractmethod
+    def document(self, text: str) -> "AbstractTextDocument":
+        """Build a cacheable document for `text` (text-only shape, replayed per
+        width by `document.render`). See docs/text-document-and-contract.md."""
+        ...
+
+
+class AbstractTextDocument(ABC):
+    """A shaped document: the text-only half of rendering — partition + shape +
+    edit-unit segmentation — meant to be cached across resizes. `render(width,
+    ...)` replays only the width-dependent half (wrap + layout + paint), so a
+    resize never re-shapes. `edit_units` is the single segmentation shared with
+    `TextInput`. See docs/text-document-and-contract.md.
+    """
+
+    __slots__ = ()
+
+    @property
+    @abstractmethod
+    def text(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def edit_units(self) -> tuple[EditUnit, ...]: ...
+
+    @abstractmethod
+    def render(
+        self,
+        width: int | None = None,
+        *,
+        color: Color | None = None,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+        underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[TextRenderingResult, Rendering]: ...
