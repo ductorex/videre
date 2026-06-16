@@ -199,6 +199,23 @@ class AbstractTextDocument(ABC):
     def edit_units(self) -> tuple[EditUnit, ...]: ...
 
     @abstractmethod
+    def layout(
+        self,
+        width: int | None = None,
+        *,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+    ) -> TextRenderingResult:
+        """Width-dependent layout WITHOUT painting: the caret / hit-test
+        `TextRenderingResult` alone, from the same computation `render` paints
+        from (a shared per-width cache, so `layout` then `render` at one width
+        costs a single layout). For navigation / measurement that must not force
+        a repaint — e.g. refreshing the caret between a text mutation and the next
+        draw. See docs/text-document-and-contract.md."""
+        ...
+
+    @abstractmethod
     def render(
         self,
         width: int | None = None,

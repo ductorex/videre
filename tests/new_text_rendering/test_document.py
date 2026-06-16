@@ -79,6 +79,59 @@ def test_document_render_matches_render_text(
     assert np.array_equal(pixels_alpha(doc_surface), pixels_alpha(rt_surface))
 
 
+@pytest.mark.parametrize(
+    "text, width, wrap_words, align",
+    [
+        ("hello world", None, False, None),
+        ("hello world foo bar baz", 80, True, None),
+        ("hello world foo bar baz", 80, False, None),
+        (ARAB + " hello", None, False, None),
+        ("a  b   c", 60, True, None),
+        ("right", 120, False, TextAlign.RIGHT),
+        ("line1\nline2\nline3", None, False, None),
+        ("", None, False, None),
+    ],
+)
+def test_document_layout_matches_render(
+    fake_win, shaper, rasterizer, text, width, wrap_words, align
+):
+    """`layout()` returns the SAME caret/hit-test contract as `render()[0]` —
+    and from the shared per-width cache, so it is the very same object (no second
+    wrap/reorder), without painting a surface."""
+    doc = ShapedDocument(
+        text, backend=fake_win.backend, shaper=shaper, rasterizer=rasterizer, size=16
+    )
+    laid = doc.layout(width, wrap_words=wrap_words, align=align)
+    rendered, _surface = doc.render(
+        width, color=BLACK, wrap_words=wrap_words, align=align
+    )
+    assert laid is rendered  # shared memo: same key → same RenderedText object
+    assert (laid.get_width(), laid.get_height()) == (
+        rendered.get_width(),
+        rendered.get_height(),
+    )
+    assert laid.total_visual_count() == rendered.total_visual_count()
+
+
+def test_document_layout_cache_keyed_on_layout_params(fake_win, shaper, rasterizer):
+    """The shared layout cache keys on (width, wrap, policy, align): the same key
+    reuses the instance, a different width recomputes, and `render` at the cached
+    key paints from `layout`'s instance (a single wrap per width)."""
+    doc = ShapedDocument(
+        "hello world foo bar baz",
+        backend=fake_win.backend,
+        shaper=shaper,
+        rasterizer=rasterizer,
+        size=16,
+    )
+    wide = doc.layout(200, wrap_words=True)
+    assert doc.layout(200, wrap_words=True) is wide  # same key → cached
+    narrow = doc.layout(60, wrap_words=True)
+    assert narrow is not wide  # different width → recomputed
+    rendered, _ = doc.render(60, wrap_words=True)
+    assert rendered is narrow  # render reuses the cached layout
+
+
 def test_document_exposes_text_and_edit_units(fake_win, shaper, rasterizer):
     text = "café " + ARAB
     doc = ShapedDocument(

@@ -40,6 +40,8 @@ sert de socle aux deux objectifs.
 AbstractTextDocument:
     text: str
     edit_units: tuple[EditUnit, ...]          # segmentés UNE fois
+    layout(width, *, align, wrap_words, space_policy)
+        -> TextRenderingResult                # mise en page SANS peinture
     render(width, *, color, align, wrap_words, space_policy, underline,
            selection) -> (TextRenderingResult, Rendering)
 ```
@@ -64,6 +66,35 @@ Le **widget `Text`** cache le document (nouveau `_document`), invalidé par
 **pas** au resize. `draw` devient : créer le document si absent, puis
 `document.render(width, …)`. Le widget passe toujours par le contrat abstrait,
 donc reste backend-agnostique.
+
+## `layout()` — mesurer sans peindre (suivi go-live)
+
+`render(width)` fait *layout + paint*. Mais la navigation de `TextInput` (caret,
+flèches, hit-test) n'a besoin que du `TextRenderingResult`, pas de la surface ;
+or elle le lit aujourd'hui sur `Text._rendered`, rafraîchi seulement au `draw`.
+Entre une mutation et le `draw` suivant (même frame, plusieurs events), ce
+`_rendered` est périmé — d'où un caret faux pendant 1 frame, le jour où le shapé
+sera live (pitfall #4).
+
+`layout(width, …)` renvoie ce `TextRenderingResult` **sans peindre** : on scinde
+`paint_glyph_lines` en `assemble_glyph_lines` (géométrie → `AssembledText`, sans
+surface) + `paint_assembled` (peinture). `layout` et `render` passent par le même
+`AssembledText`, **mémoïsé** sur `(width, wrap_words, space_policy, align)` :
+
+- coût : ni re-shape (déjà caché) ni re-paint ; seulement wrap + reorder +
+  géométrie — la moitié légère ;
+- cache à **une entrée** : entre deux frappes la clé est stable, donc une frame
+  d'édition = `layout` (event) qui calcule puis `render` (draw) qui **réutilise**
+  = un seul layout, comme aujourd'hui (pas de double-wrap) ;
+- invalidation gratuite : le document est immuable par `(text, size, …)`, donc un
+  nouveau document = cache vide.
+
+**Pas encore branché** : `TextInput` lit toujours `_rendered`. `layout()` est la
+primitive prête pour le go-live shapé — et, plus largement, la **mesure de texte
+sans peinture** dont dépendront `Drawer` / `text_sizing` / une passe de mesure
+(un parent peut demander sa hauteur à une largeur sans forcer de paint). Le legacy
+l'implémente en rejouant `render_text` et jetant la surface (pas de split ; il
+n'est pas la cible perf).
 
 ## Le contrat de navigation, révisé
 
@@ -129,6 +160,10 @@ changement de contrat), puis le **contrat edit-unit** (le morceau sensible).
   boucle de snapping / align d'insertion supprimés ; lit `document.edit_units`).
 - **C5 ✅** — legacy : `PygameTextDocument`, `edit_units` = 1 cp = 1 eu
   (`segment_codepoints`).
+- **C6 ✅** — `document.layout(width)` : mise en page sans peinture
+  (`assemble_glyph_lines` / `paint_assembled` / `AssembledText`), cache partagé
+  `layout`/`render` sur `(width, wrap_words, space_policy, align)`. Primitive pour
+  le go-live (#4) et la mesure sans paint ; `TextInput` pas encore rebranché.
 
 Validé : 282 widget_tests (legacy) + 296 shaped + 7 grapheme mirror ; divergences
 snapshot inchangées (64/190) = zéro régression de rendu.

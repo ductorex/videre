@@ -10,7 +10,12 @@ from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rendering_result import AbstractTextDocument, Rendering
 from videre.core.shaping.rasterizer import GlyphRasterizer
-from videre.core.shaping.render import layout_glyph_lines, paint_glyph_lines
+from videre.core.shaping.render import (
+    AssembledText,
+    assemble_glyph_lines,
+    layout_glyph_lines,
+    paint_assembled,
+)
 from videre.core.shaping.rendering.layout import RenderedText
 from videre.core.shaping.shaper import Shaper, shape_line
 from videre.core.shaping.text_partition.partitioner import partition_text
@@ -29,6 +34,8 @@ class ShapedDocument(AbstractTextDocument):
         "_height_delta",
         "_compact",
         "_subpixel",
+        "_assembled",
+        "_assembled_key",
     )
 
     def __init__(
@@ -61,6 +68,11 @@ class ShapedDocument(AbstractTextDocument):
         self._height_delta = height_delta
         self._compact = compact
         self._subpixel = subpixel
+        # Shared width-dependent layout cache (single entry), filled by `_lay_out`
+        # and read by both `layout` and `render`. The document is immutable per
+        # (text, size, …), so it never needs explicit invalidation.
+        self._assembled: AssembledText | None = None
+        self._assembled_key: tuple | None = None
 
     @property
     def text(self) -> str:
@@ -69,6 +81,53 @@ class ShapedDocument(AbstractTextDocument):
     @property
     def edit_units(self) -> tuple[EditUnit, ...]:
         return self._edit_units
+
+    def _lay_out(
+        self,
+        width: int | None,
+        wrap_words: bool,
+        space_policy: TextSpacePolicy,
+        align: TextAlign | None,
+    ) -> AssembledText:
+        """Width + align dependent layout — collapse + wrap + reorder + geometry,
+        but NO painting. Memoized on its full key and shared by `layout` and
+        `render`: within a frame the key is stable, so pairing them (navigate then
+        draw) costs a single layout. The shape is already cached, so this never
+        re-shapes — only wrap + geometry run. The document is immutable per
+        (text, size, strong, italic, height_delta) (a mutation builds a new
+        document), so a single-entry cache invalidates at the right granularity."""
+        key = (width, wrap_words, space_policy, align)
+        if self._assembled is None or self._assembled_key != key:
+            lines = layout_glyph_lines(
+                self._shaped_lines,
+                width=width,
+                wrap_words=wrap_words,
+                space_policy=space_policy,
+            )
+            self._assembled = assemble_glyph_lines(
+                lines,
+                size=self._size,
+                width=width,
+                align=align,
+                height_delta=self._height_delta,
+                compact=self._compact,
+                edit_units=self._edit_units,
+            )
+            self._assembled_key = key
+        return self._assembled
+
+    def layout(
+        self,
+        width: int | None = None,
+        *,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+    ) -> RenderedText:
+        """Width-dependent layout WITHOUT painting — just the caret / hit-test
+        `RenderedText`, from the same cache `render` paints from. For navigation /
+        measurement that must not force a repaint (see the contract doc)."""
+        return self._lay_out(width, wrap_words, space_policy, align).rendered
 
     def render(
         self,
@@ -81,25 +140,16 @@ class ShapedDocument(AbstractTextDocument):
         underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, Rendering]:
-        lines = layout_glyph_lines(
-            self._shaped_lines,
-            width=width,
-            wrap_words=wrap_words,
-            space_policy=space_policy,
-        )
-        return paint_glyph_lines(
-            lines,
+        assembled = self._lay_out(width, wrap_words, space_policy, align)
+        out = paint_assembled(
+            assembled,
             backend=self._backend,
             rasterizer=self._rasterizer,
             size=self._size,
             color=color,
-            width=width,
-            align=align,
             underline=underline,
             bold=self._bold,
-            height_delta=self._height_delta,
-            compact=self._compact,
             subpixel=self._subpixel,
-            edit_units=self._edit_units,
             selection=selection,
         )
+        return assembled.rendered, out

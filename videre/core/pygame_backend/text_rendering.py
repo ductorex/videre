@@ -286,6 +286,26 @@ class PygameTextDocument(AbstractTextDocument):
     def edit_units(self) -> tuple[EditUnit, ...]:
         return segment_codepoints(self._text)
 
+    def layout(
+        self,
+        width: int | None = None,
+        *,
+        align: TextAlign | None = None,
+        wrap_words: bool = False,
+        space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
+    ) -> TextRenderingResult:
+        """Legacy has no shape / paint split, so this re-runs `render_text` and
+        drops the surface (the transitional backend isn't the perf target — the
+        shaped document is the one that shares a paint-free layout cache)."""
+        result, _surface = self._rendering.render_text(
+            self._text,
+            width,
+            align=align,
+            wrap_words=wrap_words,
+            space_policy=space_policy,
+        )
+        return result
+
     def render(
         self,
         width: int | None = None,

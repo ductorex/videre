@@ -15,6 +15,7 @@ so there is a single source of truth for cluster geometry.
 from __future__ import annotations
 
 import bisect
+from dataclasses import dataclass
 
 from videre.colors import Color, Colors
 from videre.core.abstract_backend import AbstractBackend
@@ -168,27 +169,36 @@ def render_text(
     )
 
 
-def paint_glyph_lines(
+@dataclass(slots=True, frozen=True)
+class AssembledText:
+    """Geometry result of `assemble_glyph_lines`: the caret / hit-test
+    `RenderedText` plus the paint plan (glyphs + placement) and surface size that
+    `paint_assembled` needs. Color / underline / selection play no part here, so
+    one `AssembledText` is reusable across paints — it is what `document.layout`
+    returns and what `document.render` paints from (computed once, shared)."""
+
+    rendered: RenderedText
+    paint: list[tuple[list[PositionedGlyph], int, float, int]]
+    surface_w: int
+    surface_h: int
+
+
+def assemble_glyph_lines(
     lines: list[tuple[GlyphLine, bool]],
     *,
-    backend: AbstractBackend,
-    rasterizer: GlyphRasterizer,
     size: int,
-    color: Color | None = None,
     width: int | None = None,
     align: TextAlign | None = None,
-    underline: bool = False,
-    bold: bool = False,
     height_delta: int = 2,
     compact: bool = True,
-    subpixel: bool = False,
     edit_units: tuple[EditUnit, ...] = (),
-    selection: tuple[int, int] | None = None,
-) -> tuple[RenderedText, Rendering]:
-    """Lay out + paint pre-built visual glyph lines (the output of
-    `layout_glyph_lines`) into `(caret info, surface)`. Width-only — no shaping,
-    so this is what the document replays on resize."""
-    color = color or Colors.black
+) -> AssembledText:
+    """Geometry half of `paint_glyph_lines`: stack (font line metrics, optional
+    `compact` first baseline) + align pre-built visual glyph lines into caret /
+    hit-test info plus a paint plan, touching NO surface. Color / underline /
+    selection are paint-time only and absent here, so the result is reusable
+    across paints — `document.layout` returns its `rendered`, `document.render`
+    feeds it to `paint_assembled`."""
     m = font_metrics(size, height_delta)
 
     # `compact` drops the leading line gap unless the first line is an
@@ -206,7 +216,7 @@ def paint_glyph_lines(
     surface_h = max(total_height, 1)
 
     # Per line: alignment offset, justify slack, and the cluster geometry the
-    # caret needs. `paint` keeps the glyphs + baseline for the second pass.
+    # caret needs. `paint` keeps the glyphs + baseline for the paint pass.
     raw_lines: list[RawLine] = []
     paint: list[tuple[list[PositionedGlyph], int, float, int]] = []
     eu_starts = [eu.source_start for eu in edit_units]
@@ -233,13 +243,32 @@ def paint_glyph_lines(
         paint.append((gl.glyphs, x_offset, extra, baselines[i]))
 
     rendered = build_rendered_text(raw_lines, m, surface_w, surface_h)
+    return AssembledText(rendered, paint, surface_w, surface_h)
 
-    out = backend.new_surface(surface_w, surface_h)
+
+def paint_assembled(
+    assembled: AssembledText,
+    *,
+    backend: AbstractBackend,
+    rasterizer: GlyphRasterizer,
+    size: int,
+    color: Color | None = None,
+    underline: bool = False,
+    bold: bool = False,
+    subpixel: bool = False,
+    selection: tuple[int, int] | None = None,
+) -> Rendering:
+    """Paint half of `paint_glyph_lines`: blit an `AssembledText`'s paint plan
+    onto a fresh surface (selection ribbon first, so glyphs sit over it). Pure
+    rasterization, no geometry — the only part `document.render` runs that
+    `document.layout` skips."""
+    color = color or Colors.black
+    out = backend.new_surface(assembled.surface_w, assembled.surface_h)
     # Selection background first, so glyphs sit on top of it.
     if selection is not None and selection[0] < selection[1]:
-        for rect in rendered._selection_rects(*selection):
+        for rect in assembled.rendered._selection_rects(*selection):
             backend.box(out, rect, _SELECTION_RGBA)
-    for glyphs, x_offset, extra, baseline in paint:
+    for glyphs, x_offset, extra, baseline in assembled.paint:
         _paint_line(
             out,
             glyphs,
@@ -254,7 +283,51 @@ def paint_glyph_lines(
             bold,
             subpixel,
         )
-    return rendered, out
+    return out
+
+
+def paint_glyph_lines(
+    lines: list[tuple[GlyphLine, bool]],
+    *,
+    backend: AbstractBackend,
+    rasterizer: GlyphRasterizer,
+    size: int,
+    color: Color | None = None,
+    width: int | None = None,
+    align: TextAlign | None = None,
+    underline: bool = False,
+    bold: bool = False,
+    height_delta: int = 2,
+    compact: bool = True,
+    subpixel: bool = False,
+    edit_units: tuple[EditUnit, ...] = (),
+    selection: tuple[int, int] | None = None,
+) -> tuple[RenderedText, Rendering]:
+    """Lay out + paint pre-built visual glyph lines (the output of
+    `layout_glyph_lines`) into `(caret info, surface)`. = `assemble_glyph_lines`
+    then `paint_assembled`; the document caches the former (paint-free, shared
+    with `layout`) and replays only the latter per paint."""
+    assembled = assemble_glyph_lines(
+        lines,
+        size=size,
+        width=width,
+        align=align,
+        height_delta=height_delta,
+        compact=compact,
+        edit_units=edit_units,
+    )
+    out = paint_assembled(
+        assembled,
+        backend=backend,
+        rasterizer=rasterizer,
+        size=size,
+        color=color,
+        underline=underline,
+        bold=bold,
+        subpixel=subpixel,
+        selection=selection,
+    )
+    return assembled.rendered, out
 
 
 def render_char(
