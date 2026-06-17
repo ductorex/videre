@@ -1,6 +1,6 @@
 """Conformance test against Unicode's BidiCharacterTest.txt.
 
-The data file (fetched for the same Unicode version as `unicodedata`, see
+The data file (fetched for the same Unicode version as `unicodedataplus`, see
 `data/BidiCharacterTest.txt`) is large; if it is absent the test is skipped.
 
 Every conformance case is exercised, including explicit embeddings, overrides,
@@ -14,10 +14,10 @@ labour agreed for the pipeline.
 """
 
 import os
-import unicodedata
 
 import pytest
 
+from videre.core import unicode_props
 from videre.core.vibidi.vibidi import RtlPolicy, _l2_order, vibidi
 
 _DATA = os.path.join(os.path.dirname(__file__), "data", "BidiCharacterTest.txt")
@@ -40,7 +40,7 @@ def _apply_l1(text: str, levels: list[int | None], base: int) -> list[int | None
     for i in range(len(text) - 1, -1, -1):
         if out[i] is None:
             continue
-        cls = unicodedata.bidirectional(text[i])
+        cls = unicode_props.bidirectional(text[i])
         if cls in ("S", "B"):
             out[i] = base
             trailing = True
@@ -115,9 +115,9 @@ def test_bidi_character_conformance() -> None:
 
 @pytest.mark.skipif(not os.path.exists(_DATA), reason=f"{_DATA} not present")
 def test_data_file_matches_unicodedata_version() -> None:
-    """The conformance data must be the same Unicode version as `unicodedata`,
+    """The conformance data must be the same Unicode version as `unicodedataplus`,
     else we'd be checking vibidi against the wrong expected values."""
     with open(_DATA, encoding="utf-8") as fh:
         header = fh.readline()
     version = header.split("-", 1)[1].rsplit(".txt", 1)[0].strip()
-    assert version == unicodedata.unidata_version
+    assert version == unicode_props.UNICODE_VERSION

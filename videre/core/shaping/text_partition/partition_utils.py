@@ -1,8 +1,8 @@
 """Utilities to partition text by script and font."""
 
-import unicodedata
 from dataclasses import dataclass
 
+from videre.core import unicode_props
 from videre.core.text_editing import grapheme_boundaries
 from videre.fonts.coverage import is_variation_selector
 from videre.fonts.provider import get_font_provider
@@ -139,4 +139,4 @@ def _is_variation_selector(c: str) -> bool:
 
 
 def _stays_with_current_font(c: str) -> bool:
-    return _is_variation_selector(c) or unicodedata.category(c) in {"Cc", "Cf"}
+    return _is_variation_selector(c) or unicode_props.category(c) in {"Cc", "Cf"}

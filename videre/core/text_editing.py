@@ -9,7 +9,6 @@ shaping free to inspect the individual code points inside each range.
 from __future__ import annotations
 
 import bisect
-import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum, auto
@@ -240,7 +239,7 @@ def _odd_ri_run(props: list[str], right_index: int) -> bool:
 
 
 def _classify_unit(text: str) -> EditUnitKind:
-    if any(unicodedata.category(c) == "Cs" for c in text):
+    if any(unicode_data.category(c) == "Cs" for c in text):
         return EditUnitKind.INVALID
     if text == "\t":
         return EditUnitKind.TAB
@@ -259,6 +258,6 @@ def _classify_unit(text: str) -> EditUnitKind:
         return EditUnitKind.BREAK_OPPORTUNITY
     if text in {"\u2060", "\ufeff"}:
         return EditUnitKind.NO_BREAK
-    if all(unicodedata.category(c) in {"Cc", "Cf"} for c in text):
+    if all(unicode_data.category(c) in {"Cc", "Cf"} for c in text):
         return EditUnitKind.HIDDEN_CONTROL
     return EditUnitKind.TEXT

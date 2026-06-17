@@ -1,11 +1,8 @@
 import functools
 import sys
 from dataclasses import dataclass
-from unicodedata import category, unidata_version
 
-import unicodedataplus  # ty: ignore
-from fontTools import unicodedata as ft_unicodedata
-
+from videre.core import unicode_props
 from videre.fonts.coverage import (
     UNICODE_VERSION,
     font_coverage_characters,
@@ -47,7 +44,7 @@ NEUTRAL_SCRIPTS = (_COMMON_SCRIPT, _INHERITED_SCRIPT)
 class Unicode:
     # Kept for the legacy printable predicate. Font coverage has its own
     # explicit Unicode 16 profile below.
-    VERSION = unidata_version
+    VERSION = unicode_props.UNICODE_VERSION
     FONT_COVERAGE_VERSION = UNICODE_VERSION
 
     @classmethod
@@ -67,7 +64,9 @@ class Unicode:
         2024/06/09
         https://stackoverflow.com/a/68992289
         """
-        return category(c) not in UNPRINTABLE and c not in _BIDI_FORMATTERS
+        return (
+            unicode_props.category(c) not in UNPRINTABLE and c not in _BIDI_FORMATTERS
+        )
 
     @classmethod
     def font_coverage_characters(cls):
@@ -79,7 +78,7 @@ class Unicode:
 
     @classmethod
     def block(cls, c: str) -> str:
-        return unicodedataplus.block(c)
+        return unicode_props.block(c)
 
     @classmethod
     def blocks(cls) -> dict[str, list[str]]:
@@ -105,12 +104,10 @@ def get_character(c: str) -> Character:
     if len(c) != 1:
         raise ValueError(f"Character {c!r} is not a single character")
 
-    script = ft_unicodedata.script(c)
-    script_is_rtl = (
-        str(ft_unicodedata.script_horizontal_direction(script, default="LTR")) == "RTL"
-    )
+    script = unicode_props.script(c)
+    script_is_rtl = unicode_props.script_direction(script) == "RTL"
     # Number: European number (EN), arabic number (AN).
-    bidirectional = ft_unicodedata.bidirectional(c)
+    bidirectional = unicode_props.bidirectional(c)
     is_european_number = bidirectional == "EN"
     is_arabic_number = bidirectional == "AN"
     neutral = script in NEUTRAL_SCRIPTS

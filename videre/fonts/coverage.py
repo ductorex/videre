@@ -9,6 +9,8 @@ from typing import Iterable, Iterator
 import unicodedataplus as unicode_data  # ty: ignore
 from fontTools import unicodedata as fonttools_unicode
 
+from videre.core import unicode_props
+
 UNICODE_VERSION = unicode_data.unidata_version
 
 _EXCLUDED_CATEGORIES = frozenset({"Cc", "Cs", "Co", "Cn", "Zl", "Zp"})
@@ -95,7 +97,7 @@ def open_type_script_tags(character: str) -> frozenset[str]:
     through cmap format 14, so GSUB/GPOS must not overturn the established
     visual font priorities for ordinary characters.
     """
-    script = fonttools_unicode.script(character)
+    script = unicode_props.script(character)
     if script in {"Zyyy", "Zinh", "Zzzz"} or script in _LAYOUT_OPTIONAL_SCRIPTS:
         return frozenset()
     return frozenset(fonttools_unicode.ot_tags_from_script(script))

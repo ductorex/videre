@@ -6,8 +6,7 @@ exhaustive conformance run against Unicode's BidiCharacterTest.txt lives in
 `test_bidi_character.py`; this file is the readable, fast first line of defence.
 """
 
-import unicodedata
-
+from videre.core import unicode_props
 from videre.core.vibidi.vibidi import _BRACKETS_FILE, RtlPolicy, vibidi
 
 HEB = "אבג"  # three Hebrew letters, strong R, logical order aleph/bet/gimel
@@ -209,8 +208,9 @@ def test_empty_text():
 
 
 def test_bidibrackets_file_matches_unicodedata_version():
-    """The bundled bracket table must track `unicodedata`: a Python upgrade that
-    bumps the embedded UCD should fail here until BidiBrackets.txt is refreshed."""
+    """The bundled bracket table must track `unicodedataplus`: a dependency
+    upgrade that bumps the bundled UCD should fail here until BidiBrackets.txt is
+    refreshed."""
     header = _BRACKETS_FILE.read_text(encoding="utf-8").splitlines()[0]
     version = header.split("-", 1)[1].rsplit(".txt", 1)[0].strip()
-    assert version == unicodedata.unidata_version
+    assert version == unicode_props.UNICODE_VERSION

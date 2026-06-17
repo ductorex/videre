@@ -2,12 +2,16 @@
 
 > Audit du 2026-06-16. Mesures issues d'une lecture exhaustive du code et de
 > calculs exécutés contre la collection de polices embarquée (178 fichiers).
-> Outils sous-jacents : `unicodedataplus` 16.0.0, stdlib `unicodedata` 15.1.0,
-> `fontTools.unicodedata` 15.1.0, `uharfbuzz` 0.54.1 (HarfBuzz 14.2.0).
+> Outils sous-jacents : `unicodedataplus` 16.0.0 (source unique des propriétés
+> via `core/unicode_props.py`), `fontTools.unicodedata` (nomenclature ISO de
+> script uniquement), `uharfbuzz` 0.54.1 (HarfBuzz 14.2.0).
 >
-> Mise à jour 2026-06-16 : ajout de la fonte **NewGardiner** (OFL 1.1) couvrant
-> les hiéroglyphes égyptiens (base + format controls + Extended-A) — couverture
-> des caractères passée de 97,36 % à **99,58 %**.
+> Mise à jour 2026-06-16 (a) : ajout de la fonte **NewGardiner** (OFL 1.1)
+> couvrant les hiéroglyphes égyptiens (base + format controls + Extended-A) —
+> couverture des caractères passée de 97,36 % à **99,58 %**.
+> Mise à jour 2026-06-16 (b) : unification sur **Unicode 16.0 partout** via
+> `core/unicode_props.py` (fin de la dualité 16.0/15.1) — 5 191 classes bidi et
+> 5 185 catégories de caractères 16.0 corrigées.
 
 ## 0. Résumé
 
@@ -19,8 +23,8 @@ séquences. Bilan par dimension :
 |---|---|---|
 | UAX#29 — frontières de graphèmes (GB1–GB999) | **100 % des règles** | 16.0 |
 | UAX#29 — frontières de mots (WB1–WB999) | **100 % des règles** | 16.0 |
-| UAX#9 — bidi (niveaux + réordonnancement) | **100 % du calcul** (L1/L3/L4 délégués) | 15.1 |
-| UAX#24 — runs de script | **Partiel** (pas de Script_Extensions) | 15.1 |
+| UAX#9 — bidi (niveaux + réordonnancement) | **100 % du calcul** (L1/L3/L4 délégués) | 16.0 |
+| UAX#24 — runs de script | **Partiel** (pas de Script_Extensions) | 16.0 |
 | UAX#14 — coupure de ligne | **Profil maison** (pas LB1–LB31) | 16.0 (classes) |
 | UAX#29 — frontières de phrases (SB) | **Absent** (hors périmètre rendu) | — |
 | UAX#11 — largeur est-asiatique | **Absent** (hors périmètre) | — |
@@ -31,32 +35,31 @@ séquences. Bilan par dimension :
 | Séquences de variation idéographiques (IVD) | **50,3 %** (14 897 / 29 635) | IVD 2025-07-14 |
 | Validation de shaping (absence de `.notdef`) | **100 %** (0 manquant / 153 936) | 16.0 |
 
-## 1. Versions Unicode — une dualité 16.0 / 15.1
+## 1. Versions Unicode — unifiées sur 16.0
 
-Le code mélange trois bases de données Unicode, ce qui crée une **frontière de
-version** nette :
+Toutes les propriétés Unicode *versionnées* passent désormais par
+`videre/core/unicode_props.py`, qui fait de **`unicodedataplus` (16.0)** la
+source unique : `category`, `bidirectional`, `decomposition`, `block`, et le
+`script` (nom long 16.0 converti en code ISO 15924 via `fontTools.script_code`,
+pure nomenclature non versionnée). `fontTools.unicodedata` ne sert plus qu'à deux
+services *stables par version* : la nomenclature ISO (`script_code`) et la
+direction de script (`script_horizontal_direction`, à jour pour les scripts 16.0
+comme Garay → RTL). La stdlib `unicodedata` n'est plus utilisée pour les
+propriétés.
 
-- **Unicode 16.0** (via `unicodedataplus`) — tout ce qui touche la
-  *segmentation* et le *profil de couverture* :
-  - `text_editing.py` : `grapheme_cluster_break`, `indic_conjunct_break`,
-    `is_extended_pictographic` (graphèmes).
-  - `word_splitter.py` : `word_break`, `line_break` (mots + classes de ligne).
-  - `coverage.py` : `category`, `block`, `Default_Ignorable` (profil de fontes).
-- **Unicode 15.1** (via stdlib `unicodedata` *et* `fontTools.unicodedata`) — tout
-  ce qui touche la *résolution* :
-  - `text_editing._classify_unit` : `unicodedata.category` (classement des unités
-    d'édition).
-  - `unicode_utils.get_character` : `fontTools` `script`,
-    `script_horizontal_direction`, `bidirectional` (script + direction).
-  - `vibidi.py` : `unicodedata.bidirectional` + `BidiBrackets.txt` 15.1.
+Le module `unicode_props` asserte la version attendue (`16.0.0`) à l'import : un
+bump de dépendance qui la changerait échoue bruyamment au lieu de mélanger
+silencieusement deux versions. Les fichiers de données bundlés
+(`vibidi/BidiBrackets.txt`, `tests/vibidi/data/BidiCharacterTest.txt`) sont en
+16.0, et les gardes de version des tests comparent à
+`unicode_props.UNICODE_VERSION`.
 
-**Conséquence.** Un caractère introduit en Unicode 16.0 dans un script *existant*
-est correctement découpé en graphèmes/mots (16.0) mais peut être mal classé en
-bidi/script (15.1 ne le connaît pas → repli `_default_class` / script `Zzzz`).
-L'impact réel est faible (peu de caractères concernés), mais la dette est réelle :
-les garde-fous `unicode_version != UNICODE_VERSION` (`provider.py:144`,
-`:163`) ne valident que la chaîne *16.0* des artefacts, pas la version *15.1* des
-bases de résolution.
+**Bénéfice de la migration** (depuis l'ancienne dualité 16.0/15.1) : 5 191
+classes bidi et 5 185 catégories de caractères ajoutés en 16.0 — que la stdlib
+15.1 voyait comme « inconnus » — sont désormais correctes. Le routage de fonte
+est inchangé : le code ISO du script est identique entre `unicodedataplus` 16.0
+et l'ancienne table `fontTools` 15.1 (0 divergence mesurée sur les 154 591
+codepoints du profil).
 
 ## 2. Algorithmes Unicode (UAX/UTS)
 
@@ -75,10 +78,10 @@ WB3/3a/3b/3c/3d, WB4 (ignorables), WB5–WB13b, WB15/WB16 (indicateurs régionau
 Formulation « Replacing Ignore Rules » (UAX#29 §6.2). Utilisé pour la
 segmentation en mots/gaps, **pas** pour la coupure de ligne.
 
-### 2.3 UAX#9 — Bidi : ✅ calcul complet, rendu délégué (Unicode 15.1)
+### 2.3 UAX#9 — Bidi : ✅ calcul complet, rendu délégué (Unicode 16.0)
 
 `vibidi/vibidi.py` (implémentation maison, validée contre
-`BidiCharacterTest.txt` 15.1) couvre toute la chaîne de calcul :
+`BidiCharacterTest.txt` 16.0) couvre toute la chaîne de calcul :
 
 | Groupe | Statut | Emplacement |
 |---|---|---|
@@ -86,7 +89,7 @@ segmentation en mots/gaps, **pas** pour la coupure de ligne.
 | X1–X8 (embeddings/overrides/isolates) | ✅ | `_resolve_explicit` (profondeur max 125, overflow géré) |
 | X9 (suppression), X10 (run sequences) | ✅ | `_isolating_run_sequences` |
 | W1–W7 (types faibles) | ✅ | `_resolve_weak` |
-| N0 (crochets appariés) | ✅ | `_resolve_brackets` (pile BD16=63, `BidiBrackets.txt` 15.1) |
+| N0 (crochets appariés) | ✅ | `_resolve_brackets` (pile BD16=63, `BidiBrackets.txt` 16.0) |
 | N1–N2 (neutres) | ✅ | `_resolve_neutral` |
 | I1–I2 (niveaux implicites) | ✅ | `_resolve_implicit` |
 | **L2** (réordonnancement) | ✅ | `_l2_order` |

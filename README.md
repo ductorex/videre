@@ -4,6 +4,16 @@ Simple Python GUI framework based on Pygame.
 
 Still Work In Progress.
 
+## Unicode
+
+Videre targets **Unicode 16.0** as its single reference version (enforced at
+import by `videre/core/unicode_props.py`). The Unicode algorithms it implements —
+UAX#29 grapheme/word segmentation and the UAX#9 bidirectional algorithm — are
+16.0-conformant and validated against Unicode's official conformance suites.
+
+See [docs/unicode-conformance.md](docs/unicode-conformance.md) for the full audit
+(coverage, supported scripts, and known gaps).
+
 ## Origin of name
 
 https://fr.wiktionary.org/wiki/videre#la

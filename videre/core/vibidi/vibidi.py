@@ -30,11 +30,12 @@ requires, while ``reorder_retaining_controls`` is the rendering-pipeline hook.
 """
 
 import functools
-import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from pathlib import Path
 from typing import Sequence
+
+from videre.core import unicode_props
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +120,9 @@ def vibidi(logical_text: str, rtl_policy: RtlPolicy = RtlPolicy.INFER) -> Vibidi
             VibidiText object containing all information required
             to display text visually and match visual to logical positions.
     """
-    original = [unicodedata.bidirectional(c) or _default_class(c) for c in logical_text]
+    original = [
+        unicode_props.bidirectional(c) or _default_class(c) for c in logical_text
+    ]
     matching_pdi = _matching_isolates(original)
     base_level = _base_level(original, rtl_policy, matching_pdi)
     types, explicit_levels, removed = _resolve_explicit(
@@ -182,7 +185,7 @@ def _restore_removed_levels(
 # --- implementation details -------------------------------------------------
 #
 # Every helper traffics in UAX#9 bidi class strings ("L", "R", "AL", "EN", "AN",
-# "WS", "ON", ...) as returned by `unicodedata.bidirectional`.
+# "WS", "ON", ...) as returned by `unicode_props.bidirectional`.
 
 _MAX_DEPTH = 125
 _X9_REMOVED = frozenset({"RLE", "LRE", "RLO", "LRO", "PDF", "BN"})
@@ -205,7 +208,7 @@ class _IsolatingRunSequence:
 
 
 def _default_class(c: str) -> str:
-    """Bidi class for a codepoint `unicodedata` doesn't know (unassigned).
+    """Bidi class for a codepoint `unicodedataplus` doesn't know (unassigned).
 
     Implements the UAX#9 default ranges: unassigned codepoints in the Hebrew /
     RTL blocks default to R, those in the Arabic blocks to AL, currency symbols
@@ -688,7 +691,7 @@ def _neutral_side(tp: str) -> str:
 # Bundled Unicode data: the Bidi_Paired_Bracket property (BidiBrackets.txt),
 # parsed once and cached. Kept as the official file rather than transcribed by
 # hand, so it is the single source of truth. Its Unicode version must match
-# `unicodedata`; `tests/vibidi` enforces that.
+# `unicodedataplus` (via `unicode_props`); `tests/vibidi` enforces that.
 _BRACKETS_FILE = Path(__file__).parent / "BidiBrackets.txt"
 
 
@@ -697,7 +700,7 @@ def _bracket_tables() -> tuple[dict[str, str], frozenset[str], dict[str, str]]:
     """Parse BidiBrackets.txt -> (opening->closing, closing chars, canonical map).
 
     The canonical map covers BD16's canonical-equivalence clause (U+2329 / U+232A
-    aliasing U+3008 / U+3009); it is derived from `unicodedata` canonical
+    aliasing U+3008 / U+3009); it is derived from `unicodedataplus` canonical
     decompositions, so there is nothing to hand-maintain.
     """
     open_to_close: dict[str, str] = {}
@@ -711,7 +714,7 @@ def _bracket_tables() -> tuple[dict[str, str], frozenset[str], dict[str, str]]:
     close_set = frozenset(open_to_close.values())
     canon: dict[str, str] = {}
     for bracket in open_to_close.keys() | close_set:
-        decomp = unicodedata.decomposition(bracket).split()
+        decomp = unicode_props.decomposition(bracket).split()
         if len(decomp) == 1:  # a single canonical equivalent (no <compat> tag)
             canon[bracket] = chr(int(decomp[0], 16))
     return open_to_close, close_set, canon
