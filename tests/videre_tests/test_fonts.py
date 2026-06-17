@@ -34,7 +34,7 @@ def test_generated_character_routing_uses_font_coverage_profile() -> None:
     )
     _fonts, char_to_indice = FontProvider._parse_font_to_characters(font_to_characters)
 
-    assert len(char_to_indice) == 150509
+    assert len(char_to_indice) == 153936
     assert all(requires_standalone_glyph(c) for c in char_to_indice)
     assert "\ue000" not in char_to_indice
     assert "\ufe0f" not in char_to_indice
@@ -47,7 +47,7 @@ def test_generated_coverage_report_has_no_selected_notdef() -> None:
     assert report["private_use_included"] is False
     assert report["codepoints"]["target"] == 154591
     assert report["codepoints"]["missing_by_block"] == {
-        "Egyptian Hieroglyphs Extended-A": 3995,
+        "Egyptian Hieroglyphs Extended-A": 568,
         "Tulu-Tigalari": 80,
         "Symbols and Pictographs Extended-A": 7,
     }

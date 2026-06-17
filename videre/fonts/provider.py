@@ -42,6 +42,7 @@ FOLDER_FONT = os.path.abspath(os.path.dirname(__file__))
 _PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
 _PATH_PLANGOTHIC_P1 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP1-Regular.ttf")
 _PATH_PLANGOTHIC_P2 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP2-Regular.ttf")
+_PATH_NEWGARDINER = _file_path(FOLDER_FONT, "newgardiner", "NewGardiner.ttf")
 _FOLDER_NOTO = _dir_path(FOLDER_FONT, "noto", "unhinted", "TTF")
 _FOLDER_NOTO_SERIF = _dir_path(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
 _FOLDER_NOTO_MONO = _dir_path(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
@@ -60,6 +61,7 @@ FONT_PLANGOTHIC_P1 = FontUtils(_PATH_PLANGOTHIC_P1)
 FONT_PLANGOTHIC_P2 = FontUtils(_PATH_PLANGOTHIC_P2)
 FONT_NOTO_REGULAR = FontUtils(_file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf"))
 FONT_NOTO_MONO = FontUtils(PATH_NOTO_MONO)
+FONT_NEWGARDINER = FontUtils(_PATH_NEWGARDINER)
 
 
 def _get_fonts(paths: list[str]) -> dict[str, str]:
@@ -86,8 +88,9 @@ def get_fonts() -> dict[str, str]:
         **FONT_PLANGOTHIC_P1.to_dict(),
         **FONT_PLANGOTHIC_P2.to_dict(),
         **FONT_NOTO_MONO.to_dict(),
+        **FONT_NEWGARDINER.to_dict(),
     }
-    assert len(extras) == 4
+    assert len(extras) == 5
     fonts = {**noto_fonts, **extras}
     assert len(fonts) == len(noto_fonts) + len(extras)
     return fonts

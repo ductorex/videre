@@ -37,6 +37,36 @@ LOREM_IPSUM = (
     "ultricies lacus lorem varius purus. Curabitur eu amet. »\n"
 ).strip()
 
+# Egyptian hieroglyphs: the base block (U+13000) plus Extended-A (U+13460, added
+# in Unicode 16.0), covered by the NewGardiner font (OFL) and by no Noto font.
+# Built from explicit codepoints so the sample stays readable in source.
+_EGYPTIAN_BASE = "".join(chr(c) for c in range(0x13000, 0x13014))
+_EGYPTIAN_EXT_A = "".join(
+    chr(c)
+    for c in (
+        0x13461,
+        0x13462,
+        0x13463,
+        0x13464,
+        0x13465,
+        0x13466,
+        0x13467,
+        0x13468,
+        0x13469,
+        0x1346A,
+        0x1346B,
+        0x1346C,
+        0x1346D,
+        0x1346F,
+        0x13470,
+        0x13471,
+        0x13472,
+        0x13473,
+        0x13474,
+        0x13476,
+    )
+)
+
 TEXT_SAMPLES = {
     "french_lr_arabic_rl": (
         "L'Empire ottoman (en turc ottoman : دولت عليه عثمانیه / devlet-i ʿaliyye-i ʿos̲mâniyye, littéralement "
@@ -98,4 +128,10 @@ TEXT_SAMPLES = {
     # Emoji: simple SMP codepoints, ZWJ family sequence, regional indicator flags, skin tone modifiers
     "emoji": "Hello 👋 World 🌍! Family: 👨‍👩‍👧‍👦 Flags: 🇫🇷🇯🇵🇸🇦 Skin tones: 👍🏽👍🏿 Faces: 😀🥰🤔😂",
     "latin_ligatures": "Laetitia, coeur, oesophage. Lætitia, cœur, œsophage (fi fl ff ffi ffl) (ﬁ ﬂ ﬀ ﬃ ﬄ)",
+    # Egyptian hieroglyphs: base (U+13000) + Extended-A (U+13460, Unicode 16.0).
+    # Pins NewGardiner coverage and Latin/SMP per-character font fallback.
+    "egyptian_hieroglyphs": (
+        "Egyptian, base (U+13000): " + _EGYPTIAN_BASE + "\n"
+        "Extended-A (U+13460): " + _EGYPTIAN_EXT_A
+    ),
 }

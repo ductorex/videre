@@ -12,6 +12,7 @@ est consigné dans `videre/fonts/FONT_UPDATE_AUDIT.md`.
 - `videre/fonts/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre **toutes** les polices Noto, indépendamment du sous-dossier (`noto/`, `noto-serif/`, `noto-mono/`).
 - `videre/fonts/other-ttf/LICENSE_APL.txt` — Arphic Public License. Couvre `BabelStoneHan.ttf` exclusivement.
 - `videre/fonts/plangothic/LICENSE_OFL.txt` — SIL Open Font License 1.1. Couvre les fichiers `PlangothicP1-Regular.ttf` et `PlangothicP2-Regular.ttf`. Ce LICENSE upstream ne contient pas de ligne de copyright explicite ; le copyright se trouve dans la table `name` du TTF (NameID 0) : `Copyright (c) 2024 by Fitzgerald P. Köeingsegg. All rights reserved.`
+- `videre/fonts/newgardiner/OFL.txt` — SIL Open Font License 1.1. Couvre `NewGardiner.ttf` (Reserved Font Name « NewGardiner »), copyright (c) 2020 Mark-Jan Nederhof.
 
 Toutes ces licences autorisent l'usage commercial, la modification et la redistribution, à condition de redistribuer le texte de licence avec les polices.
 
@@ -23,9 +24,10 @@ Toutes ces licences autorisent l'usage commercial, la modification et la redistr
 - Source 3 (`google/fonts`) : 1 famille
 - Source 4 (`babelstone.co.uk`) : 1 famille
 - Source 5 (`Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project`) : 2 familles
-- **Total** : 187 fichiers
+- Source 6 (`nederhof/newgardiner`) : 1 famille
+- **Total** : 188 fichiers
 
-Parmi ces 187 fichiers, 177 participent au routage des caractères et séquences.
+Parmi ces 188 fichiers, 178 participent au routage des caractères et séquences.
 Les cinq fontes variables CJK et les cinq variantes CJK Regular sont conservées
 pour référence, mais ne sont pas chargées par `FontProvider` ; les cinq variantes
 CJK Light sont utilisées à leur place.
@@ -289,6 +291,34 @@ Page de releases : <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangoth
 | `plangothic/PlangothicP2-Regular.ttf` | <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project/releases/download/V2.9.5792/PlangothicP2-Regular.ttf> |
 
 Note : l'URL upstream est versionnée (V2.9.5792 = release du 2026-01-01). Pour rafraîchir, récupérer la dernière release et adapter le tag dans l'URL.
+
+## Source 6 : `nederhof/newgardiner`
+
+Fonte hiéroglyphique égyptienne (Mark-Jan Nederhof, standard Gardiner) ajoutée
+pour couvrir le bloc **Egyptian Hieroglyphs Extended-A** (U+13460–U+143FF,
+Unicode 16.0), absent de la collection Noto. Elle couvre 3 427 des 3 995
+codepoints du bloc (85,8 %), sur les vrais codepoints SMP. TTF statique (pas de
+fonte variable), version 3.08.
+
+NewGardiner couvre aussi le bloc de base (U+13000–U+1342F, 1072 cp) ET les
+contrôles de format de quadrats (U+13430–U+1343F, 16 cp) que la Noto Sans
+Egyptian Hieroglyphs locale (2.002) ne couvre PAS. Le routage la sélectionne donc
+pour **tout** l'égyptien : rendu cohérent dans une seule fonte. La Noto Sans
+Egyptian Hieroglyphs ne route plus aucun caractère (conservée mais redondante) ;
+aucune des deux n'expose de GSUB/GPOS égyptien, donc pas de régression de layout.
+
+Impact : couverture globale 97,36 % → **99,58 %** (153 936 / 154 591 ; 0 `.notdef`
+au shaping). Les 568 signes « non-core » restants ne sont pas dans
+`NewGardiner.ttf` (le `NewGardinerNonCore.ttf` upstream ne contient que 8
+codepoints et n'est donc pas embarqué).
+
+Licence : SIL Open Font License 1.1 (`videre/fonts/newgardiner/OFL.txt`),
+Reserved Font Name « NewGardiner », copyright (c) 2020 Mark-Jan Nederhof.
+
+| Fichier local | URL upstream |
+|---|---|
+| `newgardiner/NewGardiner.ttf` | <https://raw.githubusercontent.com/nederhof/newgardiner/master/fonts/NewGardiner.ttf> |
+| `newgardiner/OFL.txt` | <https://raw.githubusercontent.com/nederhof/newgardiner/master/fonts/OFL.txt> |
 
 ## Versions
 
