@@ -1,15 +1,21 @@
 # Disponibilité Bold/Italic upstream pour les polices videre
 
-Inventaire des 172 fichiers de police actuellement présents dans le dépôt videre, avec pour chaque famille la liste des variantes Bold, Italic et BoldItalic disponibles en amont. Sert de base de décision pour télécharger les vraies variantes là où elles existent et synthétiser le reste.
+> Mise à jour 2026-06-19 : inventaire resynchronisé sur les **188 fichiers /
+> 178 familles** réellement présents (l'inventaire précédent en listait
+> 172/171). Pour la liste de référence des fichiers et de leurs URLs, c'est
+> `videre/fonts/SOURCES.md` qui fait foi ; ce document se concentre sur la
+> *disponibilité des variantes Bold/Italic en amont*.
+
+Inventaire des 188 fichiers de police actuellement présents dans le dépôt videre (178 familles distinctes), avec pour chaque famille la liste des variantes Bold, Italic et BoldItalic disponibles en amont. Sert de base de décision pour télécharger les vraies variantes là où elles existent et synthétiser le reste.
 
 ## Synthèse
 
-- **Total inventorié** : 172 fichiers (171 familles distinctes ; tous les fichiers actuels sont en Regular sauf les 5 CJK qui sont des variable fonts à axe poids).
+- **Total inventorié** : 188 fichiers (178 familles distinctes). Toutes les familles sont livrées en Regular mono-graisse, sauf les 5 familles CJK livrées en triple — VF à axe poids **plus** statiques Light et Regular (cf. section CJK ci-dessous).
 - **Set complet (Bold + Italic + BoldItalic) en amont** : **1 famille** (NotoSans uniquement).
 - **Bold seul disponible** : **51 familles** (49 chez Noto + NotoSansMono + 1 chez Google `ofl/notoemoji` via VF à axe poids).
 - **Italic seul disponible** : **0 famille**.
-- **Variable font à axe poids couvrant Bold** (équivalent fonctionnel d'un Bold) : **6 familles** (les 5 Noto Sans CJK déjà présentes en VF dans videre, plus NotoEmoji disponible en VF chez `google/fonts`).
-- **Regular seul (pas de Bold ni Italic en amont)** : **114 familles**.
+- **Variable font à axe poids couvrant Bold** (équivalent fonctionnel d'un Bold) : **6 familles** (les 5 Noto Sans CJK, plus NotoEmoji disponible en VF chez `google/fonts`). ⚠️ Voir la réserve pygame.freetype dans la section CJK : l'axe de variation n'est pas exploitable à l'exécution.
+- **Regular seul (pas de Bold ni Italic en amont)** : **120 familles** (dont 8 ajoutées depuis la dernière révision : NewGardiner, Plangothic P1/P2, NotoSansMendeKikakui, NotoSansNushu, NotoSansSunuwar, NotoSerifKhojki, NotoSerifTodhri).
 - **BabelStoneHan** : Regular seul, pas de variantes upstream.
 
 Décompte final par catégorie de décision :
@@ -18,8 +24,8 @@ Décompte final par catégorie de décision :
 |---|---|---|
 | Set complet (B + I + BI) | 1 | Télécharger les 3 variantes |
 | Bold seul (TTF statique) | 51 | Télécharger Bold ; synthétiser Italic et BoldItalic |
-| Bold via VF axe poids (CJK + Emoji) | 5 (déjà VF) + 1 | Conserver le VF ; charger l'instance Bold à la volée ; synthétiser Italic |
-| Regular seul | 114 | Synthétiser Bold, Italic et BoldItalic |
+| Bold via VF axe poids (CJK + Emoji) | 5 + 1 | VF non exploitable sous pygame.freetype ; télécharger le statique Bold ou synthétiser ; synthétiser Italic |
+| Regular seul | 120 | Synthétiser Bold, Italic et BoldItalic |
 
 ## Licences
 
@@ -35,8 +41,8 @@ Toutes les polices listées ci-dessous sont donc librement redistribuables, y co
 
 ## Sources upstream et patron d'URL
 
-- **Hub Noto principal** (`notofonts/notofonts.github.io`) : URL brute sous la forme `https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/<Famille>/unhinted/ttf/<Fichier>.ttf`. Couvre 165 des 171 familles Noto utilisées par videre.
-- **Noto CJK** (`notofonts/noto-cjk`) : pour HK / JP / KR / SC / TC, les fichiers VF utilisés par videre sont dans `Sans/Variable/TTF/Subset/` (sous-ensemble par région) ou `Sans/Variable/TTF/` (full pan-CJK). URL brute : `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSans<XX>-VF.ttf`.
+- **Hub Noto principal** (`notofonts/notofonts.github.io`) : URL brute sous la forme `https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/<Famille>/unhinted/ttf/<Fichier>.ttf`. Couvre 168 des 174 familles Noto utilisées par videre (les 6 restantes : 5 CJK via `noto-cjk` + NotoEmoji via `google/fonts`). Les 4 familles hors-Noto (BabelStoneHan, NewGardiner, Plangothic P1/P2) ont leurs propres sources.
+- **Noto CJK** (`notofonts/noto-cjk`) : pour HK / JP / KR / SC / TC, videre utilise les VF **régionales** — chemin upstream `Sans/Variable/TTF/Subset/` (un fichier par région), et non le pan-CJK `Sans/Variable/TTF/`. URL brute : `https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/Variable/TTF/Subset/NotoSans<XX>-VF.ttf`. En local, ces fichiers sont sous `videre/fonts/noto-cjk-static/variable-fonts/`.
 - **NotoEmoji monochrome** : pas dans `googlefonts/noto-emoji` (qui ne contient que la version couleur). La version monochrome utilisée par videre est hébergée dans `google/fonts` à `ofl/notoemoji/NotoEmoji[wght].ttf` (variable font, axe `wght` 300-900).
 - **BabelStoneHan** : <https://www.babelstone.co.uk/Download/BabelStoneHan.ttf>.
 
@@ -112,11 +118,13 @@ Note : pour chacune de ces familles, le fichier `-Italic.ttf` et `-BoldItalic.tt
 
 ## Polices avec Italic seul disponible
 
-Aucune. Sur les 171 familles videre, aucune ne fournit un Italic upstream sans Bold. Pour les rares familles Noto qui ont un Italic en amont (NotoSerif, NotoSerifDisplay, NotoSerifTamil), elles ne sont pas utilisées par videre.
+Aucune. Sur les 178 familles videre, aucune ne fournit un Italic upstream sans Bold. Pour les rares familles Noto qui ont un Italic en amont (NotoSerif, NotoSerifDisplay, NotoSerifTamil), elles ne sont pas utilisées par videre.
 
 ## Polices avec variable font à axe poids couvrant Bold
 
-Familles déjà au format VF dans videre (les 5 sous-ensembles Noto Sans CJK) ainsi que NotoEmoji disponible en VF chez `google/fonts`. L'axe `wght` couvre au moins 100 -> 900, ce qui inclut le Bold (700). Pas d'axe italique : Italic et BoldItalic doivent être synthétisés.
+Les 5 sous-ensembles Noto Sans CJK sont livrés en VF dans videre, ainsi que NotoEmoji disponible en VF chez `google/fonts`. L'axe `wght` couvre au moins 100 → 900, ce qui *en théorie* inclut le Bold (700). Pas d'axe italique : Italic et BoldItalic doivent être synthétisés.
+
+**⚠️ Réserve pygame.freetype** : le moteur de rendu actuel ne supporte pas les axes de variation OpenType — une VF est rendue à sa valeur par défaut (`wght=100`, Thin), inutilisable. C'est pourquoi videre charge en réalité des **instances statiques** pour le CJK (cf. `SOURCES.md`, sources 2 et 2bis) : la statique **Light** (`wght=300`) est chargée et prioritaire pour les blocs CJK courants ; la statique **Regular** est conservée sur disque mais **non chargée** (collision de `full name` avec la VF + rendu trop gras). Conséquence : un **vrai Bold CJK n'est pas disponible** via les fichiers chargés ; il faudrait télécharger la statique Bold (`Sans/SubsetOTF/<LANG>/NotoSans<LANG>-Bold.otf`) ou instancier la VF à 700 (impossible sous pygame.freetype aujourd'hui).
 
 | Famille | Fichier actuel videre | URL VF (axe poids) |
 |---|---|---|
@@ -131,21 +139,23 @@ NotoEmoji actuellement en TTF statique Regular (300-Light dans la nomenclature G
 
 ## Polices Regular only
 
-114 familles : pas de Bold ni d'Italic en amont. Bold et Italic devront être synthétisés systématiquement par pygame.freetype.
+120 familles : pas de Bold ni d'Italic en amont. Bold et Italic devront être synthétisés systématiquement par pygame.freetype.
+
+> Les 8 familles ajoutées depuis la dernière révision sont intégrées ci-dessous. Les 3 hors-Noto (NewGardiner, Plangothic P1/P2) sont nativement mono-graisse. Les 5 Noto (MendeKikakui, Nushu, Sunuwar, NotoSerifKhojki, NotoSerifTodhri) sont **présumées Regular-only** — aucune variante Bold/Italic connue en amont, ce qui est cohérent avec tous les scripts rares comparables, mais à confirmer auprès de `notofonts` avant un éventuel téléchargement.
 
 Groupées par grande catégorie :
 
 ### Scripts historiques et anciens (zéro variante upstream)
 
-NotoSansAnatolianHieroglyphs, NotoSansAvestan, NotoSansBrahmi, NotoSansCarian, NotoSansCaucasianAlbanian, NotoSansChorasmian, NotoSansCoptic, NotoSansCuneiform, NotoSansCypriot, NotoSansCyproMinoan, NotoSansDeseret, NotoSansEgyptianHieroglyphs, NotoSansElbasan, NotoSansElymaic, NotoSansGlagolitic, NotoSansGothic, NotoSansGrantha, NotoSansHatran, NotoSansImperialAramaic, NotoSansInscriptionalPahlavi, NotoSansInscriptionalParthian, NotoSansKaithi, NotoSansKharoshthi, NotoSansKhojki, NotoSansKhudawadi, NotoSansLinearA, NotoSansLinearB, NotoSansLycian, NotoSansLydian, NotoSansMahajani, NotoSansManichaean, NotoSansMarchen, NotoSansMasaramGondi, NotoSansMeroitic, NotoSansModi, NotoSansMultani, NotoSansNabataean, NotoSansNandinagari, NotoSansNewa, NotoSansOgham, NotoSansOldHungarian, NotoSansOldItalic, NotoSansOldNorthArabian, NotoSansOldPermic, NotoSansOldPersian, NotoSansOldSogdian, NotoSansOldSouthArabian, NotoSansOldTurkic, NotoSansOsmanya, NotoSansPahawhHmong, NotoSansPalmyrene, NotoSansPauCinHau, NotoSansPhagsPa, NotoSansPhoenician, NotoSansPsalterPahlavi, NotoSansRunic, NotoSansSamaritan, NotoSansSharada, NotoSansShavian, NotoSansSiddham, NotoSansSogdian, NotoSansSoyombo, NotoSansTagalog, NotoSansTagbanwa, NotoSansTakri, NotoSansTirhuta, NotoSansUgaritic, NotoSansWarangCiti, NotoSansZanabazarSquare, NotoSerifAhom, NotoSerifMakasar, NotoSerifOldUyghur, NotoSerifOttomanSiyaq, NotoSerifTangut.
+NotoSansAnatolianHieroglyphs, NotoSansAvestan, NotoSansBrahmi, NotoSansCarian, NotoSansCaucasianAlbanian, NotoSansChorasmian, NotoSansCoptic, NotoSansCuneiform, NotoSansCypriot, NotoSansCyproMinoan, NotoSansDeseret, NotoSansEgyptianHieroglyphs, NotoSansElbasan, NotoSansElymaic, NotoSansGlagolitic, NotoSansGothic, NotoSansGrantha, NotoSansHatran, NotoSansImperialAramaic, NotoSansInscriptionalPahlavi, NotoSansInscriptionalParthian, NotoSansKaithi, NotoSansKharoshthi, NotoSansKhojki, NotoSansKhudawadi, NotoSansLinearA, NotoSansLinearB, NotoSansLycian, NotoSansLydian, NotoSansMahajani, NotoSansManichaean, NotoSansMarchen, NotoSansMasaramGondi, NotoSansMeroitic, NotoSansModi, NotoSansMultani, NotoSansNabataean, NotoSansNandinagari, NotoSansNewa, NotoSansNushu, NotoSansOgham, NotoSansOldHungarian, NotoSansOldItalic, NotoSansOldNorthArabian, NotoSansOldPermic, NotoSansOldPersian, NotoSansOldSogdian, NotoSansOldSouthArabian, NotoSansOldTurkic, NotoSansOsmanya, NotoSansPahawhHmong, NotoSansPalmyrene, NotoSansPauCinHau, NotoSansPhagsPa, NotoSansPhoenician, NotoSansPsalterPahlavi, NotoSansRunic, NotoSansSamaritan, NotoSansSharada, NotoSansShavian, NotoSansSiddham, NotoSansSogdian, NotoSansSoyombo, NotoSansTagalog, NotoSansTagbanwa, NotoSansTakri, NotoSansTirhuta, NotoSansUgaritic, NotoSansWarangCiti, NotoSansZanabazarSquare, NotoSerifAhom, NotoSerifKhojki, NotoSerifMakasar, NotoSerifOldUyghur, NotoSerifOttomanSiyaq, NotoSerifTangut, NotoSerifTodhri.
 
 ### Scripts minoritaires modernes (zéro variante upstream)
 
-NotoSansBatak, NotoSansBhaiksuki, NotoSansBuginese, NotoSansBuhid, NotoSansChakma, NotoSansHanunoo, NotoSansLepcha, NotoSansLimbu, NotoSansMandaic, NotoSansMiao, NotoSansMongolian, NotoSansMro, NotoSansNKo, NotoSansRejang, NotoSansSaurashtra, NotoSansSignWriting, NotoSansSylotiNagri, NotoSansSyriac, NotoSansSyriacEastern, NotoSansSyriacWestern, NotoSansTaiLe, NotoSansTaiViet, NotoSansTifinagh, NotoSansVai, NotoSansWancho, NotoSansYi, NotoSerifDogra.
+NotoSansBatak, NotoSansBhaiksuki, NotoSansBuginese, NotoSansBuhid, NotoSansChakma, NotoSansHanunoo, NotoSansLepcha, NotoSansLimbu, NotoSansMandaic, NotoSansMendeKikakui, NotoSansMiao, NotoSansMongolian, NotoSansMro, NotoSansNKo, NotoSansRejang, NotoSansSaurashtra, NotoSansSignWriting, NotoSansSylotiNagri, NotoSansSyriac, NotoSansSyriacEastern, NotoSansSyriacWestern, NotoSansTaiLe, NotoSansTaiViet, NotoSansTifinagh, NotoSansVai, NotoSansWancho, NotoSansYi, NotoSerifDogra.
 
 ### Scripts récents ou en cours d'enrichissement
 
-NotoSansOsage, NotoSansTamilSupplement, NotoSansTest (police de test), NotoSansIndicSiyaqNumbers, NotoSansMayanNumerals.
+NotoSansOsage, NotoSansSunuwar, NotoSansTamilSupplement, NotoSansTest (police de test), NotoSansIndicSiyaqNumbers, NotoSansMayanNumerals.
 
 ### Symboles, math, musique, divers
 
@@ -153,12 +163,14 @@ NotoSansMath, NotoSansSymbols2, NotoMusic, NotoZnamennyMusicalNotation, NotoFang
 
 ### Cas hors-Noto
 
-BabelStoneHan : un seul fichier monolithique de 49.5 Mo couvrant ~64 000 caractères CJK, pas de variante.
+- **BabelStoneHan** : un seul fichier monolithique de 49,5 Mo couvrant ~64 000 caractères CJK, pas de variante.
+- **NewGardiner** : fonte académique pour les hiéroglyphes égyptiens (OFL 1.1), mono-graisse, pas de variante Bold/Italic en amont.
+- **Plangothic P1 / P2** : projet Plangothic (couverture CJK des plans étendus, U+20000+), mono-graisse, pas de variante en amont.
 
 ## Notes par famille particulière
 
 - **NotoSans (Latin/Greek/Cyrillic)** : seul cas où télécharger les 3 variantes apporte un gain sans ambiguïté. Couvre la quasi-totalité du texte d'interface et de document Western. Les variantes Italic et BoldItalic existent aussi dans des sous-axes (Condensed, ExtraLight, etc.) mais videre n'utilise actuellement que les axes principaux.
-- **NotoSansCJK (HK/JP/KR/SC/TC)** : déjà en VF dans videre. L'axe `wght` (100-900) inclut Bold (700). Pour obtenir un "vrai Bold", il faut instancier le VF à wght=700 lors du chargement (via `fontTools.ttLib.removeOverlaps` + `mutator` ou via `pygame.freetype.Font.size` + axe variable si pygame le supporte). Pas d'axe italique. Les fichiers `Subset/` sont les sous-ensembles régionaux ; le fichier `Sans/Variable/TTF/NotoSansCJK<xx>-VF.ttf` (full pan-CJK) existe aussi mais inutile car videre utilise déjà les sous-ensembles.
+- **NotoSansCJK (HK/JP/KR/SC/TC)** : présentes en VF **et** en statiques OTF (Light + Regular) dans videre. ⚠️ `pygame.freetype` n'instancie pas les axes de variation : la VF rend en Thin (`wght=100`) et n'est donc **pas** chargée — c'est la statique **Light** (`wght=300`) qui est chargée et prioritaire pour le CJK, la statique **Regular** étant conservée mais non chargée (collision de `full name` avec la VF + rendu ~1,5× trop gras). Pour un "vrai Bold", il faut donc télécharger la statique Bold (`Sans/SubsetOTF/<LANG>/NotoSans<LANG>-Bold.otf`), l'instanciation de la VF à 700 n'étant pas possible sous pygame.freetype. Pas d'axe italique. Ces cinq familles sont les versions **régionales** de Noto Sans CJK (une par langue : HK/JP/KR/SC/TC), et non le fichier pan-CJK unique : côté upstream elles proviennent du dossier `Subset/` du dépôt `notofonts/noto-cjk`, mais en local elles sont rangées sous `videre/fonts/noto-cjk-static/` — il n'existe aucun dossier `Subset/` dans le dépôt videre.
 - **NotoEmoji** : seul cas où le fichier vient de `google/fonts` plutôt que de `notofonts/*`. Le repo `googlefonts/noto-emoji` ne contient que la version **couleur** (NotoColorEmoji.ttf) ; la version monochrome utilisée par videre (`NotoEmoji-Regular.ttf`) est répliquée dans Google Fonts à `ofl/notoemoji/`. Variante VF (`NotoEmoji[wght].ttf`) couvre Light->Black ; pas d'axe italique. Italique sur emoji n'a pas de sens typographique.
 - **NotoSansMono** : Bold disponible (et même Black, Condensed, etc.) mais pas d'Italic. Standard pour les fontes monospace : la version "italique" est rare, parfois remplacée par une oblique synthétique.
 - **NotoSansSymbols vs NotoSansSymbols2** : Symbols a un Bold, Symbols2 non. C'est cohérent avec la mission : Symbols couvre les symboles courants (flèches, ponctuation étendue) où le Bold sert à harmoniser avec NotoSans Bold ; Symbols2 couvre les symboles techniques rares où Bold n'est jamais demandé.
@@ -173,5 +185,5 @@ BabelStoneHan : un seul fichier monolithique de 49.5 Mo couvrant ~64 000 caract�
 
 1. **NotoSans** : télécharger Bold + Italic + BoldItalic. Gain net pour le texte Latin/Greek/Cyrillic, qui est le cas le plus fréquent.
 2. **51 familles avec Bold seul** : choix entre (a) télécharger le Bold statique pour chacune (~ 51 fichiers supplémentaires, gain visible sur indic et arabe principalement) ou (b) maintenir la synthèse universelle. Une approche intermédiaire serait de cibler les familles fréquemment utilisées (Arabic, Hebrew, Devanagari, Bengali, Tamil, Thai-looped, Khmer, Myanmar, Ethiopic, CJK) et synthétiser pour le reste.
-3. **CJK + NotoEmoji en VF** : si videre apprend à instancier les variable fonts (via fontTools), le Bold CJK et Emoji devient gratuit sans téléchargement supplémentaire.
-4. **Regular only (114 familles)** : aucune action, synthèse universelle conforme aux 4 logiciels de référence (cf. `bold-italic-synthesis-survey.md`).
+3. **CJK + NotoEmoji en VF** : l'instanciation de VF n'est **pas** exploitable sous pygame.freetype (rendu Thin) ; le contournement actuel charge des statiques Light. Pour un Bold CJK réel, télécharger les statiques Bold (`Sans/SubsetOTF/<LANG>/…-Bold.otf`) plutôt que de compter sur l'axe de variation.
+4. **Regular only (120 familles)** : aucune action, synthèse universelle conforme aux 4 logiciels de référence (cf. `bold-italic-synthesis-survey.md`).

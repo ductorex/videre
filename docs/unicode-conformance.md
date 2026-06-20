@@ -1,7 +1,9 @@
 # Conformité Unicode — `videre/core/shaping` + `videre/fonts`
 
 > Audit du 2026-06-16. Mesures issues d'une lecture exhaustive du code et de
-> calculs exécutés contre la collection de polices embarquée (178 fichiers).
+> calculs exécutés contre la collection de polices embarquée (178 fontes
+> analysées sur 188 fichiers présents — les 5 VF CJK et leurs 5 statiques
+> Regular sont redondantes en couverture avec les statiques Light retenues).
 > Outils sous-jacents : `unicodedataplus` 16.0.0 (source unique des propriétés
 > via `core/unicode_props.py`), `fontTools.unicodedata` (nomenclature ISO de
 > script uniquement), `uharfbuzz` 0.54.1 (HarfBuzz 14.2.0).
@@ -33,6 +35,8 @@ séquences. Bilan par dimension :
 | Séquences de variation emoji | **100 %** (742 / 742) | 16.0 |
 | Séquences de variation standardisées | **89,4 %** (1 167 / 1 306) | 16.0 |
 | Séquences de variation idéographiques (IVD) | **50,3 %** (14 897 / 29 635) | IVD 2025-07-14 |
+| Séquences emoji | **100 %** (1 136 / 1 136) | 16.0 |
+| Séquences emoji ZWJ | **100 %** (1 468 / 1 468) | 16.0 |
 | Validation de shaping (absence de `.notdef`) | **100 %** (0 manquant / 153 936) | 16.0 |
 
 ## 1. Versions Unicode — unifiées sur 16.0
@@ -150,7 +154,7 @@ Profil de référence : `coverage.requires_standalone_glyph` — codepoints de
 | Codepoints **non couverts** | **655** |
 | Scripts dans le profil | 170 |
 | Scripts entièrement couverts | **167** |
-| Fichiers de fontes embarqués | 178 |
+| Fontes analysées (sur 188 fichiers embarqués) | 178 |
 
 ### Ce qui n'est PAS pris en charge (655 codepoints)
 
@@ -181,8 +185,8 @@ Registre `unicode-sequences.json` (Unicode 16.0.0, IVD **2025-07-14**). Sources 
 | Variation emoji (VS16/VS15) | 742 | **742** | **0** |
 | Variation standardisée | 1 306 | 1 167 | **139** |
 | Variation idéographique (IVD) | 29 635 | 14 897 | **14 738** |
-| Séquence emoji | 1 136 | — (rendu fonte) | — |
-| Séquence emoji ZWJ | 1 468 | — (rendu fonte) | — |
+| Séquence emoji | 1 136 | **1 136** | **0** |
+| Séquence emoji ZWJ | 1 468 | **1 468** | **0** |
 
 - Table de routage `sequence-to-font.json` : **19 203** séquences routées.
 - Variation sequences distinctes annoncées par les fontes (cmap-14) : **17 902**.
@@ -190,20 +194,25 @@ Registre `unicode-sequences.json` (Unicode 16.0.0, IVD **2025-07-14**). Sources 
   Hanyo-Denshi, Moji_Joho…) ne sont pas routés. **Impact faible** : le caractère
   Han de base s'affiche, seule la *forme variante exacte* demandée par le
   sélecteur n'est pas honorée.
-- **Séquences emoji / ZWJ** (2 604) ne sont pas mesurées en couvert/manquant : le
-  rendu passe par Noto Color Emoji au shaping (ZWJ → un glyphe), validé par le
-  contrôle de shaping ci-dessous.
+- **Séquences emoji / ZWJ** (2 604) : **couvertes à 100 %** par NotoEmoji — la
+  version **monochrome** (« Noto Emoji Regular ») qu'embarque videre, et *non* la
+  version couleur. Le générateur vérifie que la police compose chaque séquence sans
+  laisser de glyphe manquant : ~1 444 via un glyphe dédié unique, ~1 160 par
+  superposition de plusieurs glyphes (p. ex. drapeau de base + symbole). La version
+  monochrome est retenue pour que les emojis prennent la couleur du texte — une
+  fonte couleur a des teintes figées dans le glyphe, qui n'en tiennent pas compte.
 
 ## 5. Validation de shaping
 
 Le générateur (`_gen_char_cov.py`) repasse chaque codepoint couvert dans HarfBuzz
-et vérifie l'absence de `.notdef` :
+et vérifie l'absence de `.notdef` (le glyphe « non défini », c.-à-d. le *tofu*) :
 
 - Codepoints vérifiés : **153 936**
 - Échecs (glyphe manquant à l'exécution) : **0**
 
 Autrement dit : tout ce que le profil déclare couvert se shape réellement sans
-glyphe-tofu.
+*tofu* — le carré vide ▯ affiché faute de dessin pour un caractère (le nom *Noto*
+vient justement de « No Tofu »).
 
 ## 6. Conclusion consolidée — « ce qui n'est pas pris en charge »
 
@@ -218,12 +227,10 @@ glyphe-tofu.
 5. **Algorithme UAX#14 complet** : seul un profil est implémenté (pas LB1–LB31).
 6. **Normalisation (UAX#15)**, **largeur est-asiatique (UAX#11)**, **frontières de
    phrases (UAX#29 SB)** : absents (hors périmètre d'un moteur de rendu).
-7. **Décalage de version 16.0/15.1** : segmentation en 16.0, mais bidi/script/
-   direction en 15.1 (stdlib + fontTools) ; non validé par les garde-fous.
 
 Pour le **rendu de texte**, la conformité est **élevée** : segmentation UAX#29
-intégrale (16.0), bidi UAX#9 complet (15.1) avec présentation déléguée à
-HarfBuzz, et 97,36 % des caractères Unicode 16.0 rendus sans tofu. Les lacunes
+intégrale (16.0), bidi UAX#9 complet (16.0) avec présentation déléguée à
+HarfBuzz, et 99,58 % des caractères Unicode 16.0 rendus sans tofu. Les lacunes
 sont soit du ressort des *fontes* (couverture, IVD), soit des raffinements
 optionnels (soft hyphen, scx, UAX#14 complet), soit des algorithmes non
 pertinents pour un moteur basé glyphes (NF*, EAW, SB).
