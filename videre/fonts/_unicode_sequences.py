@@ -8,10 +8,9 @@ from functools import cache
 from typing import TypedDict
 
 from videre.core.textual.coverage import UNICODE_VERSION
+from videre.fonts.provider import FOLDER_FONT
 
-UNICODE_SEQUENCES_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), "unicode-sequences.json"
-)
+UNICODE_SEQUENCES_PATH = os.path.join(FOLDER_FONT, "cov", "unicode-sequences.json")
 
 
 class UnicodeSequenceData(TypedDict):

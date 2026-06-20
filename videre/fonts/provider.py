@@ -43,12 +43,12 @@ _PATH_BABEL_STONE_HAN = _file_path(FOLDER_FONT, "other-ttf/BabelStoneHan.ttf")
 _PATH_PLANGOTHIC_P1 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP1-Regular.ttf")
 _PATH_PLANGOTHIC_P2 = _file_path(FOLDER_FONT, "plangothic", "PlangothicP2-Regular.ttf")
 _PATH_NEWGARDINER = _file_path(FOLDER_FONT, "newgardiner", "NewGardiner.ttf")
-_FOLDER_NOTO = _dir_path(FOLDER_FONT, "noto", "unhinted", "TTF")
-_FOLDER_NOTO_SERIF = _dir_path(FOLDER_FONT, "noto-serif", "unhinted", "TTF")
-_FOLDER_NOTO_MONO = _dir_path(FOLDER_FONT, "noto-mono", "unhinted", "TTF")
-_FOLDER_NOTO_CJK_LIGHT = _dir_path(FOLDER_FONT, "noto-cjk-static", "light")
+_FOLDER_NOTO_SANS = _dir_path(FOLDER_FONT, "noto", "sans", "unhinted", "TTF")
+_FOLDER_NOTO_SERIF = _dir_path(FOLDER_FONT, "noto", "serif", "unhinted", "TTF")
+_FOLDER_NOTO_MONO = _dir_path(FOLDER_FONT, "noto", "mono", "unhinted", "TTF")
+_FOLDER_NOTO_CJK_LIGHT = _dir_path(FOLDER_FONT, "noto", "cjk", "light")
 
-_NOTO_FONTS = _font_paths(_FOLDER_NOTO)
+_NOTO_FONTS = _font_paths(_FOLDER_NOTO_SANS)
 _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
 _NOTO_CJK_LIGHT_FONTS = _font_paths(_FOLDER_NOTO_CJK_LIGHT)
 
@@ -59,7 +59,7 @@ PATH_NOTO_MONO = _file_path(_FOLDER_NOTO_MONO, "NotoSansMono-Regular.ttf")
 FONT_BABEL_STONE = FontUtils(_PATH_BABEL_STONE_HAN)
 FONT_PLANGOTHIC_P1 = FontUtils(_PATH_PLANGOTHIC_P1)
 FONT_PLANGOTHIC_P2 = FontUtils(_PATH_PLANGOTHIC_P2)
-FONT_NOTO_REGULAR = FontUtils(_file_path(_FOLDER_NOTO, "NotoSans-Regular.ttf"))
+FONT_NOTO_REGULAR = FontUtils(_file_path(_FOLDER_NOTO_SANS, "NotoSans-Regular.ttf"))
 FONT_NOTO_MONO = FontUtils(PATH_NOTO_MONO)
 FONT_NEWGARDINER = FontUtils(_PATH_NEWGARDINER)
 
@@ -91,9 +91,9 @@ def get_fonts() -> dict[str, str]:
     return fonts
 
 
-JSON_FONT_CAPABILITIES = os.path.join(FOLDER_FONT, "font-capabilities.json")
-JSON_FONT_TO_CHARACTERS = os.path.join(FOLDER_FONT, "font-to-characters.json")
-JSON_SEQUENCE_TO_FONT = os.path.join(FOLDER_FONT, "sequence-to-font.json")
+JSON_FONT_CAPABILITIES = os.path.join(FOLDER_FONT, "cov", "font-capabilities.json")
+JSON_FONT_TO_CHARACTERS = os.path.join(FOLDER_FONT, "cov", "font-to-characters.json")
+JSON_SEQUENCE_TO_FONT = os.path.join(FOLDER_FONT, "cov", "sequence-to-font.json")
 
 
 class FontProvider:

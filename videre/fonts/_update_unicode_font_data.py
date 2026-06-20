@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 
 from videre.core.textual.coverage import UNICODE_VERSION
-from videre.fonts.unicode_sequences import UNICODE_SEQUENCES_PATH
+from videre.fonts._unicode_sequences import UNICODE_SEQUENCES_PATH
 
 IVD_VERSION = "2025-07-14"
 

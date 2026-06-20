@@ -20,6 +20,7 @@ from videre.core.textual.coverage import (
     open_type_script_tags,
 )
 from videre.core.textual.unicode_char import get_character
+from videre.fonts._unicode_sequences import load_unicode_sequences
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import (
     FOLDER_FONT,
@@ -29,11 +30,10 @@ from videre.fonts.provider import (
     JSON_SEQUENCE_TO_FONT,
     get_fonts,
 )
-from videre.fonts.unicode_sequences import load_unicode_sequences
 
 logger = logging.getLogger(__name__)
 
-_COVERAGE_REPORT_PATH = os.path.join(FOLDER_FONT, "_coverage-report.json")
+_COVERAGE_REPORT_PATH = os.path.join(FOLDER_FONT, "cov", "_coverage-report.json")
 _NOTO_EMOJI = "Noto Emoji Regular"
 
 PRIORITY_FONTS: dict[str, list[str]] = {

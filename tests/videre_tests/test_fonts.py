@@ -1,11 +1,10 @@
 import json
-import os
 
 from videre.core.textual.coverage import UNICODE_VERSION, requires_standalone_glyph
 from videre.fonts._gen_char_cov import _COVERAGE_REPORT_PATH, generate_font_artifacts
 from videre.fonts.provider import (
-    FOLDER_FONT,
     JSON_FONT_CAPABILITIES,
+    JSON_FONT_TO_CHARACTERS,
     JSON_SEQUENCE_TO_FONT,
     FontProvider,
 )
@@ -19,19 +18,14 @@ def _load_json(path: str):
 def test_production_font_json_files_are_current() -> None:
     generated = generate_font_artifacts()
 
-    assert (
-        _load_json(os.path.join(FOLDER_FONT, "font-to-characters.json"))
-        == generated.font_to_characters
-    )
+    assert _load_json(JSON_FONT_TO_CHARACTERS) == generated.font_to_characters
     assert _load_json(JSON_FONT_CAPABILITIES) == generated.font_capabilities
     assert _load_json(JSON_SEQUENCE_TO_FONT) == generated.sequence_to_font
     assert _load_json(_COVERAGE_REPORT_PATH) == generated.coverage_report
 
 
 def test_generated_character_routing_uses_font_coverage_profile() -> None:
-    font_to_characters = _load_json(
-        os.path.join(FOLDER_FONT, "font-to-characters.json")
-    )["fonts"]
+    font_to_characters = _load_json(JSON_FONT_TO_CHARACTERS)["fonts"]
     _fonts, char_to_indice = FontProvider._parse_font_to_characters(font_to_characters)
 
     assert len(char_to_indice) == 153936
