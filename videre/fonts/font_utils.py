@@ -1,11 +1,11 @@
 from fontTools.ttLib import TTFont
 
-from videre.core.unicode_char import get_character
-from videre.fonts.coverage import (
+from videre.core.textual.coverage import (
     FontCapabilities,
     codepoints_to_ranges,
     requires_standalone_glyph,
 )
+from videre.core.textual.unicode_char import get_character
 
 
 def _get_sized_height(font: TTFont, pt_size: int, dpi: int = 72) -> int:

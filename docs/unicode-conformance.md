@@ -5,14 +5,14 @@
 > analysées sur 188 fichiers présents — les 5 VF CJK et leurs 5 statiques
 > Regular sont redondantes en couverture avec les statiques Light retenues).
 > Outils sous-jacents : `unicodedataplus` 16.0.0 (source unique des propriétés
-> via `core/unicode_props.py`), `fontTools.unicodedata` (nomenclature ISO de
+> via `core/textual/unicode_props.py`), `fontTools.unicodedata` (nomenclature ISO de
 > script uniquement), `uharfbuzz` 0.54.1 (HarfBuzz 14.2.0).
 >
 > Mise à jour 2026-06-16 (a) : ajout de la fonte **NewGardiner** (OFL 1.1)
 > couvrant les hiéroglyphes égyptiens (base + format controls + Extended-A) —
 > couverture des caractères passée de 97,36 % à **99,58 %**.
 > Mise à jour 2026-06-16 (b) : unification sur **Unicode 16.0 partout** via
-> `core/unicode_props.py` (fin de la dualité 16.0/15.1) — 5 191 classes bidi et
+> `core/textual/unicode_props.py` (fin de la dualité 16.0/15.1) — 5 191 classes bidi et
 > 5 185 catégories de caractères 16.0 corrigées.
 
 ## 0. Résumé
@@ -42,7 +42,7 @@ séquences. Bilan par dimension :
 ## 1. Versions Unicode — unifiées sur 16.0
 
 Toutes les propriétés Unicode *versionnées* passent désormais par
-`videre/core/unicode_props.py`, qui fait de **`unicodedataplus` (16.0)** la
+`videre/core/textual/unicode_props.py`, qui fait de **`unicodedataplus` (16.0)** la
 source unique : `category`, `bidirectional`, `decomposition`, `block`, et le
 `script` (nom long 16.0 converti en code ISO 15924 via `fontTools.script_code`,
 pure nomenclature non versionnée). `fontTools.unicodedata` ne sert plus qu'à deux

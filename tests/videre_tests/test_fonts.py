@@ -1,8 +1,8 @@
 import json
 import os
 
+from videre.core.textual.coverage import UNICODE_VERSION, requires_standalone_glyph
 from videre.fonts._gen_char_cov import _COVERAGE_REPORT_PATH, generate_font_artifacts
-from videre.fonts.coverage import UNICODE_VERSION, requires_standalone_glyph
 from videre.fonts.provider import (
     FOLDER_FONT,
     JSON_FONT_CAPABILITIES,

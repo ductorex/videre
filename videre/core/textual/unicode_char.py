@@ -1,8 +1,8 @@
 import functools
 from dataclasses import dataclass
 
-from videre.core import unicode_props
-from videre.fonts.coverage import requires_standalone_glyph
+from videre.core.textual import unicode_props
+from videre.core.textual.coverage import requires_standalone_glyph
 
 _COMMON_SCRIPT = "Zyyy"
 _INHERITED_SCRIPT = "Zinh"

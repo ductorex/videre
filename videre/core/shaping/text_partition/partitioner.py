@@ -42,7 +42,7 @@ from videre.core.shaping.text_partition.word_splitter import (
     split_word_spans,
 )
 from videre.core.text_editing import EditUnit, EditUnitKind, segment_edit_units
-from videre.core.unicode_char import get_character
+from videre.core.textual.unicode_char import get_character
 from videre.core.vibidi.vibidi import vibidi
 from videre.fonts.provider import get_font_provider
 

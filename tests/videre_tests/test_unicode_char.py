@@ -1,4 +1,4 @@
-from videre.core.unicode_char import get_character
+from videre.core.textual.unicode_char import get_character
 
 
 def test_font_coverage_profile() -> None:

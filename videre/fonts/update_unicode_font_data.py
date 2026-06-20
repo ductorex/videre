@@ -5,13 +5,11 @@ offline. Run this script deliberately when Videre's pinned Unicode or IVD
 version changes.
 """
 
-from __future__ import annotations
-
 import json
 import urllib.request
 from pathlib import Path
 
-from videre.fonts.coverage import UNICODE_VERSION
+from videre.core.textual.coverage import UNICODE_VERSION
 from videre.fonts.unicode_sequences import UNICODE_SEQUENCES_PATH
 
 IVD_VERSION = "2025-07-14"

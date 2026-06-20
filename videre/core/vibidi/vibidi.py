@@ -35,7 +35,7 @@ from enum import StrEnum, auto
 from pathlib import Path
 from typing import Sequence
 
-from videre.core import unicode_props
+from videre.core.textual import unicode_props
 
 
 @dataclass(frozen=True, slots=True)

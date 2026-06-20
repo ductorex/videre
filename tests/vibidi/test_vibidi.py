@@ -6,7 +6,7 @@ exhaustive conformance run against Unicode's BidiCharacterTest.txt lives in
 `test_bidi_character.py`; this file is the readable, fast first line of defence.
 """
 
-from videre.core import unicode_props
+from videre.core.textual import unicode_props
 from videre.core.vibidi.vibidi import _BRACKETS_FILE, RtlPolicy, vibidi
 
 HEB = "אבג"  # three Hebrew letters, strong R, logical order aleph/bet/gimel

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from videre.core.text_editing import EditUnit
-from videre.core.unicode_char import Character
+from videre.core.textual.unicode_char import Character
 from videre.core.vibidi.vibidi import VibidiText
 
 

@@ -18,7 +18,7 @@ données périmées (mauvaise version Unicode, schéma incompatible).
 
 | Fichier | Rôle | Généré par | Lu à l'exécution ? |
 |---|---|---|---|
-| `unicode-sequences.json` | Registre **source** des séquences Unicode (variations standardisées + variations emoji + IVD ; séquences emoji + séquences ZWJ), recopié depuis Unicode et l'IVD | `tools/update_unicode_font_data.py` | **Non** — c'est l'*entrée* de la génération |
+| `unicode-sequences.json` | Registre **source** des séquences Unicode (variations standardisées + variations emoji + IVD ; séquences emoji + séquences ZWJ), recopié depuis Unicode et l'IVD | `update_unicode_font_data` | **Non** — c'est l'*entrée* de la génération |
 | `font-capabilities.json` | Par police : plages de caractères couverts, séquences de variation annoncées (table `cmap` format 14), écritures gérées (tables OpenType GSUB/GPOS) | `_gen_char_cov` | **Oui** (`provider.py`) |
 | `font-to-characters.json` | Par police : la liste des caractères qu'elle couvre | `_gen_char_cov` | **Oui** (`provider.py`) |
 | `sequence-to-font.json` | Par séquence (drapeau, emoji ZWJ, variation…) : la police à utiliser pour la rendre | `_gen_char_cov` | **Oui** (`provider.py`) |
@@ -47,7 +47,7 @@ L'ordre compte : les artefacts dépendent du registre source.
 1. **Registre Unicode** — uniquement quand on change de version Unicode / IVD :
 
    ```
-   python tools/update_unicode_font_data.py
+   python -m videre.fonts.update_unicode_font_data
    ```
 
    Télécharge les données depuis Unicode et l'IVD, puis réécrit
@@ -77,8 +77,16 @@ L'ordre compte : les artefacts dépendent du registre source.
 - `provider.py` — `FontProvider` : charge `font-to-characters`,
   `font-capabilities` et `sequence-to-font` au démarrage ; `get_font_info(char)`
   et `get_font_info_for_cluster(text)` choisissent la police.
-- `coverage.py` — primitives Unicode/OpenType (profil de couverture, capacités).
 - `unicode_sequences.py` — chargement validé de `unicode-sequences.json`.
+- `update_unicode_font_data.py` — (re)télécharge les registres Unicode/IVD et
+  réécrit `unicode-sequences.json` ; à lancer via
+  `python -m videre.fonts.update_unicode_font_data`.
 - `_gen_char_cov.py` — génère les quatre artefacts.
 - `_cov_stats.py` — rapport lisible à partir de `_coverage-report.json`.
 - `font_utils.py` — accès bas niveau aux fichiers de police.
+
+Les primitives Unicode partagées vivent désormais dans
+[`../core/textual/`](../core/textual/) — profil de couverture et capacités
+OpenType (`coverage.py`), propriétés par caractère (`unicode_char.py`) et
+propriétés versionnées 16.0 (`unicode_props.py`) — et sont importées par les
+modules ci-dessus.

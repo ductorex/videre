@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 
-from videre.core import unicode_props
 from videre.core.text_editing import grapheme_boundaries
-from videre.core.unicode_char import NEUTRAL_SCRIPTS, get_character
-from videre.fonts.coverage import is_variation_selector
+from videre.core.textual import unicode_props
+from videre.core.textual.coverage import is_variation_selector
+from videre.core.textual.unicode_char import NEUTRAL_SCRIPTS, get_character
 from videre.fonts.provider import get_font_provider
 
 

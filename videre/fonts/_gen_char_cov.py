@@ -13,13 +13,13 @@ from fontTools.ttLib import TTCollection
 from tqdm import tqdm
 from uharfbuzz import Buffer, BufferFlags, Face, Font, ot_font_set_funcs, shape
 
-from videre.core.unicode_char import get_character
-from videre.fonts.coverage import (
+from videre.core.textual.coverage import (
     UNICODE_VERSION,
     FontCapabilities,
     font_coverage_characters,
     open_type_script_tags,
 )
+from videre.core.textual.unicode_char import get_character
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import (
     FOLDER_FONT,

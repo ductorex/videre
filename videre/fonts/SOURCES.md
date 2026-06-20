@@ -338,7 +338,7 @@ polices. Ils utilisent aussi les registres Unicode officiels suivants :
 
 Les URL exactes, la version Unicode et la version IVD sont enregistrées dans
 `unicode-sequences.json`. Ce fichier est régénéré par
-`tools/update_unicode_font_data.py`.
+`videre/fonts/update_unicode_font_data.py`.
 
 ## Mise à jour
 
@@ -370,7 +370,7 @@ Lors d'un changement de version Unicode ou IVD, régénérer d'abord le registre
 des séquences :
 
 ```bash
-uv run python tools/update_unicode_font_data.py
+uv run python -m videre.fonts.update_unicode_font_data
 uv run python -m videre.fonts._gen_char_cov
 ```
 

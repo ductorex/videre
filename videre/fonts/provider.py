@@ -12,7 +12,7 @@ import json
 import os
 from functools import cache
 
-from videre.fonts.coverage import (
+from videre.core.textual.coverage import (
     UNICODE_VERSION,
     FontCapabilities,
     requires_standalone_glyph,

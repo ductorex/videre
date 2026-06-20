@@ -115,7 +115,7 @@ Two implementations both satisfy `AbstractTextRendering`:
 
    Removed (don't look for them — see git): `python-bidi`, the old renderable model, the per-run shaping pipeline, `ShapedUnit` (the model is now fully flat — one `ShapedCluster` carried end-to-end; see `docs/shaping-cluster-model.md`), and the transitional `new_text_partition/` package (the 2026-06 reorg split it into `text_partition/` + `rendering/` + root modules; `env.py` is gone).
 
-**Font discovery** (`videre/fonts/`): `provider.py::FontProvider` does per-character lookup + cluster-aware fallback over the bundled fonts. Generated artifacts: `font-capabilities.json` (standalone codepoints, cmap-14 variation sequences, GSUB/GPOS scripts), `sequence-to-font.json` (variation/emoji-sequence routing), `_coverage-report.json` (audit). PUA + default-ignorable codepoints are excluded as standalone requirements but kept inside shaping clusters. Regenerate via `python -m videre.fonts._gen_char_cov`; refresh the Unicode/IVD registry via `tools/update_unicode_font_data.py`.
+**Font discovery** (`videre/fonts/`): `provider.py::FontProvider` does per-character lookup + cluster-aware fallback over the bundled fonts. Generated artifacts: `font-capabilities.json` (standalone codepoints, cmap-14 variation sequences, GSUB/GPOS scripts), `sequence-to-font.json` (variation/emoji-sequence routing), `_coverage-report.json` (audit). PUA + default-ignorable codepoints are excluded as standalone requirements but kept inside shaping clusters. Regenerate via `python -m videre.fonts._gen_char_cov`; refresh the Unicode/IVD registry via `python -m videre.fonts.update_unicode_font_data`.
 
 ### Testing (`videre/testing/`, `tests/`)
 

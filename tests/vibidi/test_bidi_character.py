@@ -17,7 +17,7 @@ import os
 
 import pytest
 
-from videre.core import unicode_props
+from videre.core.textual import unicode_props
 from videre.core.vibidi.vibidi import RtlPolicy, _l2_order, vibidi
 
 _DATA = os.path.join(os.path.dirname(__file__), "data", "BidiCharacterTest.txt")

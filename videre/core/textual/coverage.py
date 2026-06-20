@@ -9,7 +9,7 @@ from typing import Iterable, Iterator
 import unicodedataplus as unicode_data  # ty: ignore
 from fontTools import unicodedata as fonttools_unicode
 
-from videre.core import unicode_props
+from videre.core.textual import unicode_props
 
 UNICODE_VERSION = unicode_data.unidata_version
 
