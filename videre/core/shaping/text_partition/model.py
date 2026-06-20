@@ -12,8 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from videre.core.text_editing import EditUnit
+from videre.core.unicode_char import Character
 from videre.core.vibidi.vibidi import VibidiText
-from videre.fonts.unicode_utils import Character
 
 
 @dataclass(slots=True, frozen=True)

@@ -13,6 +13,7 @@ from fontTools.ttLib import TTCollection
 from tqdm import tqdm
 from uharfbuzz import Buffer, BufferFlags, Face, Font, ot_font_set_funcs, shape
 
+from videre.core.unicode_char import get_character
 from videre.fonts.coverage import (
     UNICODE_VERSION,
     FontCapabilities,
@@ -22,14 +23,13 @@ from videre.fonts.coverage import (
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import (
     FOLDER_FONT,
-    FONT_CAPABILITIES_PATH,
     FONT_NOTO_REGULAR,
-    FONT_TO_CHARACTERS_PATH,
-    SEQUENCE_TO_FONT_PATH,
+    JSON_FONT_CAPABILITIES,
+    JSON_FONT_TO_CHARACTERS,
+    JSON_SEQUENCE_TO_FONT,
     get_fonts,
 )
 from videre.fonts.unicode_sequences import load_unicode_sequences
-from videre.fonts.unicode_utils import Unicode
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ def _font_priority_key(
     *,
     prefer_layout: bool,
 ) -> tuple[int, int, int, int, str]:
-    unicode_block = Unicode.block(character)
+    unicode_block = get_character(character).block
     rank = _FONT_PRIORITIZER.get_font_rank_for_unicode_block(unicode_block, font_name)
     layout_support = capabilities[font_name].layout_support(
         open_type_script_tags(character)
@@ -345,7 +345,7 @@ def _coverage_report(
     target = set(font_coverage_characters())
     covered = set(char_to_font)
     missing = sorted(target - covered, key=ord)
-    blocks = Counter(Unicode.block(character) for character in missing)
+    blocks = Counter(get_character(character).block for character in missing)
     return {
         "schema_version": 1,
         "unicode_version": UNICODE_VERSION,
@@ -424,9 +424,9 @@ def _write_json(path: str, value: object) -> None:
 
 def generate_char_cov() -> None:
     artifacts = generate_font_artifacts()
-    _write_json(FONT_TO_CHARACTERS_PATH, artifacts.font_to_characters)
-    _write_json(FONT_CAPABILITIES_PATH, artifacts.font_capabilities)
-    _write_json(SEQUENCE_TO_FONT_PATH, artifacts.sequence_to_font)
+    _write_json(JSON_FONT_TO_CHARACTERS, artifacts.font_to_characters)
+    _write_json(JSON_FONT_CAPABILITIES, artifacts.font_capabilities)
+    _write_json(JSON_SEQUENCE_TO_FONT, artifacts.sequence_to_font)
     _write_json(_COVERAGE_REPORT_PATH, artifacts.coverage_report)
 
 

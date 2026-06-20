@@ -1,9 +1,54 @@
 from abc import ABC, abstractmethod
 from typing import Self
 
+from videre.core import unicode_props
 from videre.core.constants import TextAlign
 from videre.core.pygame_backend.definitions import Rect
-from videre.fonts.unicode_utils import Unicode
+from videre.fonts.coverage import UNICODE_VERSION
+
+
+class Unicode:
+    # Kept for the legacy printable predicate. Font coverage has its own
+    # explicit Unicode 16 profile below.
+    VERSION = unicode_props.UNICODE_VERSION
+    FONT_COVERAGE_VERSION = UNICODE_VERSION
+
+    Cc = "Cc"  # control characters
+    Co = "Co"  # private use
+    Cs = "Cs"  # surrogates
+    Cn = "Cn"  # non-character or reserved
+    UNPRINTABLE = (Cc, Co, Cs, Cn)
+
+    # UAX#9 explicit bidi formatters have no visual representation. The legacy
+    # printable predicate rejects them, but the shaping pipeline preserves raw text
+    # and classifies these characters as editing units before bidi resolution.
+    # ZWNJ (U+200C) and ZWJ (U+200D) remain printable because they also affect
+    # cursive shaping in Arabic / Indic scripts.
+    _BIDI_FORMATTERS: frozenset[str] = frozenset(
+        chr(c)
+        for c in (
+            0x202A,  # LRE - Left-to-Right Embedding
+            0x202B,  # RLE - Right-to-Left Embedding
+            0x202C,  # PDF - Pop Directional Format
+            0x202D,  # LRO - Left-to-Right Override
+            0x202E,  # RLO - Right-to-Left Override
+            0x2066,  # LRI - Left-to-Right Isolate
+            0x2067,  # RLI - Right-to-Left Isolate
+            0x2068,  # FSI - First-Strong Isolate
+            0x2069,  # PDI - Pop Directional Isolate
+        )
+    )
+
+    @classmethod
+    def printable(cls, c: str) -> bool:
+        """
+        2024/06/09
+        https://stackoverflow.com/a/68992289
+        """
+        return (
+            unicode_props.category(c) not in cls.UNPRINTABLE
+            and c not in cls._BIDI_FORMATTERS
+        )
 
 
 class AbstractTextElement(ABC):

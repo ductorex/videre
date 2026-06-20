@@ -2,6 +2,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from videre.core.unicode_char import get_character
 from videre.fonts.coverage import (
     UNICODE_VERSION,
     FontCapabilities,
@@ -9,11 +10,10 @@ from videre.fonts.coverage import (
     open_type_script_tags,
 )
 from videre.fonts.provider import (
-    FONT_CAPABILITIES_PATH,
-    FONT_TO_CHARACTERS_PATH,
-    SEQUENCE_TO_FONT_PATH,
+    JSON_FONT_CAPABILITIES,
+    JSON_FONT_TO_CHARACTERS,
+    JSON_SEQUENCE_TO_FONT,
 )
-from videre.fonts.unicode_utils import Unicode
 
 FOLDER_FONT = Path(__file__).resolve().parent
 _COVERAGE_REPORT_PATH = FOLDER_FONT / "_coverage-report.json"
@@ -26,7 +26,7 @@ def _load_json(path: Path | str) -> dict:
 
 
 def _character_routes() -> dict[str, str]:
-    font_to_characters: dict[str, str] = _load_json(FONT_TO_CHARACTERS_PATH)["fonts"]
+    font_to_characters: dict[str, str] = _load_json(JSON_FONT_TO_CHARACTERS)["fonts"]
     return {
         character: font_name
         for font_name, characters in font_to_characters.items()
@@ -35,7 +35,7 @@ def _character_routes() -> dict[str, str]:
 
 
 def _font_capabilities() -> dict[str, FontCapabilities]:
-    data = _load_json(FONT_CAPABILITIES_PATH)
+    data = _load_json(JSON_FONT_CAPABILITIES)
     assert data["unicode_version"] == UNICODE_VERSION
     return {
         name: FontCapabilities.from_json(value) for name, value in data["fonts"].items()
@@ -62,7 +62,7 @@ def _print_coverage_summary(report: dict) -> None:
 def _print_block_routing(character_to_font: dict[str, str]) -> None:
     block_to_routes: dict[str, Counter[str]] = {}
     for character in font_coverage_characters():
-        block = Unicode.block(character)
+        block = get_character(character).block
         routes = block_to_routes.setdefault(block, Counter())
         routes[character_to_font.get(character, _MISSING)] += 1
 
@@ -145,7 +145,7 @@ def _print_layout_routing(
             and capability.supports_codepoint(ord(character))
             and capability.layout_support(script_tags)
         ]
-        key = (Unicode.block(character), selected_name)
+        key = (get_character(character).block, selected_name)
         if alternatives:
             avoidable[key] += 1
         else:
@@ -170,7 +170,7 @@ def _print_layout_routing(
 
 def main() -> None:
     report = _load_json(_COVERAGE_REPORT_PATH)
-    sequence_data = _load_json(SEQUENCE_TO_FONT_PATH)
+    sequence_data = _load_json(JSON_SEQUENCE_TO_FONT)
     assert report["unicode_version"] == UNICODE_VERSION
     assert sequence_data["unicode_version"] == UNICODE_VERSION
 

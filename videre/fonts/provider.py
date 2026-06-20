@@ -52,7 +52,7 @@ _NOTO_FONTS = _font_paths(_FOLDER_NOTO)
 _NOTO_SERIF_FONTS = _font_paths(_FOLDER_NOTO_SERIF)
 _NOTO_CJK_LIGHT_FONTS = _font_paths(_FOLDER_NOTO_CJK_LIGHT)
 
-# TODO: NB: User should be able to use a specific font (ncluding mono) if he wants.
+# TODO: NB: User should be able to use a specific font (including mono) if he wants.
 
 PATH_NOTO_MONO = _file_path(_FOLDER_NOTO_MONO, "NotoSansMono-Regular.ttf")
 
@@ -72,17 +72,12 @@ def _get_fonts(paths: list[str]) -> dict[str, str]:
     return output
 
 
-def _get_noto_fonts() -> dict[str, str]:
+def get_fonts() -> dict[str, str]:
     sans_fonts = _get_fonts(_NOTO_FONTS)
     serif_fonts = _get_fonts(_NOTO_SERIF_FONTS)
     cjk_light_fonts = _get_fonts(_NOTO_CJK_LIGHT_FONTS)
-    fonts = {**sans_fonts, **serif_fonts, **cjk_light_fonts}
-    assert len(fonts) == len(sans_fonts) + len(serif_fonts) + len(cjk_light_fonts)
-    return fonts
-
-
-def get_fonts() -> dict[str, str]:
-    noto_fonts = _get_noto_fonts()
+    noto_fonts = {**sans_fonts, **serif_fonts, **cjk_light_fonts}
+    assert len(noto_fonts) == len(sans_fonts) + len(serif_fonts) + len(cjk_light_fonts)
     extras = {
         **FONT_BABEL_STONE.to_dict(),
         **FONT_PLANGOTHIC_P1.to_dict(),
@@ -96,9 +91,9 @@ def get_fonts() -> dict[str, str]:
     return fonts
 
 
-FONT_CAPABILITIES_PATH = os.path.join(FOLDER_FONT, "font-capabilities.json")
-FONT_TO_CHARACTERS_PATH = os.path.join(FOLDER_FONT, "font-to-characters.json")
-SEQUENCE_TO_FONT_PATH = os.path.join(FOLDER_FONT, "sequence-to-font.json")
+JSON_FONT_CAPABILITIES = os.path.join(FOLDER_FONT, "font-capabilities.json")
+JSON_FONT_TO_CHARACTERS = os.path.join(FOLDER_FONT, "font-to-characters.json")
+JSON_SEQUENCE_TO_FONT = os.path.join(FOLDER_FONT, "sequence-to-font.json")
 
 
 class FontProvider:
@@ -121,7 +116,7 @@ class FontProvider:
 
     @classmethod
     def _load_font_to_characters(cls):
-        with open(FONT_TO_CHARACTERS_PATH, encoding="utf-8") as file:
+        with open(JSON_FONT_TO_CHARACTERS, encoding="utf-8") as file:
             value = json.load(file)
         if value["schema_version"] != 1:
             raise ValueError(
@@ -149,7 +144,7 @@ class FontProvider:
 
     @classmethod
     def _load_capabilities(cls) -> dict[str, FontCapabilities]:
-        with open(FONT_CAPABILITIES_PATH, encoding="utf-8") as file:
+        with open(JSON_FONT_CAPABILITIES, encoding="utf-8") as file:
             value = json.load(file)
         if value["schema_version"] != 1:
             raise ValueError(
@@ -167,7 +162,7 @@ class FontProvider:
 
     @classmethod
     def _load_sequence_to_font(cls) -> dict[str, str]:
-        with open(SEQUENCE_TO_FONT_PATH, encoding="utf-8") as file:
+        with open(JSON_SEQUENCE_TO_FONT, encoding="utf-8") as file:
             value = json.load(file)
         if value["schema_version"] != 1:
             raise ValueError(

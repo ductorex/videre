@@ -1,11 +1,11 @@
 from fontTools.ttLib import TTFont
 
+from videre.core.unicode_char import get_character
 from videre.fonts.coverage import (
     FontCapabilities,
     codepoints_to_ranges,
     requires_standalone_glyph,
 )
-from videre.fonts.unicode_utils import Unicode
 
 
 def _get_sized_height(font: TTFont, pt_size: int, dpi: int = 72) -> int:
@@ -77,7 +77,7 @@ class FontUtils:
         for char_int in self._unicode_map.keys():
             c = chr(char_int)
             if requires_standalone_glyph(c):
-                blocks.setdefault(Unicode.block(c), []).append(c)
+                blocks.setdefault(get_character(c).block, []).append(c)
         return blocks
 
     def capabilities(self) -> FontCapabilities:
@@ -88,7 +88,7 @@ class FontUtils:
                 if table.format == 14
                 for selector, entries in table.uvsDict.items()
                 for base, _glyph_name in entries
-                if Unicode.requires_font_glyph(chr(base))
+                if get_character(chr(base)).requires_font_glyph()
             )
             gsub_scripts = _layout_scripts(font, "GSUB")
             gpos_scripts = _layout_scripts(font, "GPOS")

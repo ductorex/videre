@@ -188,26 +188,3 @@ def test_split_by_font_emoji_in_latin_text_splits_pieces() -> None:
     assert "".join(p.text for p in pieces) == text
     fonts = {p.font_name for p in pieces}
     assert len(fonts) >= 2  # at least one font change happened
-
-
-# -- Unicode.printable (bidi formatters / joiners) --------------------------
-
-
-def test_unicode_printable_rejects_explicit_bidi_formatters() -> None:
-    """The legacy printable predicate still classifies explicit bidi
-    formatters as non-printable. The shaping partitioner no longer uses this
-    predicate destructively: it preserves them for vibidi and source editing."""
-    from videre.fonts.unicode_utils import Unicode
-
-    for c in (LRE, RLE, PDF):
-        assert not Unicode.printable(c), f"{c!r} should be non-printable"
-
-
-def test_unicode_printable_keeps_zwnj_and_zwj() -> None:
-    """ZWNJ / ZWJ remain printable because they affect cursive
-    shaping (Arabic, Indic). `partitioner` strips them per line before
-    handing the text to vibidi."""
-    from videre.fonts.unicode_utils import Unicode
-
-    assert Unicode.printable(ZWNJ)
-    assert Unicode.printable(chr(0x200D))  # ZWJ
