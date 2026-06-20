@@ -375,4 +375,4 @@ uv run python -m videre.fonts._gen_char_cov
 ```
 
 Les artefacts de production concernés sont `font-to-characters.json`,
-`font-capabilities.json`, `sequence-to-font.json` et `coverage-report.json`.
+`font-capabilities.json`, `sequence-to-font.json` et `_coverage-report.json`.

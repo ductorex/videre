@@ -8,23 +8,25 @@ from videre.fonts.coverage import (
     font_coverage_characters,
     open_type_script_tags,
 )
+from videre.fonts.provider import (
+    FONT_CAPABILITIES_PATH,
+    FONT_TO_CHARACTERS_PATH,
+    SEQUENCE_TO_FONT_PATH,
+)
 from videre.fonts.unicode_utils import Unicode
 
 FOLDER_FONT = Path(__file__).resolve().parent
-FONT_TO_CHARACTERS_PATH = FOLDER_FONT / "font-to-characters.json"
-FONT_CAPABILITIES_PATH = FOLDER_FONT / "font-capabilities.json"
-SEQUENCE_TO_FONT_PATH = FOLDER_FONT / "sequence-to-font.json"
-COVERAGE_REPORT_PATH = FOLDER_FONT / "coverage-report.json"
+_COVERAGE_REPORT_PATH = FOLDER_FONT / "_coverage-report.json"
 _MISSING = "<missing>"
 
 
-def _load_json(path: Path) -> dict:
+def _load_json(path: Path | str) -> dict:
     with open(path, encoding="utf-8") as file:
         return json.load(file)
 
 
 def _character_routes() -> dict[str, str]:
-    font_to_characters: dict[str, str] = _load_json(FONT_TO_CHARACTERS_PATH)
+    font_to_characters: dict[str, str] = _load_json(FONT_TO_CHARACTERS_PATH)["fonts"]
     return {
         character: font_name
         for font_name, characters in font_to_characters.items()
@@ -167,7 +169,7 @@ def _print_layout_routing(
 
 
 def main() -> None:
-    report = _load_json(COVERAGE_REPORT_PATH)
+    report = _load_json(_COVERAGE_REPORT_PATH)
     sequence_data = _load_json(SEQUENCE_TO_FONT_PATH)
     assert report["unicode_version"] == UNICODE_VERSION
     assert sequence_data["unicode_version"] == UNICODE_VERSION

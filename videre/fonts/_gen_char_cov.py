@@ -20,15 +20,20 @@ from videre.fonts.coverage import (
     open_type_script_tags,
 )
 from videre.fonts.font_utils import FontUtils
-from videre.fonts.provider import FOLDER_FONT, FONT_NOTO_REGULAR, get_fonts
+from videre.fonts.provider import (
+    FOLDER_FONT,
+    FONT_CAPABILITIES_PATH,
+    FONT_NOTO_REGULAR,
+    FONT_TO_CHARACTERS_PATH,
+    SEQUENCE_TO_FONT_PATH,
+    get_fonts,
+)
 from videre.fonts.unicode_sequences import load_unicode_sequences
 from videre.fonts.unicode_utils import Unicode
 
 logger = logging.getLogger(__name__)
 
-FONT_CAPABILITIES_PATH = os.path.join(FOLDER_FONT, "font-capabilities.json")
-SEQUENCE_TO_FONT_PATH = os.path.join(FOLDER_FONT, "sequence-to-font.json")
-COVERAGE_REPORT_PATH = os.path.join(FOLDER_FONT, "coverage-report.json")
+_COVERAGE_REPORT_PATH = os.path.join(FOLDER_FONT, "_coverage-report.json")
 _NOTO_EMOJI = "Noto Emoji Regular"
 
 PRIORITY_FONTS: dict[str, list[str]] = {
@@ -359,7 +364,7 @@ def _coverage_report(
 
 @dataclass(slots=True, frozen=True)
 class GeneratedFontArtifacts:
-    font_to_characters: dict[str, str]
+    font_to_characters: dict
     font_capabilities: dict
     sequence_to_font: dict
     coverage_report: dict
@@ -376,7 +381,11 @@ def generate_font_artifacts(
     )
     shaping_report = _shaping_report(char_to_font, fonts)
     return GeneratedFontArtifacts(
-        font_to_characters=_gen_font_to_characters(char_to_font, save=False),
+        font_to_characters={
+            "schema_version": 1,
+            "unicode_version": UNICODE_VERSION,
+            "fonts": _gen_font_to_characters(char_to_font),
+        },
         font_capabilities=_font_capabilities_json(capabilities),
         sequence_to_font={
             "schema_version": 1,
@@ -401,17 +410,11 @@ def _load_fonts(font_table: dict[str, str] | None = None) -> list[FontUtils]:
     return fonts
 
 
-def _gen_font_to_characters(char_to_font: dict[str, str], save=True) -> dict[str, str]:
-    font_to_chars = {}
+def _gen_font_to_characters(char_to_font: dict[str, str]) -> dict[str, str]:
+    font_to_chars: dict[str, list[str]] = {}
     for char, font_name in char_to_font.items():
         font_to_chars.setdefault(font_name, []).append(char)
-    font_to_characters = {
-        font_name: "".join(chars) for font_name, chars in font_to_chars.items()
-    }
-    if save:
-        with open(os.path.join(FOLDER_FONT, "font-to-characters.json"), "w") as file:
-            json.dump(font_to_characters, file)
-    return font_to_characters
+    return {font_name: "".join(chars) for font_name, chars in font_to_chars.items()}
 
 
 def _write_json(path: str, value: object) -> None:
@@ -421,13 +424,10 @@ def _write_json(path: str, value: object) -> None:
 
 def generate_char_cov() -> None:
     artifacts = generate_font_artifacts()
-    _write_json(
-        os.path.join(FOLDER_FONT, "font-to-characters.json"),
-        artifacts.font_to_characters,
-    )
+    _write_json(FONT_TO_CHARACTERS_PATH, artifacts.font_to_characters)
     _write_json(FONT_CAPABILITIES_PATH, artifacts.font_capabilities)
     _write_json(SEQUENCE_TO_FONT_PATH, artifacts.sequence_to_font)
-    _write_json(COVERAGE_REPORT_PATH, artifacts.coverage_report)
+    _write_json(_COVERAGE_REPORT_PATH, artifacts.coverage_report)
 
 
 if __name__ == "__main__":

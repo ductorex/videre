@@ -1,14 +1,14 @@
 import json
 import os
 
-from videre.fonts._gen_char_cov import (
-    COVERAGE_REPORT_PATH,
+from videre.fonts._gen_char_cov import _COVERAGE_REPORT_PATH, generate_font_artifacts
+from videre.fonts.coverage import UNICODE_VERSION, requires_standalone_glyph
+from videre.fonts.provider import (
+    FOLDER_FONT,
     FONT_CAPABILITIES_PATH,
     SEQUENCE_TO_FONT_PATH,
-    generate_font_artifacts,
+    FontProvider,
 )
-from videre.fonts.coverage import UNICODE_VERSION, requires_standalone_glyph
-from videre.fonts.provider import FOLDER_FONT, FontProvider
 
 
 def _load_json(path: str):
@@ -25,13 +25,13 @@ def test_production_font_json_files_are_current() -> None:
     )
     assert _load_json(FONT_CAPABILITIES_PATH) == generated.font_capabilities
     assert _load_json(SEQUENCE_TO_FONT_PATH) == generated.sequence_to_font
-    assert _load_json(COVERAGE_REPORT_PATH) == generated.coverage_report
+    assert _load_json(_COVERAGE_REPORT_PATH) == generated.coverage_report
 
 
 def test_generated_character_routing_uses_font_coverage_profile() -> None:
     font_to_characters = _load_json(
         os.path.join(FOLDER_FONT, "font-to-characters.json")
-    )
+    )["fonts"]
     _fonts, char_to_indice = FontProvider._parse_font_to_characters(font_to_characters)
 
     assert len(char_to_indice) == 153936
@@ -41,7 +41,7 @@ def test_generated_character_routing_uses_font_coverage_profile() -> None:
 
 
 def test_generated_coverage_report_has_no_selected_notdef() -> None:
-    report = _load_json(COVERAGE_REPORT_PATH)
+    report = _load_json(_COVERAGE_REPORT_PATH)
 
     assert report["unicode_version"] == UNICODE_VERSION
     assert report["private_use_included"] is False

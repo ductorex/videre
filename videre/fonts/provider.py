@@ -96,6 +96,11 @@ def get_fonts() -> dict[str, str]:
     return fonts
 
 
+FONT_CAPABILITIES_PATH = os.path.join(FOLDER_FONT, "font-capabilities.json")
+FONT_TO_CHARACTERS_PATH = os.path.join(FOLDER_FONT, "font-to-characters.json")
+SEQUENCE_TO_FONT_PATH = os.path.join(FOLDER_FONT, "sequence-to-font.json")
+
+
 class FontProvider:
     """
     _font_name_to_path: dictionary mapping font name to font file path
@@ -116,11 +121,18 @@ class FontProvider:
 
     @classmethod
     def _load_font_to_characters(cls):
-        with open(
-            os.path.join(FOLDER_FONT, "font-to-characters.json"), encoding="utf-8"
-        ) as file:
-            font_to_characters: dict[str, str] = json.load(file)
-        return cls._parse_font_to_characters(font_to_characters)
+        with open(FONT_TO_CHARACTERS_PATH, encoding="utf-8") as file:
+            value = json.load(file)
+        if value["schema_version"] != 1:
+            raise ValueError(
+                f"Unsupported font-to-characters schema: {value['schema_version']}"
+            )
+        if value["unicode_version"] != UNICODE_VERSION:
+            raise ValueError(
+                "Stale font-to-characters: "
+                f"{value['unicode_version']} != {UNICODE_VERSION}"
+            )
+        return cls._parse_font_to_characters(value["fonts"])
 
     @classmethod
     def _parse_font_to_characters(
@@ -137,8 +149,7 @@ class FontProvider:
 
     @classmethod
     def _load_capabilities(cls) -> dict[str, FontCapabilities]:
-        path = os.path.join(FOLDER_FONT, "font-capabilities.json")
-        with open(path, encoding="utf-8") as file:
+        with open(FONT_CAPABILITIES_PATH, encoding="utf-8") as file:
             value = json.load(file)
         if value["schema_version"] != 1:
             raise ValueError(
@@ -156,8 +167,7 @@ class FontProvider:
 
     @classmethod
     def _load_sequence_to_font(cls) -> dict[str, str]:
-        path = os.path.join(FOLDER_FONT, "sequence-to-font.json")
-        with open(path, encoding="utf-8") as file:
+        with open(SEQUENCE_TO_FONT_PATH, encoding="utf-8") as file:
             value = json.load(file)
         if value["schema_version"] != 1:
             raise ValueError(
