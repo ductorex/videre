@@ -11,6 +11,7 @@ https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project
 import json
 import os
 from functools import cache
+from itertools import chain
 
 from videre.core.textual.coverage import (
     FontCapabilities,
@@ -216,6 +217,15 @@ class FontProvider:
             return self.get_font_info(text[0])
 
         pairs = variation_pairs(text)
+
+        # Fast path: a single visible codepoint with no variation selector is
+        # already resolved by the per-codepoint map (font-to-characters.json).
+        # The scan below would only rediscover that exact font (it is the first
+        # candidate and covers itself by construction). When a font is forced
+        # via preferred_font_name we fall through so it keeps its priority.
+        if not pairs and len(visible) == 1 and preferred_font_name is None:
+            return self.get_font_info(visible[0])
+
         advertised = (
             {
                 name
@@ -226,7 +236,7 @@ class FontProvider:
             else set()
         )
 
-        preferred = []
+        preferred: list[str] = []
         if preferred_font_name is not None:
             preferred.append(preferred_font_name)
         for character in visible:
@@ -234,9 +244,15 @@ class FontProvider:
             if name not in preferred:
                 preferred.append(name)
 
-        candidates = preferred + [
-            name for name in self._capabilities if name not in preferred
-        ]
+        # The first candidate covering every visible codepoint wins. Try the
+        # per-codepoint fonts first (a base's font almost always covers its
+        # combining marks, so we stop at once), then the rest LAZILY: the common
+        # base+marks cluster never materializes nor scans the whole font set.
+        preferred_set = set(preferred)
+        candidates = chain(
+            preferred,
+            (name for name in self._capabilities if name not in preferred_set),
+        )
         for name in candidates:
             capability = self._capabilities[name]
             if not capability.supports_visible_codepoints(text):

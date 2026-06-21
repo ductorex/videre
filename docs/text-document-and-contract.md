@@ -152,7 +152,7 @@ changement de contrat), puis le **contrat edit-unit** (le morceau sensible).
   `render.py` scindé `build_glyph_lines` / `layout_glyph_lines` / `paint_glyph_lines`.
   `render_text` gardé en parallèle.
 - **C2 ✅** — le widget `Text` cache `_document`, appelle `document.render(width)`.
-  **Gain resize mesuré ~5×** (`tools/bench_resize.py`). `underline` déplacé en arg
+  **Gain resize mesuré ~5×** (`tools/bench_text.py`). `underline` déplacé en arg
   de rendu pour ne pas invalider le cache.
 - **C3 ✅** — le renderer shaped navigue par edit unit (`render.py::_line_items`
   groupe les clusters par graphème). Ligatures non splittées.
