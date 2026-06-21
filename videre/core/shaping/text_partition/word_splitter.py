@@ -25,10 +25,9 @@ information — and drawing a hyphen glyph at the break in the renderer.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import TypeAlias
 
-import unicodedataplus as unicode_data  # ty: ignore
+from videre.core.textual import unicode_props
 
 _NEWLINES = frozenset({"Newline", "CR", "LF"})
 _IGNORED = frozenset({"Extend", "Format", "ZWJ"})
@@ -71,21 +70,6 @@ class GapSpan:
 TextSpan: TypeAlias = WordSpan | GapSpan
 
 
-@lru_cache(maxsize=4096)
-def _word_property(c: str) -> str:
-    return unicode_data.word_break(c)
-
-
-@lru_cache(maxsize=4096)
-def _line_property(c: str) -> str:
-    return unicode_data.line_break(c)
-
-
-@lru_cache(maxsize=4096)
-def _is_extended_pictographic(c: str) -> bool:
-    return unicode_data.is_extended_pictographic(c)
-
-
 def word_boundaries(text: str) -> tuple[int, ...]:
     """Return all Unicode 16.0 default word-boundary offsets in ``text``.
 
@@ -98,7 +82,7 @@ def word_boundaries(text: str) -> tuple[int, ...]:
     if not n:
         return ()
 
-    props = [_word_property(c) for c in text]
+    props = [unicode_props.word_break(c) for c in text]
     breaks = [True] * (n + 1)
 
     # WB3-WB4 operate on adjacent source characters. A value set here is final:
@@ -112,7 +96,7 @@ def word_boundaries(text: str) -> tuple[int, ...]:
             continue
         elif right in _NEWLINES:  # WB3b
             continue
-        elif left == "ZWJ" and _is_extended_pictographic(text[i]):  # WB3c
+        elif left == "ZWJ" and unicode_props.is_extended_pictographic(text[i]):  # WB3c
             breaks[i] = False
         elif left == right == "WSegSpace":  # WB3d
             breaks[i] = False
@@ -136,7 +120,7 @@ def word_boundaries(text: str) -> tuple[int, ...]:
 
         # WB3c after ignored characters: WB4 replaces the ignored sequence by
         # its preceding character for the remaining boundary rules.
-        if left == "ZWJ" and _is_extended_pictographic(text[right_index]):
+        if left == "ZWJ" and unicode_props.is_extended_pictographic(text[right_index]):
             breaks[i] = False
         elif left in _AHLETTER and right in _AHLETTER:  # WB5
             breaks[i] = False
@@ -204,7 +188,7 @@ def split_word_spans(text: str) -> list[TextSpan]:
         return []
 
     boundaries = word_boundaries(text)
-    line_props = _resolve_line_properties([_line_property(c) for c in text])
+    line_props = _resolve_line_properties([unicode_props.line_break(c) for c in text])
     raw = list(zip(boundaries, boundaries[1:]))
     parts: list[tuple[int, int, str, bool]] = []
     sep_pending = True

@@ -12,9 +12,8 @@ import bisect
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from functools import lru_cache
 
-import unicodedataplus as unicode_data  # ty: ignore
+from videre.core.textual import unicode_props
 
 _GCB_CONTROL = frozenset({"Control", "CR", "LF"})
 _GCB_EXTEND_OR_ZWJ = frozenset({"Extend", "ZWJ"})
@@ -102,9 +101,9 @@ def grapheme_boundaries(text: str) -> tuple[int, ...]:
     if not text:
         return (0,)
 
-    gcb = [_grapheme_property(c) for c in text]
-    incb = [_indic_conjunct_property(c) for c in text]
-    pictographic = [_is_extended_pictographic(c) for c in text]
+    gcb = [unicode_props.grapheme_cluster_break(c) for c in text]
+    incb = [unicode_props.indic_conjunct_break(c) for c in text]
+    pictographic = [unicode_props.is_extended_pictographic(c) for c in text]
     boundaries = [0]
     for i in range(1, len(text)):
         left = gcb[i - 1]
@@ -185,26 +184,6 @@ def expand_to_edit_units(
     return frozenset(covered)
 
 
-@lru_cache(maxsize=4096)
-def _grapheme_property(c: str) -> str:
-    return unicode_data.grapheme_cluster_break(c)
-
-
-@lru_cache(maxsize=4096)
-def _indic_conjunct_property(c: str) -> str:
-    return unicode_data.indic_conjunct_break(c)
-
-
-@lru_cache(maxsize=4096)
-def _is_extended_pictographic(c: str) -> bool:
-    return unicode_data.is_extended_pictographic(c)
-
-
-@lru_cache(maxsize=4096)
-def _line_property(c: str) -> str:
-    return unicode_data.line_break(c)
-
-
 def _is_indic_conjunct_boundary(props: list[str], right_index: int) -> bool:
     if props[right_index] != "Consonant":
         return False
@@ -237,11 +216,11 @@ def _odd_ri_run(props: list[str], right_index: int) -> bool:
 
 
 def _classify_unit(text: str) -> EditUnitKind:
-    if any(unicode_data.category(c) == "Cs" for c in text):
+    if any(unicode_props.category(c) == "Cs" for c in text):
         return EditUnitKind.INVALID
     if text == "\t":
         return EditUnitKind.TAB
-    if all(_line_property(c) in _LINE_BREAK for c in text):
+    if all(unicode_props.line_break(c) in _LINE_BREAK for c in text):
         return EditUnitKind.LINE_BREAK
     if all(c in _BIDI_CONTROLS for c in text):
         return EditUnitKind.BIDI_CONTROL
@@ -256,6 +235,6 @@ def _classify_unit(text: str) -> EditUnitKind:
         return EditUnitKind.BREAK_OPPORTUNITY
     if text in {"\u2060", "\ufeff"}:
         return EditUnitKind.NO_BREAK
-    if all(unicode_data.category(c) in {"Cc", "Cf"} for c in text):
+    if all(unicode_props.category(c) in {"Cc", "Cf"} for c in text):
         return EditUnitKind.HIDDEN_CONTROL
     return EditUnitKind.TEXT

@@ -9,6 +9,8 @@ version, so a dependency bump that changes it fails loudly instead of silently
 mixing versions (the very drift this module exists to prevent).
 """
 
+from functools import cache
+
 import unicodedataplus as _udp  # ty: ignore
 from fontTools import unicodedata as _ft
 
@@ -29,6 +31,37 @@ category = _udp.category
 bidirectional = _udp.bidirectional
 decomposition = _udp.decomposition
 block = _udp.block
+
+
+# Segmentation break properties (UAX #29 grapheme/word, UAX #14 line, Indic
+# conjunct, Extended_Pictographic). Unlike the aliases above these are wrapped in
+# `@cache`: the grapheme / word / line segmenters query them in tight
+# per-character loops over the bounded codepoint domain, so a cached value-type
+# lookup is the project convention (see core/shaping/utils.py). One shared cache
+# here replaces the duplicate per-module caches the segmenters used to keep.
+@cache
+def grapheme_cluster_break(character: str) -> str:
+    return _udp.grapheme_cluster_break(character)
+
+
+@cache
+def indic_conjunct_break(character: str) -> str:
+    return _udp.indic_conjunct_break(character)
+
+
+@cache
+def word_break(character: str) -> str:
+    return _udp.word_break(character)
+
+
+@cache
+def line_break(character: str) -> str:
+    return _udp.line_break(character)
+
+
+@cache
+def is_extended_pictographic(character: str) -> bool:
+    return _udp.is_extended_pictographic(character)
 
 
 def script(character: str) -> str:
