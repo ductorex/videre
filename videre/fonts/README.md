@@ -84,6 +84,9 @@ L'ordre compte : les artefacts dépendent du registre source.
   `python -m videre.fonts._update_unicode_font_data`.
 - `_gen_char_cov.py` — génère les quatre artefacts.
 - `_cov_stats.py` — rapport lisible à partir de `_coverage-report.json`.
+- `_audit_fonts.py` — compare les polices locales à leur upstream et repère les
+  familles Noto à ajouter ; régénère `FONT_UPDATE_AUDIT.md` via
+  `python -m videre.fonts._audit_fonts` (réseau, exécution délibérée).
 - `font_utils.py` — accès bas niveau aux fichiers de police.
 
 Les primitives Unicode partagées vivent désormais dans

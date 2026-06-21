@@ -1,95 +1,61 @@
 # Audit des mises à jour de polices
 
-Date de vérification : **13 juin 2026**.
+Date de vérification : **2026-06-20**.
 
-Cet audit compare chaque fichier local à son fichier officiel actuel. La comparaison porte sur le SHA-256 du binaire, la version OpenType, les codepoints `cmap`, les séquences de variation `cmap 14` et les scripts GSUB/GPOS.
+Généré automatiquement par `python -m videre.fonts._audit_fonts`. Seules les tables factuelles ci-dessous sont produites par le script ; toute analyse éditoriale (recommandations, arbitrages) est un ajout manuel.
+
+Chaque fichier local est comparé à son fichier upstream actuel : SHA-256 du binaire, version OpenType, codepoints `cmap`, séquences `cmap 14` et scripts GSUB/GPOS. Un binaire différent mais de même version, couverture et scripts est dit *équivalent* (p.ex. une variable font upstream à la place d'une statique embarquée), pas une mise à jour. Les familles Noto publiées sur le hub mais non embarquées sont aussi listées, avec ce qu'elles apporteraient.
 
 ## Résumé
 
-- 163 fichiers sont strictement identiques à leur upstream.
-- 22 fichiers Noto ont une version plus récente.
-- `BabelStoneHan.ttf` est en version locale 15.1.4 contre 16.0.3 upstream.
-- La fonte monochrome statique `NotoEmoji-Regular.ttf` n'est plus publiée à son ancienne URL. La variante variable monochrome conserve la même couverture ; `NotoColorEmoji.ttf` 2.051 apporte une meilleure couverture.
-- Plangothic P1/P2 est déjà sur la dernière release officielle V2.9.5792.
-
-Aucune des 22 mises à jour Noto de même famille ne comble les 4 082 codepoints actuellement manquants. Elles restent intéressantes pour les corrections de dessins et de shaping.
-
-## Actions recommandées
-
-### 1. Noto Color Emoji
-
-`NotoColorEmoji.ttf` version 2.051 couvre les sept emoji Unicode 16 actuellement manquants :
-
-`U+1FA89`, `U+1FA8F`, `U+1FABE`, `U+1FAC6`, `U+1FADC`, `U+1FADF`, `U+1FAE9`.
-
-Elle façonne aussi correctement les 742 variations emoji, 1 136 séquences emoji et 1 468 séquences ZWJ du registre de Videre. Son ajout ferait passer les codepoints manquants de 4 082 à 4 075.
-
-### 2. BabelStone Han
-
-Le passage de 15.1.4 à 16.0.3 ne comble aucun codepoint Unicode 16 actuellement manquant, mais améliore les séquences :
-
-- 8 variations standardisées supplémentaires ;
-- 25 variantes idéographiques gagnées et 2 perdues, soit un gain net de 23 ;
-- nouvelle URL officielle : `https://www.babelstone.co.uk/Fonts/Download/BabelStoneHan.ttf`.
-
-### 3. Polices Noto ajoutées à Videre
-
-| Police | Amélioration par rapport au routage actuel | GSUB/GPOS |
-|---|---|---|
-| Noto Serif Khojki 2.005 | couvre `U+11241`, le seul caractère Khojki absent de Noto Sans Khojki ; les grappes qui le contiennent restent désormais dans une vraie police Khojki | GSUB + GPOS `khoj` |
-| Noto Sans Sunuwar 1.000 | remplace Plangothic pour les 44 caractères Sunuwar | GPOS `sunu` |
-| Noto Serif Todhri 1.000 | remplace Plangothic pour les 52 caractères Todhri | GPOS générique |
-
-### 4. Familles Noto restantes intéressantes
-
-| Police | Amélioration par rapport au routage actuel | GSUB/GPOS |
-|---|---|---|
-| Noto Serif Dives Akuru 2.000 | remplace Plangothic pour 49 caractères Dives Akuru | GSUB + GPOS `diak` |
-| Noto Serif Hentaigana 1.000 | remplace BabelStone pour 290 kana historiques | pas de layout spécialisé |
-
-Dives Akuru resterait toutefois partiel : la fonte Noto publique couvre 49 des 72 caractères Unicode du bloc ; les 23 autres continueraient à dépendre de Plangothic.
-
-Les cinq fontes CJK Noto complètes Light absentes du dépôt ne couvrent que 12 caractères supplémentaires actuellement confiés à Plangothic, sans ajouter de variantes idéographiques. Elles ajouteraient environ 53 Mo au dépôt par rapport aux cinq `SubsetOTF` Light : gain trop faible.
-
-### 5. Manques sans solution Noto publiée
-
-- **Egyptian Hieroglyphs Extended-A** : 3 995 codepoints. La Noto Sans Egyptian Hieroglyphs locale est déjà identique à la version officielle 2.002. Le dépôt de développement Noto ne contient que deux dessins Extended-A placés dans `LeftForFuture`, pas une fonte couvrant le bloc.
-- **Tulu-Tigalari** : 80 codepoints. Aucune famille Tulu-Tigalari n'est publiée dans le catalogue Noto, Google Fonts ou l'organisation GitHub Noto.
-- **Variantes idéographiques** : après mise à jour de BabelStone, 14 715 séquences IVD resteraient absentes. Les fichiers Noto CJK locaux sont déjà identiques à upstream, et les variantes Light/Regular/variables ont les mêmes tables `cmap 14`.
+- Fichiers strictement identiques au binaire upstream : 164.
+- Fichiers équivalents (binaire différent, même version, couverture et scripts) : 1.
+- Mises à jour réelles disponibles : 23.
+- Familles Noto supplémentaires sur le hub : 38 (dont 1 à gain de couverture ou de layout).
 
 ## Mises à jour disponibles
 
-| Fichier | Version locale | Version upstream | Différence de couverture brute | Évolution layout notable |
+| Fichier | Version locale | Version upstream | Couverture brute (+/-) | Layout upstream |
 |---|---:|---:|---:|---|
-| `noto/serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | Version 1.003 | Version 1.004 | +0 / -0 codepoints | ajout de GPOS `ougr` |
-| `noto/serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | Version 2.169 | Version 2.170 | +0 / -219 codepoints | — |
-| `noto/serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | Version 2.001 | Version 2.002 | +0 / -0 codepoints | ajout de GPOS `toto` |
-| `noto/sans/unhinted/TTF/NotoNastaliqUrdu-Regular.ttf` | Version 3.009 | Version 4.000 | +3 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSans-Regular.ttf` | Version 2.013 | Version 2.015 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansArabic-Regular.ttf` | Version 2.012 | Version 2.013 | +0 / -1 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansBatak-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansBengali-Regular.ttf` | Version 2.003 | Version 3.011 | +0 / -39 codepoints | ajout du tag GPOS `beng` |
-| `noto/sans/unhinted/TTF/NotoSansKaithi-Regular.ttf` | Version 2.005 | Version 2.006 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansKannada-Regular.ttf` | Version 2.005 | Version 2.006 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansMongolian-Regular.ttf` | Version 3.001 | Version 3.002 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansNagMundari-Regular.ttf` | Version 1.000 | Version 1.001 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansNandinagari-Regular.ttf` | Version 1.002 | Version 1.003 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansOldItalic-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansOldSogdian-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansOldTurkic-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansOriya-Regular.ttf` | Version 2.006 | Version 2.007 | +1 / -1 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansPsalterPahlavi-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 codepoints | ajout de `DFLT` à GSUB/GPOS |
-| `noto/sans/unhinted/TTF/NotoSansRejang-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansSinhala-Regular.ttf` | Version 2.006 | Version 3.000 | +52 / -4 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansSyriacWestern-Regular.ttf` | Version 3.000 | Version 3.001 | +2 / -1 codepoints | — |
-| `noto/sans/unhinted/TTF/NotoSansThaiLooped-Regular.ttf` | Version 1.001 | Version 2.000 | +12 / -14 codepoints | — |
+| `noto/sans/unhinted/TTF/NotoNastaliqUrdu-Regular.ttf` | Version 3.009 | Version 4.000 | +3 / -0 | DFLT, arab, latn |
+| `noto/sans/unhinted/TTF/NotoSans-Regular.ttf` | Version 2.013 | Version 2.015 | +0 / -0 | DFLT, cyrl, grek, latn |
+| `noto/sans/unhinted/TTF/NotoSansArabic-Regular.ttf` | Version 2.012 | Version 2.013 | +0 / -1 | DFLT, arab |
+| `noto/sans/unhinted/TTF/NotoSansBatak-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 | DFLT, batk |
+| `noto/sans/unhinted/TTF/NotoSansBengali-Regular.ttf` | Version 2.003 | Version 3.011 | +0 / -39 | DFLT, beng, bng2 |
+| `noto/sans/unhinted/TTF/NotoSansKaithi-Regular.ttf` | Version 2.005 | Version 2.006 | +0 / -0 | DFLT, kthi |
+| `noto/sans/unhinted/TTF/NotoSansKannada-Regular.ttf` | Version 2.005 | Version 2.006 | +0 / -0 | DFLT, knd2, knda |
+| `noto/sans/unhinted/TTF/NotoSansMongolian-Regular.ttf` | Version 3.001 | Version 3.002 | +0 / -0 | DFLT, mong |
+| `noto/sans/unhinted/TTF/NotoSansNagMundari-Regular.ttf` | Version 1.000 | Version 1.001 | +0 / -0 | DFLT, nagm |
+| `noto/sans/unhinted/TTF/NotoSansNandinagari-Regular.ttf` | Version 1.002 | Version 1.003 | +0 / -0 | DFLT, nand |
+| `noto/sans/unhinted/TTF/NotoSansOldItalic-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 | DFLT |
+| `noto/sans/unhinted/TTF/NotoSansOldSogdian-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 | DFLT, sogo |
+| `noto/sans/unhinted/TTF/NotoSansOldTurkic-Regular.ttf` | Version 2.003 | Version 2.004 | +0 / -0 | DFLT, orkh |
+| `noto/sans/unhinted/TTF/NotoSansOriya-Regular.ttf` | Version 2.006 | Version 2.007 | +1 / -1 | DFLT, latn, ory2 |
+| `noto/sans/unhinted/TTF/NotoSansPsalterPahlavi-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 | DFLT, arab, phlp |
+| `noto/sans/unhinted/TTF/NotoSansRejang-Regular.ttf` | Version 2.002 | Version 2.003 | +0 / -0 | DFLT, rjng |
+| `noto/sans/unhinted/TTF/NotoSansSinhala-Regular.ttf` | Version 2.006 | Version 3.000 | +52 / -4 | DFLT, sinh |
+| `noto/sans/unhinted/TTF/NotoSansSyriacWestern-Regular.ttf` | Version 3.000 | Version 3.001 | +2 / -1 | DFLT, syrc |
+| `noto/sans/unhinted/TTF/NotoSansThaiLooped-Regular.ttf` | Version 1.001 | Version 2.000 | +12 / -14 | DFLT, thai |
+| `noto/serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | Version 1.003 | Version 1.004 | +0 / -0 | DFLT, ougr |
+| `noto/serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | Version 2.169 | Version 2.170 | +0 / -219 | — |
+| `noto/serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | Version 2.001 | Version 2.002 | +0 / -0 | DFLT, toto |
+| `other-ttf/BabelStoneHan.ttf` | Version 15.1.4; March 15, 2024 | Version 16.0.3 | +2362 / -97 | DFLT, hani, kana, latn |
 
-Les suppressions constatées dans certaines mises à jour concernent des caractères communs couverts par d'autres polices, des caractères ignorables par défaut ou des PUA. Elles ne réduisent pas le profil de couverture Unicode 16 de Videre.
+## Nouvelles familles Noto disponibles
 
-## Statut des 187 fichiers
+*Couverture* = codepoints aujourd'hui manquants que la famille couvrirait. *Layout* = codepoints aujourd'hui rendus par une police de repli sans le GSUB/GPOS du script, que cette famille shaperait correctement.
+
+| Famille | Couverture | Layout | Blocs principaux | GSUB/GPOS |
+|---|---:|---:|---|---|
+| NotoSerifDivesAkuru | 0 | 49 | Dives Akuru (49) | DFLT, diak |
+
+37 autres familles sont disponibles sans gain de couverture ni de layout (variantes purement stylistiques — serif, UI, display, etc.) : NotoFangsongKSSRotated, NotoKufiArabic, NotoNaskhArabic, NotoNaskhArabicUI, NotoRashiHebrew, NotoSansAdlamUnjoined, NotoSansArabicUI, NotoSansLaoLooped, NotoSansNKoUnjoined, NotoSansThai, NotoSerif, NotoSerifArmenian, NotoSerifBalinese, NotoSerifBengali, NotoSerifDevanagari, NotoSerifDisplay, NotoSerifEthiopic, NotoSerifGeorgian, NotoSerifGrantha, NotoSerifGujarati, NotoSerifGurmukhi, NotoSerifHebrew, NotoSerifHentaigana, NotoSerifKannada, NotoSerifKhitanSmallScript, NotoSerifKhmer, NotoSerifLao, NotoSerifMalayalam, NotoSerifMyanmar, NotoSerifOriya, NotoSerifSinhala, NotoSerifTamil, NotoSerifTelugu, NotoSerifTest, NotoSerifThai, NotoSerifVithkuqi, NotoTraditionalNushu.
+
+## Statut des 188 fichiers
 
 | Fichier | Version locale | Version upstream | Statut |
 |---|---:|---:|---|
+| `newgardiner/NewGardiner.ttf` | Version 3.08 | Version 3.08 | À jour, binaire identique |
 | `noto/cjk/light/NotoSansHK-Light.otf` | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | À jour, binaire identique |
 | `noto/cjk/light/NotoSansJP-Light.otf` | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | À jour, binaire identique |
 | `noto/cjk/light/NotoSansKR-Light.otf` | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | À jour, binaire identique |
@@ -106,19 +72,7 @@ Les suppressions constatées dans certaines mises à jour concernent des caract�
 | `noto/cjk/variable-fonts/NotoSansSC-VF.ttf` | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | À jour, binaire identique |
 | `noto/cjk/variable-fonts/NotoSansTC-VF.ttf` | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603 | À jour, binaire identique |
 | `noto/mono/unhinted/TTF/NotoSansMono-Regular.ttf` | Version 2.014 | Version 2.014 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifAhom-Regular.ttf` | Version 2.007 | Version 2.007 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifDogra-Regular.ttf` | Version 1.007 | Version 1.007 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifKhojki-Regular.ttf` | Version 2.005 | Version 2.005 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifMakasar-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifNPHmong-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | Version 1.003 | Version 1.004 | Mise à jour disponible |
-| `noto/serif/unhinted/TTF/NotoSerifOttomanSiyaq-Regular.ttf` | Version 1.006 | Version 1.006 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | Version 2.169 | Version 2.170 | Mise à jour disponible |
-| `noto/serif/unhinted/TTF/NotoSerifTibetan-Regular.ttf` | Version 2.103 | Version 2.103 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifTodhri-Regular.ttf` | Version 1.000 | Version 1.000 | À jour, binaire identique |
-| `noto/serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | Version 2.001 | Version 2.002 | Mise à jour disponible |
-| `noto/serif/unhinted/TTF/NotoSerifYezidi-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
-| `noto/sans/unhinted/TTF/NotoEmoji-Regular.ttf` | Version 3.002 | Version 3.002 / Color 2.051 | Statique retirée upstream ; VF 3.002 équivalente, Color Emoji 2.051 meilleure |
+| `noto/sans/unhinted/TTF/NotoEmoji-Regular.ttf` | Version 3.002 | Version 3.002 | À jour (variante upstream, couverture identique) |
 | `noto/sans/unhinted/TTF/NotoFangsongKSSVertical-Regular.ttf` | Version 1.000;November 16, 2022;FontCreator 11.5.0.2427 64-bit | Version 1.000;November 16, 2022;FontCreator 11.5.0.2427 64-bit | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoMusic-Regular.ttf` | Version 2.003 | Version 2.003 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoNastaliqUrdu-Regular.ttf` | Version 3.009 | Version 4.000 | Mise à jour disponible |
@@ -244,10 +198,10 @@ Les suppressions constatées dans certaines mises à jour concernent des caract�
 | `noto/sans/unhinted/TTF/NotoSansSoraSompeng-Regular.ttf` | Version 2.101 | Version 2.101 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSoyombo-Regular.ttf` | Version 2.001 | Version 2.001 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSundanese-Regular.ttf` | Version 2.005 | Version 2.005 | À jour, binaire identique |
+| `noto/sans/unhinted/TTF/NotoSansSunuwar-Regular.ttf` | Version 1.000 | Version 1.000 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSylotiNagri-Regular.ttf` | Version 2.004 | Version 2.004 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSymbols-Regular.ttf` | Version 2.003 | Version 2.003 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSymbols2-Regular.ttf` | Version 2.008 | Version 2.008 | À jour, binaire identique |
-| `noto/sans/unhinted/TTF/NotoSansSunuwar-Regular.ttf` | Version 1.000 | Version 1.000 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSyriac-Regular.ttf` | Version 3.000 | Version 3.000 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSyriacEastern-Regular.ttf` | Version 3.001 | Version 3.001 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansSyriacWestern-Regular.ttf` | Version 3.000 | Version 3.001 | Mise à jour disponible |
@@ -274,7 +228,19 @@ Les suppressions constatées dans certaines mises à jour concernent des caract�
 | `noto/sans/unhinted/TTF/NotoSansYi-Regular.ttf` | Version 2.002 | Version 2.002 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoSansZanabazarSquare-Regular.ttf` | Version 2.006 | Version 2.006 | À jour, binaire identique |
 | `noto/sans/unhinted/TTF/NotoZnamennyMusicalNotation-Regular.ttf` | Version 1.003 | Version 1.003 | À jour, binaire identique |
-| `other-ttf/BabelStoneHan.ttf` | Version 15.1.4; March 15, 2024 | Version 16.0.3 | Mise à jour disponible (URL documentée obsolète) |
+| `noto/serif/unhinted/TTF/NotoSerifAhom-Regular.ttf` | Version 2.007 | Version 2.007 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifDogra-Regular.ttf` | Version 1.007 | Version 1.007 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifKhojki-Regular.ttf` | Version 2.005 | Version 2.005 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifMakasar-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifNPHmong-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifOldUyghur-Regular.ttf` | Version 1.003 | Version 1.004 | Mise à jour disponible |
+| `noto/serif/unhinted/TTF/NotoSerifOttomanSiyaq-Regular.ttf` | Version 1.006 | Version 1.006 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifTangut-Regular.ttf` | Version 2.169 | Version 2.170 | Mise à jour disponible |
+| `noto/serif/unhinted/TTF/NotoSerifTibetan-Regular.ttf` | Version 2.103 | Version 2.103 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifTodhri-Regular.ttf` | Version 1.000 | Version 1.000 | À jour, binaire identique |
+| `noto/serif/unhinted/TTF/NotoSerifToto-Regular.ttf` | Version 2.001 | Version 2.002 | Mise à jour disponible |
+| `noto/serif/unhinted/TTF/NotoSerifYezidi-Regular.ttf` | Version 1.001 | Version 1.001 | À jour, binaire identique |
+| `other-ttf/BabelStoneHan.ttf` | Version 15.1.4; March 15, 2024 | Version 16.0.3 | Mise à jour disponible |
 | `plangothic/PlangothicP1-Regular.ttf` | Version 6.400;January 1, 2026;FontCreator 14.0.0.2901 64-bit | Version 6.400;January 1, 2026;FontCreator 14.0.0.2901 64-bit | À jour, binaire identique |
 | `plangothic/PlangothicP2-Regular.ttf` | Version 3.178;January 1, 2026;FontCreator 14.0.0.2901 64-bit | Version 3.178;January 1, 2026;FontCreator 14.0.0.2901 64-bit | À jour, binaire identique |
 
@@ -283,7 +249,6 @@ Les suppressions constatées dans certaines mises à jour concernent des caract�
 - <https://github.com/notofonts/notofonts.github.io>
 - <https://github.com/notofonts/noto-cjk>
 - <https://github.com/google/fonts/tree/main/ofl/notoemoji>
-- <https://github.com/googlefonts/noto-emoji/releases/tag/v2.051>
 - <https://www.babelstone.co.uk/Fonts/Han.html>
-- <https://github.com/notofonts/egyptian-hieroglyphs>
-- <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project/releases/tag/V2.9.5792>
+- <https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project>
+- <https://github.com/nederhof/newgardiner>

@@ -5,7 +5,8 @@ Catalogue des fichiers présents dans `videre/fonts/`, leur source upstream, et 
 Pour les variantes Bold/Italic/BoldItalic disponibles upstream et non encore téléchargées, voir `docs/font-bold-italic-availability.md`.
 
 Le dernier audit fichier par fichier des versions upstream et de leur couverture
-est consigné dans `videre/fonts/FONT_UPDATE_AUDIT.md`.
+est consigné dans `videre/fonts/FONT_UPDATE_AUDIT.md`, régénérable via
+`python -m videre.fonts._audit_fonts`.
 
 ## Licences présentes dans le dépôt
 
