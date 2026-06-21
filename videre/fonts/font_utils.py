@@ -1,10 +1,10 @@
+from __future__ import annotations
+
+from typing import Iterable
+
 from fontTools.ttLib import TTFont
 
-from videre.core.textual.coverage import (
-    FontCapabilities,
-    codepoints_to_ranges,
-    requires_standalone_glyph,
-)
+from videre.core.textual.coverage import FontCapabilities, requires_standalone_glyph
 from videre.core.textual.unicode_char import get_character
 
 
@@ -24,6 +24,31 @@ def _get_sized_height(font: TTFont, pt_size: int, dpi: int = 72) -> int:
     height_px = line_height_units * pixel_size / units_per_em
 
     return round(height_px)
+
+
+def _layout_scripts(font: TTFont, table_name: str) -> frozenset[str]:
+    if table_name not in font:
+        return frozenset()
+    script_list = font[table_name].table.ScriptList  # ty: ignore[unresolved-attribute]
+    if script_list is None:
+        return frozenset()
+    return frozenset(record.ScriptTag for record in script_list.ScriptRecord)
+
+
+def _codepoints_to_ranges(codepoints: Iterable[int]) -> tuple[tuple[int, int], ...]:
+    ordered = sorted(set(codepoints))
+    if not ordered:
+        return ()
+    ranges: list[tuple[int, int]] = []
+    start = previous = ordered[0]
+    for codepoint in ordered[1:]:
+        if codepoint == previous + 1:
+            previous = codepoint
+            continue
+        ranges.append((start, previous))
+        start = previous = codepoint
+    ranges.append((start, previous))
+    return tuple(ranges)
 
 
 class FontUtils:
@@ -98,17 +123,8 @@ class FontUtils:
             if requires_standalone_glyph(chr(codepoint))
         )
         return FontCapabilities(
-            codepoint_ranges=codepoints_to_ranges(codepoints),
+            codepoint_ranges=_codepoints_to_ranges(codepoints),
             variation_sequences=variation_sequences,
             gsub_scripts=gsub_scripts,
             gpos_scripts=gpos_scripts,
         )
-
-
-def _layout_scripts(font: TTFont, table_name: str) -> frozenset[str]:
-    if table_name not in font:
-        return frozenset()
-    script_list = font[table_name].table.ScriptList  # ty: ignore[unresolved-attribute]
-    if script_list is None:
-        return frozenset()
-    return frozenset(record.ScriptTag for record in script_list.ScriptRecord)

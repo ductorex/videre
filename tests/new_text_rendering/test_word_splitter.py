@@ -6,12 +6,12 @@ import pytest
 from uniseg.wordbreak import words as uniseg_words
 
 from videre.core.shaping.text_partition.word_splitter import (
-    UNICODE_VERSION,
     GapSpan,
     WordSpan,
     split_word_spans,
     word_boundaries,
 )
+from videre.core.textual.unicode_props import UNICODE_VERSION
 
 _DATA = Path(__file__).parent / "data" / "WordBreakTest.txt"
 

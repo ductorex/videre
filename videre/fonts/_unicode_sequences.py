@@ -7,7 +7,7 @@ import os
 from functools import cache
 from typing import TypedDict
 
-from videre.core.textual.coverage import UNICODE_VERSION
+from videre.core.textual.unicode_props import UNICODE_VERSION
 from videre.fonts.provider import FOLDER_FONT
 
 UNICODE_SEQUENCES_PATH = os.path.join(FOLDER_FONT, "cov", "unicode-sequences.json")

@@ -4,7 +4,7 @@ from typing import Self
 from videre.core.constants import TextAlign
 from videre.core.pygame_backend.definitions import Rect
 from videre.core.textual import unicode_props
-from videre.core.textual.coverage import UNICODE_VERSION
+from videre.core.textual.unicode_props import UNICODE_VERSION
 
 
 class Unicode:

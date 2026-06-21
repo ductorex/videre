@@ -30,8 +30,6 @@ from typing import TypeAlias
 
 import unicodedataplus as unicode_data  # ty: ignore
 
-UNICODE_VERSION = unicode_data.unidata_version
-
 _NEWLINES = frozenset({"Newline", "CR", "LF"})
 _IGNORED = frozenset({"Extend", "Format", "ZWJ"})
 _AHLETTER = frozenset({"ALetter", "Hebrew_Letter"})

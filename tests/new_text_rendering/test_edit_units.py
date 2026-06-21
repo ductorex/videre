@@ -4,7 +4,8 @@ from pathlib import Path
 
 from uniseg.graphemecluster import grapheme_cluster_boundaries
 
-from videre.core.text_editing import UNICODE_VERSION, grapheme_boundaries
+from videre.core.text_editing import grapheme_boundaries
+from videre.core.textual.unicode_props import UNICODE_VERSION
 
 _DATA = Path(__file__).parent / "data" / "GraphemeBreakTest.txt"
 

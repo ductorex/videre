@@ -14,12 +14,12 @@ from tqdm import tqdm
 from uharfbuzz import Buffer, BufferFlags, Face, Font, ot_font_set_funcs, shape
 
 from videre.core.textual.coverage import (
-    UNICODE_VERSION,
     FontCapabilities,
     font_coverage_characters,
     open_type_script_tags,
 )
 from videre.core.textual.unicode_char import get_character
+from videre.core.textual.unicode_props import UNICODE_VERSION
 from videre.fonts._unicode_sequences import load_unicode_sequences
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import (

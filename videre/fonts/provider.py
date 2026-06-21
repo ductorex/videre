@@ -13,11 +13,11 @@ import os
 from functools import cache
 
 from videre.core.textual.coverage import (
-    UNICODE_VERSION,
     FontCapabilities,
     requires_standalone_glyph,
     variation_pairs,
 )
+from videre.core.textual.unicode_props import UNICODE_VERSION
 from videre.fonts.font_utils import FontUtils
 
 

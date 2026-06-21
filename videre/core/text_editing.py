@@ -16,8 +16,6 @@ from functools import lru_cache
 
 import unicodedataplus as unicode_data  # ty: ignore
 
-UNICODE_VERSION = unicode_data.unidata_version
-
 _GCB_CONTROL = frozenset({"Control", "CR", "LF"})
 _GCB_EXTEND_OR_ZWJ = frozenset({"Extend", "ZWJ"})
 _INCB_EXTEND_OR_LINKER = frozenset({"Extend", "Linker"})

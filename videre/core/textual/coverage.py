@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Iterable, Iterator
+from typing import Iterator
 
-import unicodedataplus as unicode_data  # ty: ignore
 from fontTools import unicodedata as fonttools_unicode
 
 from videre.core.textual import unicode_props
-
-UNICODE_VERSION = unicode_data.unidata_version
 
 _EXCLUDED_CATEGORIES = frozenset({"Cc", "Cs", "Co", "Cn", "Zl", "Zp"})
 _LAYOUT_OPTIONAL_SCRIPTS = frozenset(
@@ -58,7 +55,7 @@ def requires_standalone_glyph(character: str) -> bool:
     ignorables are preserved in source text and shaping clusters, but are
     validated as part of sequences rather than as independent glyphs.
     """
-    return unicode_data.category(
+    return unicode_props.category(
         character
     ) not in _EXCLUDED_CATEGORIES and not is_default_ignorable(character)
 
@@ -101,22 +98,6 @@ def open_type_script_tags(character: str) -> frozenset[str]:
     if script in {"Zyyy", "Zinh", "Zzzz"} or script in _LAYOUT_OPTIONAL_SCRIPTS:
         return frozenset()
     return frozenset(fonttools_unicode.ot_tags_from_script(script))
-
-
-def codepoints_to_ranges(codepoints: Iterable[int]) -> tuple[tuple[int, int], ...]:
-    ordered = sorted(set(codepoints))
-    if not ordered:
-        return ()
-    ranges: list[tuple[int, int]] = []
-    start = previous = ordered[0]
-    for codepoint in ordered[1:]:
-        if codepoint == previous + 1:
-            previous = codepoint
-            continue
-        ranges.append((start, previous))
-        start = previous = codepoint
-    ranges.append((start, previous))
-    return tuple(ranges)
 
 
 @dataclass(slots=True, frozen=True)
