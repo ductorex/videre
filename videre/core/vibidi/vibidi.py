@@ -123,6 +123,20 @@ def vibidi(logical_text: str, rtl_policy: RtlPolicy = RtlPolicy.INFER) -> Vibidi
     original = [
         unicode_props.bidirectional(c) or _default_class(c) for c in logical_text
     ]
+    if rtl_policy is not RtlPolicy.RIGHT_TO_LEFT and not any(
+        cls in _BIDI_NONTRIVIAL for cls in original
+    ):
+        # Fast path: no character forces RTL, a non-zero embedding level, or an
+        # X9 removal, so the base direction is LTR and the full UAX#9 resolution
+        # would leave every character at level 0 (W7 turns EN into L, neutrals
+        # resolve to L), remove nothing, and keep visual order == logical order.
+        return VibidiText(
+            tuple(
+                LevelPosition(is_rtl=False, logical=i, _level=0, _removed=False)
+                for i in range(len(logical_text))
+            ),
+            base_is_rtl=False,
+        )
     matching_pdi = _matching_isolates(original)
     base_level = _base_level(original, rtl_policy, matching_pdi)
     types, explicit_levels, removed = _resolve_explicit(
@@ -191,6 +205,13 @@ _MAX_DEPTH = 125
 _X9_REMOVED = frozenset({"RLE", "LRE", "RLO", "LRO", "PDF", "BN"})
 _ISOLATE_INITIATORS = frozenset({"RLI", "LRI", "FSI"})
 _NEUTRAL_ISOLATES = frozenset({"B", "S", "WS", "ON", "RLI", "LRI", "FSI", "PDI"})
+
+# Bidi classes whose presence rules out the LTR fast path in `vibidi`: strong /
+# number RTL, and the explicit embedding / override / isolate / BN controls.
+# Their absence guarantees the full resolution leaves every level at 0.
+_BIDI_NONTRIVIAL = (
+    _X9_REMOVED | _ISOLATE_INITIATORS | frozenset({"R", "AL", "AN", "PDI"})
+)
 
 
 @dataclass(frozen=True, slots=True)
