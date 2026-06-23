@@ -11,6 +11,7 @@ from tests.common import pixels_blue, pixels_red
 from videre.colors import Color
 from videre.core.shaping.rasterizer import GlyphRasterizer
 from videre.core.shaping.render import render_text
+from videre.core.shaping.rendering.layout import FontMetrics, RenderedText
 from videre.core.shaping.shaper import Shaper, shape_line
 from videre.core.shaping.text_partition.partitioner import partition_text
 
@@ -281,3 +282,125 @@ def test_italic_overhang_padding_does_not_change_caret_advance(
     x_start = rendered.visual_state(0).pixel.x
     x_end = rendered.visual_state(2).pixel.x
     assert x_end - x_start == round(advance)
+
+
+# -- Multi-line navigation / selection edge cases ----------------------------
+
+_WRAP = "alpha beta gamma delta"
+_WRAP_KW = {"width": 80, "wrap_words": True}
+
+
+def _walk_forward(rendered):
+    """Every caret state from start to end, stepping with next_visual."""
+    states = [rendered.visual_state_at(0)]
+    for _ in range(rendered.total_visual_count()):
+        states.append(rendered.next_visual(states[-1]))
+    return states
+
+
+def test_forward_backward_navigation_round_trips_across_wrapped_lines(
+    fake_win, shaper, rasterizer
+) -> None:
+    """Walking to the end then back retraces the same source positions across
+    soft-wrapped line boundaries (covers the cross-line branches of
+    `_next_glyph` / `_prev_glyph`)."""
+    rendered, _ = _render(_WRAP, fake_win, shaper, rasterizer, **_WRAP_KW)
+    assert len(rendered.line_layouts) >= 2
+    forward = _walk_forward(rendered)
+    cursor = forward[-1]
+    retraced = [cursor.pos]
+    for _ in range(rendered.total_visual_count()):
+        cursor = rendered.prev_visual(cursor)
+        retraced.append(cursor.pos)
+    assert retraced == [state.pos for state in reversed(forward)]
+
+
+def test_forward_navigation_steps_across_explicit_newlines(
+    fake_win, shaper, rasterizer
+) -> None:
+    """next_visual crosses author newlines onto the next line (covers
+    `_next_glyph`'s terminator-crossing branch)."""
+    text = "a\nb\nc"
+    rendered, _ = _render(text, fake_win, shaper, rasterizer)
+    assert len(rendered.line_layouts) == 3
+    states = _walk_forward(rendered)
+    assert [state.pos for state in states] == list(range(len(text) + 1))
+    assert states[0].pixel.y_top < states[-1].pixel.y_top
+
+
+@pytest.mark.parametrize("text,kw", [(_WRAP, _WRAP_KW), ("a\nb\nc", {})])
+def test_visual_state_at_addresses_every_visual_position(
+    text, kw, fake_win, shaper, rasterizer
+) -> None:
+    """`visual_state_at(visual_pos)` resolves every position on every line and
+    clamps past the end (covers its multi-line + terminator-crossing paths)."""
+    rendered, _ = _render(text, fake_win, shaper, rasterizer, **kw)
+    assert len(rendered.line_layouts) >= 2
+    total = rendered.total_visual_count()
+    for visual_pos in range(total + 1):
+        assert rendered.visual_state_at(visual_pos).visual_pos == visual_pos
+    assert rendered.visual_state_at(total + 99).visual_pos == total
+
+
+def test_visual_range_to_source_set_spans_wrapped_lines(
+    fake_win, shaper, rasterizer
+) -> None:
+    """A range covering several display lines collects every source position;
+    one confined to the last line is a strict, non-empty subset (covers the
+    multi-line skip / continue branches)."""
+    rendered, _ = _render(_WRAP, fake_win, shaper, rasterizer, **_WRAP_KW)
+    assert len(rendered.line_layouts) >= 2
+    total = rendered.total_visual_count()
+    full = rendered.visual_range_to_source_set(0, total)
+    assert full == frozenset(range(len(_WRAP)))
+    n_last = len(rendered.line_layouts[-1].items)
+    last_only = rendered.visual_range_to_source_set(total - n_last, total)
+    assert last_only and last_only < full
+
+
+def test_selection_rects_one_ribbon_per_wrapped_line(
+    fake_win, shaper, rasterizer
+) -> None:
+    """A multi-line selection paints one ribbon per covered line, and a
+    selection starting below the first line skips it (covers `_selection_rects`'
+    multi-line branches)."""
+    rendered, _ = _render(_WRAP, fake_win, shaper, rasterizer, **_WRAP_KW)
+    n_lines = len(rendered.line_layouts)
+    assert n_lines >= 2
+    total = rendered.total_visual_count()
+    assert len(rendered._selection_rects(0, total)) == n_lines
+    n0 = len(rendered.line_layouts[0].items)
+    assert len(rendered._selection_rects(n0, total)) == n_lines - 1
+
+
+def test_pixel_hit_test_snaps_to_the_nearer_glyph_edge(
+    fake_win, shaper, rasterizer
+) -> None:
+    """Clicking inside a glyph snaps to whichever edge is nearer (covers both
+    half-width branches of `_pixel_to_glyph`)."""
+    rendered, _ = _render("hello", fake_win, shaper, rasterizer)
+    line = rendered.line_layouts[0]
+    y = line.y_top + 1
+    item = line.items[1]
+    width = item.x_end - item.x_start
+    assert width >= 2
+    near_left = line.x_offset + item.x_start + width // 4
+    near_right = line.x_offset + item.x_end - width // 4
+    assert rendered.visual_state_at_pixel(near_left, y).visual_pos == 1
+    assert rendered.visual_state_at_pixel(near_right, y).visual_pos == 2
+
+
+def test_empty_layout_navigation_is_safe() -> None:
+    """A `RenderedText` with no line layouts (degenerate) returns origin
+    defaults instead of crashing (covers the empty-layout guards in every
+    navigator)."""
+    metrics = FontMetrics(ascender=12, descender=3, height_delta=2, line_spacing=17)
+    rendered = RenderedText(metrics, ())
+    assert rendered.total_visual_count() == 0
+    base = rendered.visual_state(0)
+    assert (base.pos, base.visual_pos, base.pixel.x) == (0, 0, 0)
+    assert rendered.visual_state_at(7).pos == 0
+    assert rendered.visual_state_at_pixel(5, 5).pos == 0
+    assert rendered.next_visual(base).pos == 0
+    assert rendered.prev_visual(base).pos == 0
+    assert rendered.visual_range_to_source_set(0, 4) == frozenset()
