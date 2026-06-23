@@ -11,7 +11,7 @@ from videre.core.constants import TextAlign, TextSpacePolicy
 from videre.core.rendering_result import AbstractTextRendering, Rendering
 from videre.core.shaping.document import ShapedDocument
 from videre.core.shaping.rasterizer import GlyphRasterizer
-from videre.core.shaping.render import render_char, render_text
+from videre.core.shaping.render import render_char
 from videre.core.shaping.rendering.layout import RenderedText
 from videre.core.shaping.shaper import Shaper
 
@@ -77,23 +77,17 @@ class ShapedTextRendering(AbstractTextRendering):
         underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, Rendering]:
-        return render_text(
-            text,
-            backend=self._backend,
-            rasterizer=self._rasterizer,
-            shaper=self._shaper,
-            size=self._size,
+        # The document is the single rendering route; this is a one-shot wrapper
+        # over it (re-shapes per call, no caching at this level). The module-level
+        # `render.render_text` stays as the document's independent reference
+        # oracle -- see test_document.py.
+        return self.document(text).render(
+            width,
             color=color,
-            width=width,
+            align=align,
             wrap_words=wrap_words,
             space_policy=space_policy,
-            align=align,
-            bold=self._bold,
-            italic=self._italic,
             underline=underline,
-            height_delta=self._height_delta,
-            compact=self._compact,
-            subpixel=self._subpixel,
             selection=selection,
         )
 

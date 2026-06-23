@@ -59,7 +59,7 @@ def test_split_by_word_spaces_only_returns_empty() -> None:
 
 
 def test_split_by_font_empty_returns_empty() -> None:
-    assert _split_by_font("", "Latn") == []
+    assert _split_by_font("") == []
 
 
 # -- All-neutral text --------------------------------------------------------
@@ -168,7 +168,7 @@ def test_cjk_words_dont_fuse_across_whitespace() -> None:
 def test_split_by_font_all_neutral_text_uses_first_char_font() -> None:
     """When every character is neutral, the implementation falls back
     to the font picked for `text[0]` (no real-script anchor exists)."""
-    pieces = _split_by_font("   ", "Zyyy")
+    pieces = _split_by_font("   ")
     assert len(pieces) == 1
     assert pieces[0].text == "   "
     # Don't pin the exact font name (depends on FontProvider config),
@@ -181,7 +181,7 @@ def test_split_by_font_emoji_in_latin_text_splits_pieces() -> None:
     than the surrounding letters, so the run splits into multiple
     pieces (Latin / emoji / Latin)."""
     text = "ab\U0001f600cd"  # 😀
-    pieces = _split_by_font(text, "Latn")
+    pieces = _split_by_font(text)
     # Should be at least 2 pieces (Latin + emoji); often 3 if the
     # provider keeps the same font for both Latin halves.
     assert len(pieces) >= 2

@@ -81,17 +81,15 @@ def _shaping_script(text: str) -> str:
     return "Zyyy"
 
 
-def _split_by_font(text: str, script: str) -> list[PerFont]:
+def _split_by_font(text: str) -> list[PerFont]:
     """Split one script run by font.
 
     Format and control characters stay attached to the current font even when
     they have no cmap entry: HarfBuzz needs join controls and variation
     selectors in the same shaping buffer as the characters they modify.
     Other neutral characters stay when the cmap supports them; otherwise the
-    provider selects a fallback. The unused ``script`` argument remains part
-    of the helper contract because callers split by script first.
+    provider selects a fallback. Callers split by script first.
     """
-    del script
     if not text:
         return []
     provider = get_font_provider()
@@ -134,9 +132,5 @@ def _split_by_font(text: str, script: str) -> list[PerFont]:
     return result
 
 
-def _is_variation_selector(c: str) -> bool:
-    return is_variation_selector(c)
-
-
 def _stays_with_current_font(c: str) -> bool:
-    return _is_variation_selector(c) or unicode_props.category(c) in {"Cc", "Cf"}
+    return is_variation_selector(c) or unicode_props.category(c) in {"Cc", "Cf"}

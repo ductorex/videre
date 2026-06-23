@@ -200,7 +200,7 @@ def _word_units(
             s_text = script_seg.text
             s_pos = d_pos[s_off : s_off + len(s_text)]
             f_off = 0
-            for per_font in _split_by_font(s_text, script_seg.script):
+            for per_font in _split_by_font(s_text):
                 f_text = per_font.text
                 f_pos = s_pos[f_off : f_off + len(f_text)]
                 units.append(
