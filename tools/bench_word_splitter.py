@@ -8,7 +8,7 @@ import time
 
 from uniseg.wordbreak import words as uniseg_words
 
-from videre.core.shaping.text_partition.word_splitter import (
+from videre.core.text_rendering.text_partition.word_splitter import (
     split_word_spans,
     word_boundaries,
 )

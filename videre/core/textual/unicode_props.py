@@ -37,7 +37,7 @@ block = _udp.block
 # conjunct, Extended_Pictographic). Unlike the aliases above these are wrapped in
 # `@cache`: the grapheme / word / line segmenters query them in tight
 # per-character loops over the bounded codepoint domain, so a cached value-type
-# lookup is the project convention (see core/shaping/utils.py). One shared cache
+# lookup is the project convention (see core/text_rendering/utils.py). One shared cache
 # here replaces the duplicate per-module caches the segmenters used to keep.
 @cache
 def grapheme_cluster_break(character: str) -> str:

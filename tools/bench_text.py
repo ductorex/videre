@@ -31,7 +31,7 @@ import statistics
 import time
 
 from videre.colors import Color
-from videre.core.shaping import ShapedTextRendering
+from videre.core.text_rendering import TextRendering
 from videre.testing.step_window import StepWindow
 from videre.testing.utils import LOREM_IPSUM, TEXT_SAMPLES
 
@@ -44,7 +44,7 @@ BLACK = Color(0, 0, 0)
 
 def samples() -> dict[str, str]:
     """Etiquette (ASCII) -> texte, couvrant deux familles : latin simple, et
-    scripts complexes / bidi / emoji (au shaping non trivial)."""
+    scripts complexes / bidi / emoji (au text_rendering non trivial)."""
     lorem = LOREM_IPSUM.split("\n\n")[0].strip()
     return {
         # --- latin simple ---
@@ -97,7 +97,7 @@ def _row(name: str, us: float) -> str:
 def run() -> None:
     samp = samples()
     with StepWindow(width=900, height=600) as win:
-        shaped = ShapedTextRendering(win.backend, size=SIZE)
+        shaped = TextRendering(win.backend, size=SIZE)
 
         head = f"{'texte':16} | {'rendu us':>10} {'%fr':>6}"
 

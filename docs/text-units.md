@@ -40,7 +40,7 @@ Un groupe de codepoints ↔ glyphes produit par le **shaping** (HarfBuzz).
   **dépend de la police**.
 - C'est l'**unité de rendu** : ce que HarfBuzz a regroupé pour fabriquer les
   glyphes.
-- Dans le code Videre : `ShapedCluster` (`core/shaping/glyph_partition.py`).
+- Dans le code Videre : `ShapedCluster` (`core/text_rendering/glyph_partition.py`).
 
 ## Comment ils se rangent
 

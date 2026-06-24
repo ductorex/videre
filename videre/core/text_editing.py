@@ -225,8 +225,8 @@ def _classify_unit(text: str) -> EditUnitKind:
     if all(c in _BIDI_CONTROLS for c in text):
         return EditUnitKind.BIDI_CONTROL
     # Soft hyphen (U+00AD): a conditional-hyphenation point. Classified and
-    # preserved here, but NOT yet consumed as a break opportunity by the shaping
-    # pipeline \u2014 word_splitter's WB4 absorbs it (Word_Break=Format) before its
+    # preserved here, but NOT yet consumed as a break opportunity by the wrap
+    # \u2014 word_splitter's WB4 absorbs it (Word_Break=Format) before its
     # Line_Break=BA can apply, so the wrap treats the surrounding word as atomic.
     # This kind is the surviving hook to wire conditional hyphenation up later.
     if text == "\u00ad":

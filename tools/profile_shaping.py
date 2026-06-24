@@ -25,10 +25,10 @@ on mesure le pipeline pur (HarfBuzz + FreeType), pas le dessin.
 import statistics
 import time
 
-from videre.core.shaping.shaper import Shaper, shape_line
-from videre.core.shaping.text_partition.partitioner import partition_text
-from videre.core.shaping.text_partition.word_splitter import split_word_spans
 from videre.core.text_editing import segment_edit_units
+from videre.core.text_rendering.shaper import Shaper, shape_line
+from videre.core.text_rendering.text_partition.partitioner import partition_text
+from videre.core.text_rendering.text_partition.word_splitter import split_word_spans
 from videre.core.vibidi.vibidi import vibidi
 from videre.fonts.provider import FONT_NOTO_REGULAR, FontProvider, get_font_provider
 from videre.testing.utils import LOREM_IPSUM, TEXT_SAMPLES

@@ -148,7 +148,7 @@ Les deux objectifs sont séparables ; je ferais le **cache d'abord** (sûr, pas 
 changement de contrat), puis le **contrat edit-unit** (le morceau sensible).
 
 - **C1 ✅** — `AbstractTextDocument` + `AbstractTextRendering.document(text)`.
-  Shaped : `ShapedDocument` (cache partition+shape, `edit_units`, `render(width)`).
+  Concret : `TextDocument` (cache partition+shape, `edit_units`, `render(width)`).
   `render.py` scindé `build_glyph_lines` / `layout_glyph_lines` / `paint_glyph_lines`.
   `render_text` gardé en parallèle.
 - **C2 ✅** — le widget `Text` cache `_document`, appelle `document.render(width)`.

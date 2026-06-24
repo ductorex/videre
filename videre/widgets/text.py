@@ -35,7 +35,7 @@ class Text(Widget):
     __slots__ = ("_rendered", "_document")
 
     # Properties that change the shape itself (not just the layout): changing one
-    # invalidates the cached `ShapedDocument`. Width / wrap / align only re-lay
+    # invalidates the cached `TextDocument`. Width / wrap / align only re-lay
     # out, so they keep the document — that is the resize win.
     __document_props__ = {"text", "size", "strong", "italic", "height_delta"}
 

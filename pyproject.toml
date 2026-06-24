@@ -63,7 +63,7 @@ extend-select = ["I"]
 split-on-trailing-comma = false
 
 [[tool.ty.overrides]]
-include = ["videre/core/shaping/shaper.py"]
+include = ["videre/core/text_rendering/shaper.py"]
 rules = { "unresolved-import" = "ignore" }
 
 [[tool.ty.overrides]]

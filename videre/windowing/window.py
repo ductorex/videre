@@ -7,7 +7,6 @@ from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import WINDOW_FPS, Alignment
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.rendering_result import AbstractTextRendering, Rendering
-from videre.core.shaping import ShapedTextRendering
 from videre.core.tasks import (
     CallbackTask,
     ExitTask,
@@ -16,6 +15,7 @@ from videre.core.tasks import (
     TaskManager,
     VidereTask,
 )
+from videre.core.text_rendering import TextRendering
 from videre.core.utils import OnEvent, Procedure, launch_thread
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
@@ -153,7 +153,7 @@ class Window:
         height_delta: int = 2,
         compact: bool = True,
     ) -> AbstractTextRendering:
-        return ShapedTextRendering(
+        return TextRendering(
             self._backend,
             size=size or self._font_size_pts,
             bold=strong,

@@ -5,8 +5,8 @@ import pygame.freetype
 import pytest
 
 from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.shaping.render import font_metrics
-from videre.core.shaping.text_rendering import ShapedTextRendering
+from videre.core.text_rendering.render import font_metrics
+from videre.core.text_rendering.renderer import TextRendering
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FONT_NOTO_REGULAR, FontProvider
 
@@ -57,7 +57,7 @@ def test_render_text(fake_win, wrap_words):
     size = 24
     height_delta = 2
     # Reference-font line metrics straight from the shaped pipeline (the space
-    # glyph's font), the same source `ShapedTextRendering` uses to allocate line
+    # glyph's font), the same source `TextRendering` uses to allocate line
     # surfaces -- so the height assertions below check the renderer against its
     # own metrics. `line_spacing` already folds in `height_delta`.
     m = font_metrics(size, height_delta)
@@ -69,13 +69,13 @@ def test_render_text(fake_win, wrap_words):
     assert ascender == 27
     assert descender == 8
 
-    tr_compact = ShapedTextRendering(
+    tr_compact = TextRendering(
         cast(PygameBackend, fake_win.backend),
         size=size,
         height_delta=height_delta,
         compact=True,
     )
-    tr_full = ShapedTextRendering(
+    tr_full = TextRendering(
         cast(PygameBackend, fake_win.backend),
         size=size,
         height_delta=height_delta,

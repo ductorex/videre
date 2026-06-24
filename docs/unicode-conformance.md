@@ -1,4 +1,4 @@
-# Conformité Unicode — `videre/core/shaping` + `videre/fonts`
+# Conformité Unicode — `videre/core/text_rendering` + `videre/fonts`
 
 > Audit du 2026-06-16. Mesures issues d'une lecture exhaustive du code et de
 > calculs exécutés contre la collection de polices embarquée (178 fontes

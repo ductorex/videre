@@ -28,9 +28,9 @@ import pygame.freetype
 import pytest
 
 import videre
-from videre.core.shaping.render import build_glyph_lines
-from videre.core.shaping.rendering.layout import RenderedText
-from videre.core.shaping.shaper import Shaper
+from videre.core.text_rendering.render import build_glyph_lines
+from videre.core.text_rendering.rendering.layout import RenderedText
+from videre.core.text_rendering.shaper import Shaper
 from videre.testing.utils import TEXT_SAMPLES
 
 # First line of the Arabic sample = what the demo's TextInput now starts with:
