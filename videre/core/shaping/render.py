@@ -212,7 +212,11 @@ def assemble_glyph_lines(
     measures = [measure_glyphs(gl.glyphs) for gl, _ in lines]
     natural_max = max((measure.width for measure in measures), default=0.0)
     target_width = float(width) if width is not None else natural_max
-    surface_w = max(int(round(target_width)), 1)
+    # Width is the natural content width (0 when nothing is visible): no floor,
+    # so empty / glyphless text claims no horizontal space -- like render_char
+    # and the legacy renderer. Height keeps a 1px floor so a glyphless line still
+    # reserves its one-line slot (a caret needs a line to sit on).
+    surface_w = max(int(round(target_width)), 0)
     surface_h = max(total_height, 1)
 
     # Per line: alignment offset, justify slack, and the cluster geometry the

@@ -28,7 +28,6 @@ from videre.core.pygame_backend.definitions import (
     Rect,
     Surface,
 )
-from videre.core.pygame_backend.font_factory import PygameFontFactory
 from videre.core.pygame_backend.mapping import (
     keyboard_entry_to_pygame_dict,
     mouse_button_to_pygame,
@@ -36,9 +35,8 @@ from videre.core.pygame_backend.mapping import (
     pygame_to_mouse_button,
     pygame_to_mouse_buttons,
 )
-from videre.core.pygame_backend.text_rendering import PygameTextRendering
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.rendering_result import Rendering
 from videre.core.tasks import TaskManager, VidereTask
 from videre.core.utils import OnEvent
 
@@ -199,7 +197,7 @@ class Pygame(AbstractBackend):
 
 
 class PygameBackend(Pygame):
-    __slots__ = ("__default_cursor", "__text_cursor", "_screen", "_fonts", "_clock")
+    __slots__ = ("__default_cursor", "__text_cursor", "_screen", "_clock")
 
     def __init__(
         self,
@@ -228,7 +226,6 @@ class PygameBackend(Pygame):
 
         self.__default_cursor = pygame.mouse.get_cursor()
         self.__text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
-        self._fonts = PygameFontFactory()
         self._screen: Surface | None = None
         self._clock: pygame.time.Clock | None = None
 
@@ -320,22 +317,6 @@ class PygameBackend(Pygame):
         ret = self._manage_event(event)
         if ret is not None:
             self._task_manager.one_shot(ret)
-
-    def text_rendering(
-        self,
-        size: int,
-        strong: bool = False,
-        italic: bool = False,
-        height_delta: int | None = None,
-    ) -> AbstractTextRendering:
-        return PygameTextRendering(
-            self,
-            self._fonts,
-            size=size,
-            strong=strong,
-            italic=italic,
-            height_delta=height_delta,
-        )
 
     def _manage_event(self, event: Event) -> VidereTask | None:
         callback = self._on_event.get(event.type)

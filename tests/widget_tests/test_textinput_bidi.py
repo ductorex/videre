@@ -1,10 +1,8 @@
-"""End-to-end bidi tests for `TextInput` on the SHAPED renderer.
+"""End-to-end bidi tests for `TextInput`.
 
 These drive a real `TextInput` through `FakeUser` (click / arrows / backspace /
-typing) on Arabic+Latin text. They live in `on_videre/` so the autouse
-`_force_shaped` fixture routes `text_rendering()` through the shaped (HarfBuzz,
-bidi-aware) pipeline — the legacy renderer has no bidi visual order, so these
-would be meaningless against it.
+typing) on Arabic+Latin text. They rely on the shaped (HarfBuzz, bidi-aware)
+pipeline — the only renderer — for visual bidi order.
 
 Coverage:
 - display of the mixed Arabic/Latin/CJK demo line (snapshot);

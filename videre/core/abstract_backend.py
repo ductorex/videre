@@ -8,7 +8,7 @@ from videre.colors import Color
 from videre.core.constants import WINDOW_FPS
 from videre.core.events import VidereEvent
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.rendering_result import Rendering
 from videre.core.tasks import TaskManager, VidereTask
 
 _Position: TypeAlias = tuple[int | float, int | float]
@@ -116,15 +116,6 @@ class AbstractBackend(ABC):
     def step(self, fps: int | None = None) -> None:
         self._step(fps)
         self._nb_frames += 1
-
-    @abstractmethod
-    def text_rendering(
-        self,
-        size: int,
-        strong: bool = False,
-        italic: bool = False,
-        height_delta: int | None = None,
-    ) -> AbstractTextRendering: ...
 
     def set_text_cursor(self) -> None:
         self._set_text_cursor()

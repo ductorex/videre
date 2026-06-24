@@ -4,19 +4,6 @@ import videre
 from videre.core.clipboard import Clipboard
 
 
-def _grapheme_aware(fake_win) -> bool:
-    """True when the active backend edits at grapheme granularity (the shaped
-    renderer). The legacy renderer is codepoint-level — `1 edit unit == 1
-    codepoint` — so grapheme-cluster editing applies only to the shaped backend
-    (exercised here through the mirror harness)."""
-    from videre.core.shaping.text_rendering import ShapedTextRendering
-
-    return isinstance(fake_win.text_rendering(size=14), ShapedTextRendering)
-
-
-_SHAPED_ONLY = "grapheme-level editing is shaped-only (legacy edits by codepoint)"
-
-
 def test_value(fake_win):
     ti = videre.TextInput()
     fake_win.controls = [ti]
@@ -572,8 +559,6 @@ def _focus_at_start(fake_win, ti):
 
 
 def test_grapheme_backspace_removes_whole_cluster(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     ti = videre.TextInput(text=_COMBINING)
     fake_win.controls = [ti]
@@ -594,8 +579,6 @@ def test_grapheme_backspace_removes_whole_cluster(fake_win):
 
 
 def test_grapheme_delete_removes_whole_cluster(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     ti = videre.TextInput(text=_COMBINING)
     fake_win.controls = [ti]
@@ -611,8 +594,6 @@ def test_grapheme_delete_removes_whole_cluster(fake_win):
 
 
 def test_grapheme_backspace_from_inside_cluster(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     ti = videre.TextInput(text=_COMBINING)
     fake_win.controls = [ti]
@@ -631,8 +612,6 @@ def test_grapheme_backspace_from_inside_cluster(fake_win):
 
 
 def test_grapheme_arrows_skip_whole_cluster(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     ti = videre.TextInput(text=_COMBINING)
     fake_win.controls = [ti]
@@ -661,8 +640,6 @@ def test_grapheme_arrows_skip_whole_cluster(fake_win):
 
 
 def test_grapheme_shift_selection_deletes_whole_clusters(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     ti = videre.TextInput(text=_COMBINING)
     fake_win.controls = [ti]
@@ -680,8 +657,6 @@ def test_grapheme_shift_selection_deletes_whole_clusters(fake_win):
 
 
 def test_grapheme_copy_copies_whole_cluster(fake_win):
-    if not _grapheme_aware(fake_win):
-        pytest.skip(_SHAPED_ONLY)
     fake_user = fake_win.user
     clipboard_store = {"content": ""}
     original_copy = Clipboard._copy

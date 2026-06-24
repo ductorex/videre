@@ -1,14 +1,13 @@
-"""Comparaison du rendu de texte : ancien moteur ("legacy", pygame.freetype)
-contre nouveau ("shaped", HarfBuzz).
+"""Benchmark du moteur de rendu de texte "shaped" (HarfBuzz).
 
-Lancement (Windows : forcer l'UTF-8 de la console par sécurite) ::
+Lancement (Windows : forcer l'UTF-8 de la console par securite) ::
 
     PYTHONUTF8=1 uv run python tools/bench_text.py
 
 POURQUOI CES MESURES ?
 ----------------------
 Un widget texte garde son image rendue en cache : tant que rien ne change, il
-ne recalcule RIEN (un texte statique a donc un coût nul). Le rendu n'est payé
+ne recalcule RIEN (un texte statique a donc un cout nul). Le rendu n'est paye
 qu'a deux moments precis -- les deux seuls qu'on mesure ici :
 
   1. LE TEXTE CHANGE  (on tape une lettre, on affiche un nouveau contenu)
@@ -17,14 +16,11 @@ qu'a deux moments precis -- les deux seuls qu'on mesure ici :
 
   2. LA LARGEUR CHANGE  (on redimensionne la fenetre, reflow)
      Le texte est identique, seule la largeur bouge. Le widget reutilise le
-     "document" deja calcule :
-       - shaped : le shaping (l'etape couteuse) n'est PAS refait, juste la mise
-         en page + le dessin ;
-       - legacy : il n'a pas d'etape de shaping separee a mettre en cache, donc
-         il refait tout a chaque largeur.
+     "document" deja calcule : le shaping (l'etape couteuse) n'est PAS refait,
+     juste la mise en page + le dessin.
 
-Un 3e tableau decompose le cout du shaped en "shape" (l'analyse bidi+HarfBuzz,
-= le travail que le legacy ne fait PAS) et "paint" (mise en page + dessin).
+Un 3e tableau decompose le cout en "shape" (l'analyse bidi+HarfBuzz, payee une
+fois puis mise en cache) et "paint" (mise en page + dessin a une largeur).
 
 Chaque nombre est la mediane sur plusieurs appels, en microsecondes (us), et
 aussi en % d'une frame a 60 FPS (16 667 us). Au-dela de 100 %, un seul rendu
@@ -47,15 +43,15 @@ BLACK = Color(0, 0, 0)
 
 
 def samples() -> dict[str, str]:
-    """Etiquette (ASCII) -> texte, en deux familles : ce que le legacy gere
-    bien, et ce qu'il gere mal ou faux (bidi, scripts complexes, emoji)."""
+    """Etiquette (ASCII) -> texte, couvrant deux familles : latin simple, et
+    scripts complexes / bidi / emoji (au shaping non trivial)."""
     lorem = LOREM_IPSUM.split("\n\n")[0].strip()
     return {
-        # --- le legacy gere bien ---
+        # --- latin simple ---
         "latin court": "Open file",
         "latin phrase": "The quick brown fox jumps over the lazy dog.",
         "latin paragraphe": lorem,
-        # --- le legacy gere mal ou faux ---
+        # --- scripts complexes / bidi / emoji ---
         "arabe": TEXT_SAMPLES["arabic"].splitlines()[0],
         "hebreu": TEXT_SAMPLES["hebrew"].splitlines()[0],
         "devanagari": TEXT_SAMPLES["devanagari"],
@@ -94,65 +90,41 @@ def _pct_frame(us: float) -> float:
     return us / FRAME_US * 100.0
 
 
-def _row(name: str, lg: float, sh: float) -> str:
-    return (
-        f"{name:16} | {lg:10.0f} {_pct_frame(lg):6.1f} | "
-        f"{sh:10.0f} {_pct_frame(sh):6.1f} | {sh / lg:6.2f}"
-    )
+def _row(name: str, us: float) -> str:
+    return f"{name:16} | {us:10.0f} {_pct_frame(us):6.1f}"
 
 
 def run() -> None:
     samp = samples()
     with StepWindow(width=900, height=600) as win:
-        be = win.backend
-        legacy = be.text_rendering(size=SIZE)
-        shaped = ShapedTextRendering(be, size=SIZE)
+        shaped = ShapedTextRendering(win.backend, size=SIZE)
 
-        head = (
-            f"{'texte':16} | {'legacy us':>10} {'%fr':>6} | "
-            f"{'shaped us':>10} {'%fr':>6} | {'sh/lg':>6}"
-        )
-        note = "(sh/lg : >1 = shaped plus lent, <1 = shaped plus rapide)"
+        head = f"{'texte':16} | {'rendu us':>10} {'%fr':>6}"
 
         # 1. LE TEXTE CHANGE -- document reconstruit a chaque appel (le texte a
         # change), caches bas niveau chauds (regime permanent, ex. on tape).
         print("1. LE TEXTE CHANGE  (frappe / nouveau contenu)")
-        print("   mediane par rendu -- us et % d'une frame 60 FPS  " + note + "\n")
+        print("   mediane par rendu -- us et % d'une frame 60 FPS\n")
         print(head)
         print("-" * len(head))
         for name, text in samp.items():
-            lg = _measure(
-                lambda: legacy.document(text).render(
-                    WIDTH, color=BLACK, wrap_words=True
-                )
-            )
             sh = _measure(
                 lambda: shaped.document(text).render(
                     WIDTH, color=BLACK, wrap_words=True
                 )
             )
-            print(_row(name, lg, sh))
+            print(_row(name, sh))
 
         # 2. LA LARGEUR CHANGE -- document construit UNE fois, puis rendu a
         # chaque largeur du balayage ; on ramene au cout d'UNE largeur.
         print("\n2. LA LARGEUR CHANGE  (resize -- document reutilise)")
-        print("   mediane par rendu d'une largeur -- us et % de frame  " + note + "\n")
+        print("   mediane par rendu d'une largeur -- us et % de frame\n")
         print(head)
         print("-" * len(head))
         resize_paint = {}
         for name, text in samp.items():
-            ldoc = legacy.document(text)
             sdoc = shaped.document(text)
             n = len(RESIZE_WIDTHS)
-            lg = (
-                _measure(
-                    lambda: [
-                        ldoc.render(w, color=BLACK, wrap_words=True)
-                        for w in RESIZE_WIDTHS
-                    ]
-                )
-                / n
-            )
             sh = (
                 _measure(
                     lambda: [
@@ -163,14 +135,15 @@ def run() -> None:
                 / n
             )
             resize_paint[name] = sh
-            print(_row(name, lg, sh))
+            print(_row(name, sh))
 
-        # 3. DECOMPOSITION DU SHAPED -- shape = document(text) seul = le travail
-        # bidi+HarfBuzz que le legacy ne fait pas ; paint = rendu d'une largeur.
-        print("\n3. DECOMPOSITION DU SHAPED  (shape = ce que le legacy ne fait pas)")
+        # 3. DECOMPOSITION -- shape = document(text) seul (analyse bidi+HarfBuzz) ;
+        # paint = rendu d'une largeur (mesure en 2.).
         print(
-            "   shape = analyse bidi+HarfBuzz (payee 1x, mise en cache) ; "
-            "paint = mise en page + dessin\n"
+            "\n3. DECOMPOSITION  (shape = analyse bidi+HarfBuzz, paint = mise en page + dessin)"
+        )
+        print(
+            "   shape est paye 1x puis mis en cache ; au resize, seul paint est refait\n"
         )
         head3 = f"{'texte':16} | {'shape us':>9} {'paint us':>9} {'total us':>9} | {'shape%':>6}"
         print(head3)

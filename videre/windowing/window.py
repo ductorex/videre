@@ -6,7 +6,8 @@ from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import WINDOW_FPS, Alignment
 from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.rendering_result import Rendering
+from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.shaping import ShapedTextRendering
 from videre.core.tasks import (
     CallbackTask,
     ExitTask,
@@ -83,7 +84,7 @@ class Window:
         self._notification_callbacks: list[NotificationCallback] = []
 
         self._handled_exceptions = tuple(alert_on_exceptions)
-        self._subpixel: bool | None = handle_text_sub_pixels
+        self._subpixel: bool = bool(handle_text_sub_pixels)
 
         self.data = None
 
@@ -149,13 +150,17 @@ class Window:
         size: int | None = None,
         strong: bool = False,
         italic: bool = False,
-        height_delta: int | None = None,
-    ):
-        return self._backend.text_rendering(
+        height_delta: int = 2,
+        compact: bool = True,
+    ) -> AbstractTextRendering:
+        return ShapedTextRendering(
+            self._backend,
             size=size or self._font_size_pts,
-            strong=strong,
+            bold=strong,
             italic=italic,
             height_delta=height_delta,
+            compact=compact,
+            subpixel=self._subpixel,
         )
 
     def run(self) -> int:

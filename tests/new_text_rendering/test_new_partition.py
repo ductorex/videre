@@ -157,6 +157,44 @@ def test_lines_keep_explicit_source_ranges_and_terminators() -> None:
     assert last.terminator is None
 
 
+# -- Line breaks: CR / LF / CRLF -- each ONE break, and CRLF is atomic -------
+
+
+@pytest.mark.parametrize(
+    "text, n_lines",
+    [
+        ("a\nb", 2),  # LF -> one break
+        ("a\rb", 2),  # CR -> one break
+        ("a\r\nb", 2),  # CRLF -> ONE break, not two
+        ("a\n\rb", 3),  # LF then CR (reversed) is NOT a cluster -> two breaks
+        ("a\r\n\r\nb", 3),  # two CRLFs -> two breaks (blank middle line)
+    ],
+)
+def test_line_break_counting(text: str, n_lines: int) -> None:
+    assert len(partition_text(text).lines) == n_lines
+
+
+def test_crlf_is_a_single_line_break_edit_unit() -> None:
+    # UAX#29 (GB3) keeps CR x LF in one grapheme, so the partitioner treats it
+    # as a single LINE_BREAK edit unit: it counts as one break and a backspace
+    # deletes both codepoints at once. The reversed order \n\r is NOT a cluster.
+    crlf = partition_text("a\r\nb").edit_units
+    assert [u.kind for u in crlf] == [
+        EditUnitKind.TEXT,
+        EditUnitKind.LINE_BREAK,
+        EditUnitKind.TEXT,
+    ]
+    assert (crlf[1].source_start, crlf[1].source_end) == (1, 3)
+
+    lfcr = partition_text("a\n\rb").edit_units
+    assert [u.kind for u in lfcr] == [
+        EditUnitKind.TEXT,
+        EditUnitKind.LINE_BREAK,
+        EditUnitKind.LINE_BREAK,
+        EditUnitKind.TEXT,
+    ]
+
+
 def test_hidden_controls_are_preserved_in_partition_source_order() -> None:
     text = "a\x01\u200eb"
     part = partition_text(text)

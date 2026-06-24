@@ -107,7 +107,8 @@ def test_empty_text_reserves_one_line_slot(
     s = ShapedTextRendering(fake_win.backend, size=16).render_text(
         "", color=Color(0, 0, 0)
     )[1]
-    assert s.get_width() == 1
+    # No glyph -> no width, but the height still reserves one line slot.
+    assert s.get_width() == 0
     assert s.get_height() == asc + 2 + desc
 
 
