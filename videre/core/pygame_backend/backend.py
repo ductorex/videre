@@ -1,5 +1,6 @@
 import io
 import logging
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Sequence
 
@@ -8,7 +9,11 @@ import pygame.gfxdraw
 from PIL.Image import Image
 
 from videre.colors import Color
-from videre.core.abstract_backend import AbstractBackend
+from videre.core.abstract_backend import (
+    AbstractBackend,
+    AbstractRenderer,
+    AbstractWindowing,
+)
 from videre.core.constants import WINDOW_FPS
 from videre.core.drawer import (
     Args,
@@ -58,8 +63,47 @@ from videre.core.utils import OnEvent
 logger = logging.getLogger(__name__)
 
 
-class Pygame(AbstractBackend):
-    __slots__ = ()
+class PygameRenderer(AbstractRenderer):
+    """Pygame rasterizer: replays a Drawer's command IR onto pygame surfaces.
+
+    Holds no window/event state — it can be instantiated and benchmarked on its
+    own. The by-value LRU cache is private here (the abstract contract is silent
+    on caching), so a GPU backend can ignore it.
+    """
+
+    __slots__ = ("_drawer_cache",)
+
+    _DRAWER_CACHE_SIZE = 512
+
+    def __init__(self) -> None:
+        # By-value LRU of materialized sub-surfaces. This caching is a software
+        # / "retained" strategy private to this renderer, not part of the
+        # abstract contract: an immediate-mode GPU backend would skip it.
+        self._drawer_cache: OrderedDict[Drawer, Rendering] = OrderedDict()
+
+    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
+        """Rasterize a Drawer, memoizing materialized surfaces by value.
+
+        Drawers hash/compare by content, so an unchanged sub-tree (a clean
+        widget reuses its cached Drawer frame to frame) hits the cache instead
+        of being repainted. Only `dst=None` calls are cached: the root screen
+        (painted onto `dst`) changes almost every frame and is never stored.
+        Backed by a bounded LRU. Cached surfaces are read-only — the visitor
+        only ever mutates `dst` or a fresh surface, and `copy()` shields the
+        in-place edits (`TextInput`), so sharing a cached surface is safe.
+        """
+        if dst is not None:
+            return self._paint_drawer(drawer, dst)
+        cache = self._drawer_cache
+        cached = cache.get(drawer)
+        if cached is not None:
+            cache.move_to_end(drawer)
+            return cached
+        surface = self._paint_drawer(drawer, None)
+        cache[drawer] = surface
+        if len(cache) > self._DRAWER_CACHE_SIZE:
+            cache.popitem(last=False)
+        return surface
 
     def _paint_drawer(self, drawer: Drawer, dst: Rendering | None) -> Rendering:
         """Replay a Drawer's command IR onto a real pygame surface — the
@@ -213,85 +257,14 @@ class Pygame(AbstractBackend):
         # set. The source buffer is straight RGBA with alpha.
         return PygameRendering(pygame.image.frombytes(data, size, "RGBA"))
 
-    def post_event(self, event: VidereEvent) -> None:
-        event_type = type(event)
-        callback = self._on_post.get(type(event))
-        if callback is None:
-            raise NotImplementedError(event_type, event)
-        callback(self, event)
 
-    _on_post = OnEvent[type[VidereEvent]]()
+class PygameWindowing(AbstractWindowing):
+    """Pygame windowing: the display, clock, cursor, and pygame event loop.
 
-    @classmethod
-    @_on_post(MouseButtonDownEvent)
-    def _post_mouse_button_down(cls, event: MouseButtonDownEvent) -> None:
-        event_data = {
-            "pos": (event.x, event.y),
-            "button": mouse_button_to_pygame(event.button),
-        }
-        pygame.event.post(Event(pygame.MOUSEBUTTONDOWN, event_data))
+    Owns the OS-facing state and drives `_step`. Posts videre events back into
+    pygame's queue (`post_event`) so `FakeUser` drives the real event path.
+    """
 
-    @classmethod
-    @_on_post(MouseButtonUpEvent)
-    def _post_mouse_button_up(cls, event: MouseButtonUpEvent) -> None:
-        event_data = {
-            "pos": (event.x, event.y),
-            "button": mouse_button_to_pygame(event.button),
-        }
-        pygame.event.post(Event(pygame.MOUSEBUTTONUP, event_data))
-
-    @classmethod
-    @_on_post(MouseMotionEvent)
-    def _post_mouse_motion(cls, event: MouseMotionEvent) -> None:
-        event_data = {
-            "pos": (event.x, event.y),
-            "rel": (event.dx, event.dy),
-            "touch": False,
-            "buttons": (
-                int(event.button_left),
-                int(event.button_middle),
-                int(event.button_right),
-            ),
-        }
-        pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
-
-    @classmethod
-    @_on_post(MouseWheelEvent)
-    def _post_mouse_wheel(cls, event: MouseWheelEvent) -> None:
-        pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
-        event_data = {
-            "x": event.wheel_dx,
-            "y": event.wheel_dy,
-            "mouse_x": event.mouse_x,
-            "mouse_y": event.mouse_y,
-        }
-        pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
-
-    @classmethod
-    @_on_post(KeyDownEvent)
-    def _post_key_down(cls, event: KeyDownEvent) -> None:
-        pygame.event.post(
-            Event(pygame.KEYDOWN, keyboard_entry_to_pygame_dict(event.entry))
-        )
-
-    @classmethod
-    @_on_post(TextInputEvent)
-    def _post_text_input(cls, event: TextInputEvent) -> None:
-        event_data = {"text": event.text}
-        pygame.event.post(Event(pygame.TEXTINPUT, event_data))
-
-    @classmethod
-    @_on_post(WindowLeaveEvent)
-    def _post_window_leave(cls, event: WindowLeaveEvent) -> None:
-        pygame.event.post(Event(pygame.WINDOWLEAVE))
-
-    @classmethod
-    @_on_post(ExitEvent)
-    def _post_exit(cls, event: ExitEvent) -> None:
-        pygame.event.post(Event(pygame.QUIT))
-
-
-class PygameBackend(Pygame):
     __slots__ = (
         "__default_cursor",
         "__text_cursor",
@@ -454,7 +427,7 @@ class PygameBackend(Pygame):
     def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
         # Real OS wheel events have no position; fall back to pygame.mouse.get_pos().
         # Test-posted events carry mouse_x/mouse_y as custom attributes
-        # (see Pygame._post_mouse_wheel) so they can route to a specific widget.
+        # (see PygameWindowing._post_mouse_wheel) so they can route to a specific widget.
         if hasattr(event, "mouse_x"):
             mouse_x, mouse_y = event.mouse_x, event.mouse_y
         else:
@@ -507,6 +480,119 @@ class PygameBackend(Pygame):
     @_on_event(pygame.KEYDOWN)
     def _on_keydown(self, event: Event) -> VidereTask | None:
         return self._event_dispatcher(KeyDownEvent(pygame_to_keyboard_entry(event)))
+
+    def post_event(self, event: VidereEvent) -> None:
+        event_type = type(event)
+        callback = self._on_post.get(type(event))
+        if callback is None:
+            raise NotImplementedError(event_type, event)
+        callback(self, event)
+
+    _on_post = OnEvent[type[VidereEvent]]()
+
+    @classmethod
+    @_on_post(MouseButtonDownEvent)
+    def _post_mouse_button_down(cls, event: MouseButtonDownEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "button": mouse_button_to_pygame(event.button),
+        }
+        pygame.event.post(Event(pygame.MOUSEBUTTONDOWN, event_data))
+
+    @classmethod
+    @_on_post(MouseButtonUpEvent)
+    def _post_mouse_button_up(cls, event: MouseButtonUpEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "button": mouse_button_to_pygame(event.button),
+        }
+        pygame.event.post(Event(pygame.MOUSEBUTTONUP, event_data))
+
+    @classmethod
+    @_on_post(MouseMotionEvent)
+    def _post_mouse_motion(cls, event: MouseMotionEvent) -> None:
+        event_data = {
+            "pos": (event.x, event.y),
+            "rel": (event.dx, event.dy),
+            "touch": False,
+            "buttons": (
+                int(event.button_left),
+                int(event.button_middle),
+                int(event.button_right),
+            ),
+        }
+        pygame.event.post(Event(pygame.MOUSEMOTION, event_data))
+
+    @classmethod
+    @_on_post(MouseWheelEvent)
+    def _post_mouse_wheel(cls, event: MouseWheelEvent) -> None:
+        pygame.key.set_mods(pygame.KMOD_SHIFT if event.shift else 0)
+        event_data = {
+            "x": event.wheel_dx,
+            "y": event.wheel_dy,
+            "mouse_x": event.mouse_x,
+            "mouse_y": event.mouse_y,
+        }
+        pygame.event.post(Event(pygame.MOUSEWHEEL, event_data))
+
+    @classmethod
+    @_on_post(KeyDownEvent)
+    def _post_key_down(cls, event: KeyDownEvent) -> None:
+        pygame.event.post(
+            Event(pygame.KEYDOWN, keyboard_entry_to_pygame_dict(event.entry))
+        )
+
+    @classmethod
+    @_on_post(TextInputEvent)
+    def _post_text_input(cls, event: TextInputEvent) -> None:
+        event_data = {"text": event.text}
+        pygame.event.post(Event(pygame.TEXTINPUT, event_data))
+
+    @classmethod
+    @_on_post(WindowLeaveEvent)
+    def _post_window_leave(cls, event: WindowLeaveEvent) -> None:
+        pygame.event.post(Event(pygame.WINDOWLEAVE))
+
+    @classmethod
+    @_on_post(ExitEvent)
+    def _post_exit(cls, event: ExitEvent) -> None:
+        pygame.event.post(Event(pygame.QUIT))
+
+
+class PygameBackend(AbstractBackend):
+    """The pygame backend: pairs a `PygameRenderer` with a `PygameWindowing`.
+
+    A coherent provider — `Window` asks it for both halves; they are never mixed
+    with another backend's.
+    """
+
+    __slots__ = ()
+
+    def create_renderer(self) -> AbstractRenderer:
+        return PygameRenderer()
+
+    def create_windowing(
+        self,
+        *,
+        width: int,
+        height: int,
+        title: str,
+        event_manager: Callable[[VidereEvent], VidereTask | None],
+        render_manager: Callable[[Rendering], None],
+        task_manager: TaskManager,
+        hide: bool = False,
+        fps: int = WINDOW_FPS,
+    ) -> AbstractWindowing:
+        return PygameWindowing(
+            width=width,
+            height=height,
+            title=title,
+            event_manager=event_manager,
+            render_manager=render_manager,
+            task_manager=task_manager,
+            hide=hide,
+            fps=fps,
+        )
 
 
 def _deref(rendering: Rendering) -> Surface:

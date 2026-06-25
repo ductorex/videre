@@ -38,7 +38,7 @@ def _render(text, fake_win, shaper, rasterizer, **kw):
     rendered, drawer = render_text(
         text, rasterizer=rasterizer, shaper=shaper, size=16, color=BLACK, **kw
     )
-    return rendered, rasterize(fake_win.backend, drawer)
+    return rendered, rasterize(fake_win.renderer, drawer)
 
 
 # -- size --------------------------------------------------------------------

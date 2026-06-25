@@ -103,7 +103,7 @@ def test_render_text_with_translucent_color(fake_win) -> None:
     bounded by the requested alpha."""
     text = "abc"
     _, rendered = TextRendering(size=24).render_text(text, color=Color(255, 0, 0, 128))
-    arr_a = pixels_alpha(rasterize(fake_win.backend, rendered))
+    arr_a = pixels_alpha(rasterize(fake_win.renderer, rendered))
     # Glyph pixels should never reach full opacity since input alpha
     # was capped at 128.
     assert int(arr_a.max()) <= 128

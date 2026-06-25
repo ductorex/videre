@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from videre.colors import Color, ColorDef
-from videre.core.abstract_backend import AbstractBackend
+from videre.core.abstract_backend import AbstractRenderer
 from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry
 from videre.core.rendering_result import Rendering
@@ -100,7 +100,7 @@ class TrackerWidget(Widget):
         return self
 
 
-def rasterize(backend: AbstractBackend, drawer: Drawer) -> Rendering:
+def rasterize(renderer: AbstractRenderer, drawer: Drawer) -> Rendering:
     """Replay a Drawer's command IR to a real surface for pixel inspection.
 
     The shaped renderer (`render_text` / `render_char` / `document.render`)
@@ -108,7 +108,7 @@ def rasterize(backend: AbstractBackend, drawer: Drawer) -> Rendering:
     serialize a snapshot (`_png`) need the rasterized `Rendering`. Mirrors what
     `Window._refresh` does in production.
     """
-    return backend.render_drawer(drawer)
+    return renderer.render_drawer(drawer)
 
 
 def _channel(rendering: Rendering, attr: str) -> np.ndarray:

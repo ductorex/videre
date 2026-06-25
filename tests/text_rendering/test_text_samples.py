@@ -85,7 +85,7 @@ def test_text_sample_renders_to_snapshot(fake_win, image_regression, name: str) 
     _, surface = TextRendering(size=_SIZE).render_text(
         _SAMPLES[name], color=Color(0, 0, 0), width=_WIDTH, wrap_words=True
     )
-    surface = rasterize(fake_win.backend, surface)
+    surface = rasterize(fake_win.renderer, surface)
     image_regression.check(_png(surface), diff_threshold=0)
 
 
@@ -99,7 +99,7 @@ def test_line_endings_render_identically(fake_win) -> None:
     renders = {
         k: _png(
             rasterize(
-                fake_win.backend,
+                fake_win.renderer,
                 TextRendering(size=_SIZE).render_text(
                     TEXT_SAMPLES[k], color=Color(0, 0, 0), width=_WIDTH, wrap_words=True
                 )[1],

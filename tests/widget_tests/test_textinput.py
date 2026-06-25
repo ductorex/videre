@@ -172,7 +172,7 @@ def test_cursor_move_by_mouse(fake_win):
     assert ti._get_selection() is None
 
     # Also check mouse cursor
-    assert fake_win.backend.cursor_is_default()
+    assert fake_win.windowing.cursor_is_default()
 
     rendered = ti._text._rendered
     assert rendered is not None
@@ -214,7 +214,7 @@ def test_cursor_move_by_mouse(fake_win):
     # Check mouse cursor
     # Mouse motion should have triggered a mouse enter,
     # to cursor should have changed
-    assert not fake_win.backend.cursor_is_default()
+    assert not fake_win.windowing.cursor_is_default()
 
     # Mouse down move left again
     x = x_for_pos(1)
@@ -255,7 +255,7 @@ def test_cursor_move_by_mouse(fake_win):
     fake_user.mouse_motion(placeholder.global_x, placeholder.global_y)
     fake_win.check("cursor_4")
     # Check mouse cursor
-    assert fake_win.backend.cursor_is_default()
+    assert fake_win.windowing.cursor_is_default()
 
 
 def test_keyboard_delete(fake_win):

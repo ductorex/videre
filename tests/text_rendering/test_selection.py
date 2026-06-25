@@ -50,9 +50,9 @@ def test_selection_none_is_unchanged(fake_win) -> None:
     no-selection render (no phantom blue tint anywhere)."""
     r = TextRendering(size=16)
     text = "Hello world"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_none = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=None)[1]
+        fake_win.renderer, r.render_text(text, color=Color(0, 0, 0), selection=None)[1]
     )
     assert pixels_alpha(s_no).shape == pixels_alpha(s_none).shape
     assert (pixels_alpha(s_no) == pixels_alpha(s_none)).all()
@@ -63,9 +63,10 @@ def test_selection_empty_range_is_noop(fake_win) -> None:
     """A degenerate range `[k, k)` selects nothing."""
     r = TextRendering(size=16)
     text = "Hello world"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_empty = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(3, 3))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(3, 3))[1],
     )
     assert (pixels_blue(s_no) == pixels_blue(s_empty)).all()
 
@@ -74,9 +75,10 @@ def test_selection_introduces_blue_band(fake_win) -> None:
     """A non-empty selection must paint a translucent blue band."""
     r = TextRendering(size=16)
     text = "Hello world"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_sel = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1],
     )
     lo, hi = _highlight_x_range(s_sel, s_no)
     assert lo > 0 and hi > lo
@@ -89,9 +91,10 @@ def test_selection_keeps_glyph_color(fake_win) -> None:
     but the dominant black ink must remain visible."""
     r = TextRendering(size=16)
     text = "Hello"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_sel = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(0, 5))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(0, 5))[1],
     )
     a_no = pixels_alpha(s_no)
     # On fully-opaque glyph pixels (alpha=255), the post-selection
@@ -118,9 +121,10 @@ def test_selection_starts_after_first_char(fake_win) -> None:
     must start at `H`'s right edge, not at column 0."""
     r = TextRendering(size=16)
     text = "Hello"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_sel = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(1, 5))[1],
     )
     lo, _ = _highlight_x_range(s_sel, s_no)
     # Width of 'H' at size 16 is around 9-12 px; lo must be at least 4
@@ -133,10 +137,11 @@ def test_selection_full_text_covers_everything(fake_win) -> None:
     the last."""
     r = TextRendering(size=16)
     text = "Hello"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     n = len(text)
     s_sel = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1],
     )
     lo, hi = _highlight_x_range(s_sel, s_no)
     # Should reach close to the right edge.
@@ -150,9 +155,9 @@ def test_selection_spans_inter_word_space(fake_win) -> None:
     source whitespace) so the highlight is contiguous."""
     r = TextRendering(size=16)
     text = "Hello world"
-    s_no = rasterize(fake_win.backend, r.render_text(text, color=Color(0, 0, 0))[1])
+    s_no = rasterize(fake_win.renderer, r.render_text(text, color=Color(0, 0, 0))[1])
     s_sel = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         r.render_text(text, color=Color(0, 0, 0), selection=(0, len(text)))[1],
     )
     diff = pixels_blue(s_sel).astype(int) - pixels_blue(s_no).astype(int)
@@ -176,9 +181,9 @@ def test_selection_across_wrapped_lines(fake_win) -> None:
     rendered, s_no = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True
     )
-    s_no = rasterize(fake_win.backend, s_no)
+    s_no = rasterize(fake_win.renderer, s_no)
     s_sel = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         r.render_text(
             text,
             color=Color(0, 0, 0),
@@ -211,9 +216,10 @@ def test_selection_across_paragraph_break(fake_win) -> None:
     text = "alpha\nbeta"
     n = len(text)
     rendered, s_no = r.render_text(text, color=Color(0, 0, 0))
-    s_no = rasterize(fake_win.backend, s_no)
+    s_no = rasterize(fake_win.renderer, s_no)
     s_sel = rasterize(
-        fake_win.backend, r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1]
+        fake_win.renderer,
+        r.render_text(text, color=Color(0, 0, 0), selection=(0, n))[1],
     )
     diff = pixels_blue(s_sel).astype(int) - pixels_blue(s_no).astype(int)
     rows = (diff > 20).any(axis=0)

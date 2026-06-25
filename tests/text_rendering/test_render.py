@@ -40,7 +40,7 @@ def _render(text, fake_win, shaper, rasterizer, **kw):
     drawer = render_text(
         text, rasterizer=rasterizer, shaper=shaper, size=16, color=BLACK, **kw
     )[1]
-    return rasterize(fake_win.backend, drawer)
+    return rasterize(fake_win.renderer, drawer)
 
 
 def _content_columns(surface) -> np.ndarray:
@@ -77,7 +77,7 @@ def test_glyph_overhang_is_not_clipped(
 ) -> None:
     line = _render(text, fake_win, shaper, rasterizer, italic=italic)
     glyph = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         render_char(
             text,
             rasterizer=rasterizer,

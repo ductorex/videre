@@ -2,7 +2,7 @@ import contextlib
 from unittest.mock import patch
 
 import videre
-from videre.core.pygame_backend.backend import Pygame
+from videre.core.pygame_backend.backend import PygameRenderer
 from videre.testing.step_window import StepWindow
 
 
@@ -13,7 +13,7 @@ def _count_screen_paints():
     Sub-drawers go through `_paint_drawer(..., dst=None)` and are not counted:
     only the root repaint that `Window._refresh` triggers is.
     """
-    real = Pygame._paint_drawer
+    real = PygameRenderer._paint_drawer
     counter = {"screen": 0}
 
     def counting(self, drawer, dst):
@@ -21,7 +21,7 @@ def _count_screen_paints():
             counter["screen"] += 1
         return real(self, drawer, dst)
 
-    with patch.object(Pygame, "_paint_drawer", counting):
+    with patch.object(PygameRenderer, "_paint_drawer", counting):
         yield counter
 
 

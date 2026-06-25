@@ -49,7 +49,7 @@ def test_window_notify(fake_win):
 
 def test_window_run():
     win = Window(title="Test Window", width=200, height=200, hide=True)
-    fake_user = FakeUser(win.backend)
+    fake_user = FakeUser(win.windowing)
 
     def stop_window():
         time.sleep(0.5)

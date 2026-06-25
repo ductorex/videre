@@ -227,10 +227,10 @@ class TextInput(AbstractLayout):
         return "".join(in_text[i] for i in indices)
 
     def handle_mouse_enter(self, event: MouseEvent):
-        self.get_window().backend.set_text_cursor()
+        self.get_window().windowing.set_text_cursor()
 
     def handle_mouse_exit(self):
-        self.get_window().backend.set_default_cursor()
+        self.get_window().windowing.set_default_cursor()
 
     def handle_mouse_down(self, event: MouseEvent):
         self._debug("mouse_down")

@@ -165,13 +165,13 @@ def test_underline_pixels_below_baseline(
     asc, _, _ = metrics_16
     text = "abc"  # short, no descenders, easy to inspect
     s_on = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=16).render_text(text, color=Color(0, 0, 0), underline=True)[
             1
         ],
     )
     s_off = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=16).render_text(text, color=Color(0, 0, 0))[1],
     )
 
@@ -195,7 +195,7 @@ def test_underline_color_matches_text(fake_win) -> None:
     text = "abc"
     color = Color(255, 0, 0)  # red
     s = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=16).render_text(text, color=color, underline=True)[1],
     )
     arr_r = pixels_red(s)
@@ -225,7 +225,7 @@ def test_underline_multiline_no_glyph_collision(
     line_spacing = line_h + 2
     text = "FF\nFF"  # two lines, easy ascender shape
     s_on = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=16).render_text(text, color=Color(0, 0, 0), underline=True)[
             1
         ],
@@ -267,11 +267,11 @@ def test_bold_renders_wider_than_regular(fake_win) -> None:
 def test_italic_does_not_crash_and_is_not_identical(fake_win) -> None:
     text = "Hello italic"
     s_reg = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=24).render_text(text, color=Color(0, 0, 0))[1],
     )
     s_it = rasterize(
-        fake_win.backend,
+        fake_win.renderer,
         TextRendering(size=24, italic=True).render_text(text, color=Color(0, 0, 0))[1],
     )
     assert s_it.get_width() > 0 and s_it.get_height() > 0
@@ -319,7 +319,7 @@ def test_render_char_widget_symbols_have_pixels(fake_win, char: str) -> None:
     surfaces at the typical symbol size (otherwise the widgets render
     blank). Pins the FontProvider routes those codepoints to a font
     that actually has the glyph."""
-    s = rasterize(fake_win.backend, TextRendering(size=22).render_char(char))
+    s = rasterize(fake_win.renderer, TextRendering(size=22).render_char(char))
     w, h = s.get_width(), s.get_height()
     assert w > 0 and h > 0
     arr = pixels_alpha(s)
@@ -330,7 +330,7 @@ def test_render_char_color_applied(fake_win) -> None:
     """The color argument must color the glyph pixels (alpha-modulated
     by the font's antialiased coverage)."""
     s = rasterize(
-        fake_win.backend, TextRendering(size=16).render_char("A", Color(255, 0, 0))
+        fake_win.renderer, TextRendering(size=16).render_char("A", Color(255, 0, 0))
     )
     arr_r = pixels_red(s)
     arr_a = pixels_alpha(s)

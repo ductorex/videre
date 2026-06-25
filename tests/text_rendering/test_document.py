@@ -74,8 +74,8 @@ def test_document_render_matches_render_text(
     )
     assert doc_result.total_visual_count() == rt_result.total_visual_count()
     assert np.array_equal(
-        pixels_alpha(rasterize(fake_win.backend, doc_surface)),
-        pixels_alpha(rasterize(fake_win.backend, rt_surface)),
+        pixels_alpha(rasterize(fake_win.renderer, doc_surface)),
+        pixels_alpha(rasterize(fake_win.renderer, rt_surface)),
     )
 
 

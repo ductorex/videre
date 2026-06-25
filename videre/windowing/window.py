@@ -3,7 +3,11 @@ import logging
 from typing import Any, Callable, Sequence
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.abstract_backend import AbstractBackend
+from videre.core.abstract_backend import (
+    AbstractBackend,
+    AbstractRenderer,
+    AbstractWindowing,
+)
 from videre.core.constants import WINDOW_FPS, Alignment
 from videre.core.drawer import Drawer
 from videre.core.pygame_backend.backend import PygameBackend
@@ -45,7 +49,8 @@ class Window:
         "_subpixel",
         "_event_manager",
         "_task_manager",
-        "_backend",
+        "_renderer",
+        "_windowing",
         "_font_size_pts",
         "_font_height",
         "_last_screen",
@@ -63,11 +68,14 @@ class Window:
         alert_on_exceptions: Sequence[type[Exception]] = (),
         handle_text_sub_pixels: bool | None = None,
         fps: int = WINDOW_FPS,
+        backend: AbstractBackend | None = None,
     ):
         self._layout = WindowLayout(parse_color(background or Colors.white))
         self._event_manager = WindowEventManager(self._layout)
         self._task_manager = TaskManager(self._manage_task)
-        self._backend = PygameBackend(
+        backend = backend or PygameBackend()
+        self._renderer = backend.create_renderer()
+        self._windowing = backend.create_windowing(
             width=width,
             height=height,
             title=str(title) or "Window",
@@ -97,17 +105,21 @@ class Window:
         self.data = None
 
     def _is_running(self) -> bool:
-        return self._backend.running
+        return self._windowing.running
 
     def _stop_running(self):
-        self._backend.running = False
+        self._windowing.running = False
 
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
 
     @property
-    def backend(self) -> AbstractBackend:
-        return self._backend
+    def renderer(self) -> AbstractRenderer:
+        return self._renderer
+
+    @property
+    def windowing(self) -> AbstractWindowing:
+        return self._windowing
 
     @property
     def background(self) -> Color:
@@ -119,7 +131,7 @@ class Window:
 
     @property
     def nb_frames(self) -> int:
-        return self._backend.nb_frames
+        return self._windowing.nb_frames
 
     @property
     def symbol_size(self) -> int:
@@ -143,15 +155,15 @@ class Window:
 
     @property
     def width(self) -> int:
-        return self._backend.width
+        return self._windowing.width
 
     @property
     def height(self) -> int:
-        return self._backend.height
+        return self._windowing.height
 
     @property
     def title(self) -> str:
-        return self._backend.title
+        return self._windowing.title
 
     def text_rendering(
         self,
@@ -174,7 +186,7 @@ class Window:
         if not self._is_running():
             raise RuntimeError("Window has already run. Cannot run again.")
 
-        self._backend.run()
+        self._windowing.run()
 
         if self._exit_exception:
             raise self._exit_exception
@@ -191,7 +203,7 @@ class Window:
         # alone would miss.
         if screen is self._last_screen and screen_drawer is self._last_drawer:
             return
-        self._backend.render_drawer(screen_drawer, dst=screen)
+        self._renderer.render_drawer(screen_drawer, dst=screen)
         self._last_screen = screen
         self._last_drawer = screen_drawer
 

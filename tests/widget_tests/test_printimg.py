@@ -33,8 +33,7 @@ def test_printimg_with_non_path_source():
     # Test with a non-path source (integer as a placeholder)
     # This tests the else branch: title = "image"
 
-    surface = window.backend.new_surface(10, 10)
-    w = _build_image_window(surface)  # ty: ignore[invalid-argument-type]
+    w = _build_image_window(None)  # ty: ignore[invalid-argument-type]
     assert w.title == "image"
 
 

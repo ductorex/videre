@@ -1,20 +1,53 @@
 import io
 from abc import ABC, abstractmethod
-from collections import OrderedDict
-from typing import Callable, Sequence
+from typing import Callable
 
-from PIL.Image import Image
-
-from videre.colors import Color
 from videre.core.constants import WINDOW_FPS
-from videre.core.drawer import Drawer, PositionTuple
+from videre.core.drawer import Drawer
 from videre.core.events import VidereEvent
-from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.core.tasks import TaskManager, VidereTask
 
 
-class AbstractBackend(ABC):
+class AbstractRenderer(ABC):
+    """The rendering half of a backend: turn a `Drawer` into pixels.
+
+    Pure rasterization — no window, event loop or OS state. A backend is free
+    to rasterize however it likes (cache or not, software or GPU); the only
+    obligation is `render_drawer`. Instantiable on its own (no windowing), so
+    the rasterization can be benchmarked in isolation.
+    """
+
+    __slots__ = ()
+
+    @abstractmethod
+    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
+        """Rasterize a Drawer to a Rendering — the sole rendering seam.
+
+        Replay `drawer`'s commands and return the surface. With `dst` given,
+        paint onto it (the root screen, from `Window._refresh`) and return it;
+        with `dst=None`, produce a fresh surface (a nested sub-drawer, or a
+        one-shot rasterization in tests).
+
+        The contract says nothing about *how*: a software backend may memoize
+        materialized surfaces by Drawer value (Drawers hash/compare by content),
+        while an immediate-mode GPU backend may flatten the tree into draw calls
+        and cache nothing. Whichever the strategy, callers must treat a returned
+        surface as read-only (`Drawer.copy()` shields in-place edits).
+        """
+        ...
+
+
+class AbstractWindowing(ABC):
+    """The windowing half of a backend: the OS-facing surface of contact.
+
+    Owns the window, the screen size, the event loop and the cursor; carries all
+    the mutable backend state. It produces a screen `Rendering` and hands it to
+    the `render_manager` (`Window._refresh`), which paints it with a renderer —
+    so windowing never calls `render_drawer` itself and needs no reference to the
+    renderer.
+    """
+
     __slots__ = (
         "_width",
         "_height",
@@ -27,7 +60,6 @@ class AbstractBackend(ABC):
         "_task_manager",
         "_cursor_is_default",
         "_running",
-        "_drawer_cache",
     )
 
     def __init__(
@@ -53,7 +85,6 @@ class AbstractBackend(ABC):
         self._running: bool = True
 
         self._cursor_is_default = True
-        self._drawer_cache: OrderedDict[Drawer, Rendering] = OrderedDict()
 
     @property
     def running(self) -> bool:
@@ -130,91 +161,40 @@ class AbstractBackend(ABC):
     def cursor_is_default(self) -> bool:
         return self._cursor_is_default
 
-    def zero(self) -> Rendering:
-        return self.new_surface(0, 0)
-
     def _handle_exit(self) -> None:
         self._running = False
 
     def _handle_resize(self, width: int, height: int) -> None:
         self._width, self._height = width, height
 
-    _DRAWER_CACHE_SIZE = 512
-
-    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
-        """Rasterize a Drawer to a Rendering, memoizing by value.
-
-        Drawers hash/compare by content, so an unchanged sub-tree (a clean
-        widget reuses its cached Drawer frame to frame) hits the cache instead
-        of being repainted. Only `dst=None` calls are cached: the root screen
-        (painted onto `dst`) changes almost every frame and is never stored.
-        Backed by a bounded LRU. Cached surfaces are read-only — the visitor
-        only ever mutates `dst` or a fresh surface, and `copy()` shields the
-        in-place edits (`TextInput`), so sharing a cached surface is safe.
-        """
-        if dst is not None:
-            return self._paint_drawer(drawer, dst)
-        cache = self._drawer_cache
-        cached = cache.get(drawer)
-        if cached is not None:
-            cache.move_to_end(drawer)
-            return cached
-        surface = self._paint_drawer(drawer, None)
-        cache[drawer] = surface
-        if len(cache) > self._DRAWER_CACHE_SIZE:
-            cache.popitem(last=False)
-        return surface
-
-    @abstractmethod
-    def _paint_drawer(self, drawer: Drawer, dst: Rendering | None) -> Rendering:
-        """Replay `drawer`'s commands onto `dst` (or a fresh surface when None)
-        and return it — the single rasterization seam each backend implements.
-        `render_drawer` wraps this with the by-value LRU cache; recursion goes
-        back through `render_drawer` so nested drawers are cached too."""
-        ...
-
-    @abstractmethod
-    def new_surface(self, width: int | float, height: int | float) -> Rendering: ...
-
-    @abstractmethod
-    def fill(
-        self, surface: Rendering, color: Color, rectangle: Rectangle | None = None
-    ) -> None: ...
-
-    @abstractmethod
-    def blit(self, dst: Rendering, src: Rendering, position: PositionTuple) -> None: ...
-
-    @abstractmethod
-    def line(
-        self, surface: Rendering, color: Color, start: PositionTuple, end: PositionTuple
-    ) -> None: ...
-
-    @abstractmethod
-    def rectangle(
-        self, surface: Rendering, rectangle: Rectangle, color: Color
-    ) -> None: ...
-
-    @abstractmethod
-    def box(self, surface: Rendering, rectangle: Rectangle, color: Color) -> None: ...
-
-    @abstractmethod
-    def filled_polygon(
-        self, surface: Rendering, points: Sequence[PositionTuple], color: Color
-    ) -> None: ...
-
-    @abstractmethod
-    def smoothscale(
-        self, surface: Rendering, width: int | float, height: int | float
-    ) -> Rendering: ...
-
-    @abstractmethod
-    def copy(self, surface: Rendering) -> Rendering: ...
-
-    @abstractmethod
-    def image(self, image: Image) -> Rendering: ...
-
-    @abstractmethod
-    def image_from_bytes(self, data: bytes, size: tuple[int, int]) -> Rendering: ...
-
     @abstractmethod
     def post_event(self, event: VidereEvent) -> None: ...
+
+
+class AbstractBackend(ABC):
+    """A backend: a provider of a coherent (renderer, windowing) pair.
+
+    `Window` asks one backend for both halves and never mixes providers, so a
+    renderer and a windowing from the same backend may freely share types or an
+    OS context (e.g. an OpenGL context for a GPU backend). This is what `Window`
+    receives and what `PygameBackend` (and a future `SfmlBackend`) implement.
+    """
+
+    __slots__ = ()
+
+    @abstractmethod
+    def create_renderer(self) -> AbstractRenderer: ...
+
+    @abstractmethod
+    def create_windowing(
+        self,
+        *,
+        width: int,
+        height: int,
+        title: str,
+        event_manager: Callable[[VidereEvent], VidereTask | None],
+        render_manager: Callable[[Rendering], None],
+        task_manager: TaskManager,
+        hide: bool = False,
+        fps: int = WINDOW_FPS,
+    ) -> AbstractWindowing: ...

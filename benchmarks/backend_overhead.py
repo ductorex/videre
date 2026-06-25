@@ -29,11 +29,11 @@ import timeit
 
 import pygame
 import pygame.gfxdraw
+from videre.core.pygame_backend.backend import PygameRenderer, PygameWindowing, _deref
+from videre.core.pygame_backend.definitions import PygameColor, Rect, Surface
 
 import videre
 from videre.colors import Color
-from videre.core.pygame_backend.backend import PygameBackend, _deref
-from videre.core.pygame_backend.definitions import PygameColor, Rect, Surface
 from videre.core.rectangle import Rectangle
 from videre.core.tasks import TaskManager
 from videre.testing.step_window import StepWindow
@@ -47,17 +47,18 @@ def ns_per_call(stmt: str, glb: dict) -> float:
 
 def part_a() -> None:
     task_manager = TaskManager(lambda task: None)
-    backend = PygameBackend(
+    windowing = PygameWindowing(
         200, 100, "bench", lambda e: None, lambda r: None, task_manager, hide=True
     )
-    backend.start()
+    windowing.start()
+    renderer = PygameRenderer()
 
-    surf = backend.new_surface(200, 100)
-    src = backend.new_surface(60, 40)
+    surf = renderer.new_surface(200, 100)
+    src = renderer.new_surface(60, 40)
     glb = dict(
         pygame=pygame,
         gfxdraw=pygame.gfxdraw,
-        backend=backend,
+        renderer=renderer,
         _deref=_deref,
         Surface=Surface,
         surf=surf,
@@ -71,26 +72,30 @@ def part_a() -> None:
     )
 
     cases = [
-        ("fill (rect)", "raw.fill(pcolor, prect)", "backend.fill(surf, vcolor, vrect)"),
-        ("fill (full)", "raw.fill(pcolor)", "backend.fill(surf, vcolor)"),
-        ("blit", "raw.blit(rawsrc, (5, 5))", "backend.blit(surf, src, (5, 5))"),
+        (
+            "fill (rect)",
+            "raw.fill(pcolor, prect)",
+            "renderer.fill(surf, vcolor, vrect)",
+        ),
+        ("fill (full)", "raw.fill(pcolor)", "renderer.fill(surf, vcolor)"),
+        ("blit", "raw.blit(rawsrc, (5, 5))", "renderer.blit(surf, src, (5, 5))"),
         (
             "line",
             "pygame.draw.line(raw, pcolor, (0, 0), (50, 50))",
-            "backend.line(surf, vcolor, (0, 0), (50, 50))",
+            "renderer.line(surf, vcolor, (0, 0), (50, 50))",
         ),
         (
             "rectangle",
             "gfxdraw.rectangle(raw, prect, pcolor)",
-            "backend.rectangle(surf, vrect, vcolor)",
+            "renderer.rectangle(surf, vrect, vcolor)",
         ),
-        ("box", "gfxdraw.box(raw, prect, pcolor)", "backend.box(surf, vrect, vcolor)"),
+        ("box", "gfxdraw.box(raw, prect, pcolor)", "renderer.box(surf, vrect, vcolor)"),
         (
             "new_surface",
             "Surface((50, 50), flags=pygame.SRCALPHA)",
-            "backend.new_surface(50, 50)",
+            "renderer.new_surface(50, 50)",
         ),
-        ("copy", "raw.copy()", "backend.copy(surf)"),
+        ("copy", "raw.copy()", "renderer.copy(surf)"),
     ]
 
     print("=" * 72)
@@ -108,8 +113,8 @@ def part_a() -> None:
     print("\n  decomposition of the conversion tax:")
     for name, stmt in [
         ("_deref(surf)", "_deref(surf)"),
-        ("new_color(v)", "backend.new_color(vcolor)"),
-        ("new_rect(v)", "backend.new_rect(vrect)"),
+        ("new_color(v)", "renderer.new_color(vcolor)"),
+        ("new_rect(v)", "renderer.new_rect(vrect)"),
     ]:
         print(f"    {name:<16}{ns_per_call(stmt, glb):>7.0f} ns")
 

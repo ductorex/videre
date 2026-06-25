@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from videre.core.abstract_backend import AbstractBackend
+from videre.core.abstract_backend import AbstractWindowing
 from videre.core.events import (
     ExitEvent,
     Key,
@@ -20,10 +20,10 @@ from videre.widgets.widget import Widget
 
 
 class FakeUser:
-    __slots__ = ("_backend",)
+    __slots__ = ("_windowing",)
 
-    def __init__(self, backend: AbstractBackend):
-        self._backend = backend
+    def __init__(self, windowing: AbstractWindowing):
+        self._windowing = windowing
 
     def click(self, button: Widget):
         x = button.global_x + button.rendered_width // 2
@@ -32,13 +32,13 @@ class FakeUser:
 
     def click_at(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Click at specific coordinates"""
-        self._backend.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
-        self._backend.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
+        self._windowing.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
+        self._windowing.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
     def mouse_motion(
         self, x: int, y: int, button_left=False, button_middle=False, button_right=False
     ):
-        self._backend.post_event(
+        self._windowing.post_event(
             MouseMotionEvent(
                 x=x,
                 y=y,
@@ -56,16 +56,16 @@ class FakeUser:
 
     def mouse_down(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Simulate mouse down at specific coordinates"""
-        self._backend.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
+        self._windowing.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
 
     def mouse_up(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Simulate mouse up at specific coordinates"""
-        self._backend.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
+        self._windowing.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
     def mouse_wheel(
         self, x: int, y: int, shift: bool = False, mouse_x: int = 0, mouse_y: int = 0
     ):
-        self._backend.post_event(
+        self._windowing.post_event(
             MouseWheelEvent(
                 wheel_dx=x, wheel_dy=y, mouse_x=mouse_x, mouse_y=mouse_y, shift=shift
             )
@@ -73,7 +73,7 @@ class FakeUser:
 
     def key_down(self, key: Key, modifiers: Sequence[KeyMod] = (), unicode: str = ""):
         """Simulate key down event"""
-        self._backend.post_event(
+        self._windowing.post_event(
             KeyDownEvent(
                 entry=KeyboardEntry(
                     modifiers=frozenset(modifiers), key=key, unicode=unicode
@@ -101,14 +101,14 @@ class FakeUser:
 
     def text_input(self, text: str):
         """Simulate text input"""
-        self._backend.post_event(TextInputEvent(text))
+        self._windowing.post_event(TextInputEvent(text))
 
     def quit(self):
         """Simulate quitting the application"""
-        self._backend.post_event(ExitEvent())
+        self._windowing.post_event(ExitEvent())
 
     def leave(self):
-        self._backend.post_event(WindowLeaveEvent())
+        self._windowing.post_event(WindowLeaveEvent())
 
     def resize(self, width: int, height: int):
-        self._backend.resize_screen(width, height)
+        self._windowing.resize_screen(width, height)

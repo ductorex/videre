@@ -24,7 +24,7 @@ def _init_pygame() -> None:
 def test_render_text_returns_caret_and_surface(fake_win) -> None:
     r = TextRendering(size=16)
     rendered, surf = r.render_text("hello", color=BLACK)
-    surf = rasterize(fake_win.backend, surf)
+    surf = rasterize(fake_win.renderer, surf)
     assert isinstance(rendered, RenderedText)
     assert surf.get_width() > 0 and surf.get_height() > 0
     assert rendered.get_width() == surf.get_width()
@@ -42,7 +42,7 @@ def test_render_text_wrap_respects_width(fake_win) -> None:
 
 def test_render_char_paints_glyph(fake_win) -> None:
     r = TextRendering(size=16)
-    surf = rasterize(fake_win.backend, r.render_char("A", color=BLACK))
+    surf = rasterize(fake_win.renderer, r.render_char("A", color=BLACK))
     assert surf.get_width() > 0 and surf.get_height() > 0
     assert (pixels_alpha(surf) > 0).any()
 
@@ -73,8 +73,8 @@ def test_subpixel_changes_pixels_not_size(fake_win) -> None:
     sub = TextRendering(size=16, subpixel=True)
     _, surf_pixel = pixel.render_text("Hello world", color=BLACK)
     _, surf_sub = sub.render_text("Hello world", color=BLACK)
-    surf_pixel = rasterize(fake_win.backend, surf_pixel)
-    surf_sub = rasterize(fake_win.backend, surf_sub)
+    surf_pixel = rasterize(fake_win.renderer, surf_pixel)
+    surf_sub = rasterize(fake_win.renderer, surf_sub)
     assert surf_sub.get_width() == surf_pixel.get_width()
     assert surf_sub.get_height() == surf_pixel.get_height()
     assert not np.array_equal(pixels_alpha(surf_pixel), pixels_alpha(surf_sub))

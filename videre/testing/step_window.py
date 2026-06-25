@@ -18,7 +18,7 @@ class StepWindow(Window):
         if not self._is_running():
             raise RuntimeError("Window has already run. Cannot run again.")
         self._step_mode = True
-        self._backend.start()
+        self._windowing.start()
         return self
 
     def render(self):
@@ -26,18 +26,18 @@ class StepWindow(Window):
             raise RuntimeError("render() requires step-mode (`with window`)")
         if not self._is_running():
             raise RuntimeError("Window has already run. Cannot render again.")
-        self._backend.step(0)
+        self._windowing.step(0)
 
     def screenshot(self) -> io.BytesIO:
         if not self._step_mode:
             raise RuntimeError("screenshot() requires step-mode (`with window`)")
-        return self._backend.screenshot()
+        return self._windowing.screenshot()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._step_mode:
             self._step_mode = False
             self._stop_running()
-            self._backend.stop()
+            self._windowing.stop()
 
     def find(self, widget_cls, **wprops):
         return self._layout.collect_matches(
@@ -49,4 +49,4 @@ class StepWindow(Window):
 
     @property
     def user(self) -> FakeUser:
-        return FakeUser(self._backend)
+        return FakeUser(self._windowing)
