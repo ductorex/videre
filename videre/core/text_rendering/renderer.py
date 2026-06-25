@@ -2,13 +2,14 @@
 
 Implements `AbstractTextRendering` (`render_char` + `render_text`) by holding
 the per-style config plus a shared `Shaper` / `GlyphRasterizer`, and delegating
-to `render`. Backend-agnostic (only goes through `AbstractBackend`).
+to `render`. Holds no backend reference — `render_char`/`render_text` emit a
+`Drawer` command IR, rasterized later by the backend.
 """
 
 from videre.colors import Color
-from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
-from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.drawer import Drawer
+from videre.core.rendering_result import AbstractTextRendering
 from videre.core.text_rendering.document import TextDocument
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
 from videre.core.text_rendering.render import render_char
@@ -18,7 +19,6 @@ from videre.core.text_rendering.shaper import Shaper
 
 class TextRendering(AbstractTextRendering):
     __slots__ = (
-        "_backend",
         "_size",
         "_bold",
         "_italic",
@@ -31,7 +31,6 @@ class TextRendering(AbstractTextRendering):
 
     def __init__(
         self,
-        backend: AbstractBackend,
         size: int = 14,
         bold: bool = False,
         italic: bool = False,
@@ -42,7 +41,6 @@ class TextRendering(AbstractTextRendering):
         shaper: Shaper | None = None,
         rasterizer: GlyphRasterizer | None = None,
     ) -> None:
-        self._backend = backend
         self._size = size
         self._bold = bold
         self._italic = italic
@@ -53,10 +51,9 @@ class TextRendering(AbstractTextRendering):
         self._shaper = shaper or Shaper()
         self._rasterizer = rasterizer or GlyphRasterizer()
 
-    def render_char(self, c: str, color: Color | None = None) -> Rendering:
+    def render_char(self, c: str, color: Color | None = None) -> Drawer:
         return render_char(
             c,
-            backend=self._backend,
             rasterizer=self._rasterizer,
             shaper=self._shaper,
             size=self._size,
@@ -76,7 +73,7 @@ class TextRendering(AbstractTextRendering):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[RenderedText, Rendering]:
+    ) -> tuple[RenderedText, Drawer]:
         # The document is the single rendering route; this is a one-shot wrapper
         # over it (re-shapes per call, no caching at this level). The module-level
         # `render.render_text` stays as the document's independent reference
@@ -97,7 +94,6 @@ class TextRendering(AbstractTextRendering):
         re-shaping. See docs/text-document-and-contract.md."""
         return TextDocument(
             text,
-            backend=self._backend,
             shaper=self._shaper,
             rasterizer=self._rasterizer,
             size=self._size,

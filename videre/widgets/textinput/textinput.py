@@ -5,9 +5,10 @@ from cursword import get_next_word_end_position, get_previous_word_start_positio
 from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
+from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import CursorState, Rendering
+from videre.core.rendering_result import CursorState
 from videre.core.text_editing import (
     EditUnit,
     expand_to_edit_units,
@@ -382,10 +383,9 @@ class TextInput(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        backend = window.backend
+    ) -> Drawer:
         text_surface = self._control.render(window, width, height)
-        surface = backend.copy(text_surface)
+        surface = Drawing.copy(text_surface)
 
         # Draw cursor if focused. Read the pixel caret from the
         # navigation state so it's unambiguous at LTR/RTL boundaries
@@ -395,6 +395,6 @@ class TextInput(AbstractLayout):
         if self._has_focus():
             caret = self._ensure_state().pixel
             cursor_rect = self._get_cursor_rect(caret)
-            backend.box(surface, cursor_rect, Colors.black)
+            Drawing.box(surface, cursor_rect, Colors.black)
 
         return surface

@@ -1,22 +1,8 @@
 from typing import Any
 
+from videre.core.drawer import Position
 
-class Position:
-    __slots__ = ("_x", "_y")
-
-    def __init__(self, x=0, y=0):
-        self._x, self._y = x, y
-
-    @property
-    def x(self) -> int:
-        return self._x
-
-    @property
-    def y(self) -> int:
-        return self._y
-
-
-DEFAULT_POSITION = Position()
+DEFAULT_POSITION = Position(0, 0)
 
 
 class PositionMapping:

@@ -10,7 +10,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_alpha
+from tests.common import pixels_alpha, rasterize
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.rendering_result import Rendering
@@ -55,18 +55,20 @@ def _line_right_edges(rendering: Rendering, line_block_height: int) -> list[int]
 
 def test_default_align_is_left(fake_win) -> None:
     """`align=None` must behave like LEFT: content starts near column 0."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     s = r.render_text(
         "Hello", color=Color(0, 0, 0), width=200, wrap_words=True, align=None
     )[1]
+    s = rasterize(fake_win.backend, s)
     assert _first_nonzero_col(s) <= 2
 
 
 def test_align_left_explicit(fake_win) -> None:
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     s = r.render_text(
         "Hello", color=Color(0, 0, 0), width=200, wrap_words=True, align=TextAlign.LEFT
     )[1]
+    s = rasterize(fake_win.backend, s)
     assert _first_nonzero_col(s) <= 2
 
 
@@ -75,15 +77,17 @@ def test_align_left_explicit(fake_win) -> None:
 
 def test_align_center_pushes_content_to_middle(fake_win) -> None:
     """CENTER places the line such that the slack is split evenly."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "Hello"
     width = 200
     s_left = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1]
+    s_left = rasterize(fake_win.backend, s_left)
     s_center = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.CENTER
     )[1]
+    s_center = rasterize(fake_win.backend, s_center)
     natural_width = r.render_text(text, color=Color(0, 0, 0))[1].get_width()
     expected_offset = (width - natural_width) // 2
     actual_offset = _first_nonzero_col(s_center) - _first_nonzero_col(s_left)
@@ -92,12 +96,13 @@ def test_align_center_pushes_content_to_middle(fake_win) -> None:
 
 
 def test_align_right_pushes_content_to_right_edge(fake_win) -> None:
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "Hello"
     width = 200
     s_right = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.RIGHT
     )[1]
+    s_right = rasterize(fake_win.backend, s_right)
     natural_width = r.render_text(text, color=Color(0, 0, 0))[1].get_width()
     arr = pixels_alpha(s_right)
     cols = (arr > 0).any(axis=1)
@@ -115,12 +120,13 @@ def test_align_justify_stretches_non_final_lines(fake_win) -> None:
     """JUSTIFY widens inter-word gaps so non-final lines reach width.
     The last line of a paragraph stays at its natural width
     (left-aligned), matching CSS / browsers / Word."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "one two three four five six"
     width = 120
     s_left = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1]
+    s_left = rasterize(fake_win.backend, s_left)
     s_just = r.render_text(
         text,
         color=Color(0, 0, 0),
@@ -128,6 +134,7 @@ def test_align_justify_stretches_non_final_lines(fake_win) -> None:
         wrap_words=True,
         align=TextAlign.JUSTIFY,
     )[1]
+    s_just = rasterize(fake_win.backend, s_just)
     edges_left = _line_right_edges(s_left, 24)
     edges_just = _line_right_edges(s_just, 24)
     assert len(edges_left) == len(edges_just) >= 2
@@ -144,12 +151,13 @@ def test_align_justify_stretches_non_final_lines(fake_win) -> None:
 def test_align_justify_single_line_unchanged(fake_win) -> None:
     """A text that fits on one line is its own paragraph end; JUSTIFY
     must NOT stretch it (only multi-line paragraphs justify)."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "one two"
     width = 200
     s_left = r.render_text(
         text, color=Color(0, 0, 0), width=width, wrap_words=True, align=TextAlign.LEFT
     )[1]
+    s_left = rasterize(fake_win.backend, s_left)
     s_just = r.render_text(
         text,
         color=Color(0, 0, 0),
@@ -157,6 +165,7 @@ def test_align_justify_single_line_unchanged(fake_win) -> None:
         wrap_words=True,
         align=TextAlign.JUSTIFY,
     )[1]
+    s_just = rasterize(fake_win.backend, s_just)
     a = pixels_alpha(s_left)
     b = pixels_alpha(s_just)
     assert (a == b).all(), "JUSTIFY should not affect a single-line paragraph"
@@ -165,7 +174,7 @@ def test_align_justify_single_line_unchanged(fake_win) -> None:
 def test_align_justify_respects_paragraph_breaks(fake_win) -> None:
     """An explicit `\\n` resets the paragraph: each paragraph's last
     line must stay flush-left under JUSTIFY."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "one two three four\nshort"
     width = 120
     s = r.render_text(
@@ -175,6 +184,7 @@ def test_align_justify_respects_paragraph_breaks(fake_win) -> None:
         wrap_words=True,
         align=TextAlign.JUSTIFY,
     )[1]
+    s = rasterize(fake_win.backend, s)
     edges = _line_right_edges(s, 24)
     # Last line of each paragraph stays at natural width; here paragraph
     # 1 has at least one wrap, then paragraph 2 is "short" alone.
@@ -189,10 +199,12 @@ def test_align_justify_respects_paragraph_breaks(fake_win) -> None:
 def test_align_no_width_is_noop(fake_win) -> None:
     """Without `width`, the surface is sized to natural content; LEFT
     and CENTER produce the exact same pixels."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     text = "Hello world"
     s_left = r.render_text(text, color=Color(0, 0, 0), align=TextAlign.LEFT)[1]
+    s_left = rasterize(fake_win.backend, s_left)
     s_center = r.render_text(text, color=Color(0, 0, 0), align=TextAlign.CENTER)[1]
+    s_center = rasterize(fake_win.backend, s_center)
     assert (s_left.get_width(), s_left.get_height()) == (
         s_center.get_width(),
         s_center.get_height(),

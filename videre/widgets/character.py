@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from videre.colors import Color, ColorDef, parse_color
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer
 from videre.widgets.widget import Widget
 
 if TYPE_CHECKING:
@@ -91,5 +91,5 @@ class Character(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         return self._text_rendering(window).render_char(self.text, color=self.color)

@@ -1,12 +1,20 @@
 import pytest
 
 from videre.colors import Color, Colors
+from videre.core.abstract_backend import AbstractBackend
+from videre.core.rendering_result import Rendering
 from videre.gradient import Gradient
+
+
+def _render_gradient(
+    backend: AbstractBackend, gradient: Gradient, width: int, height: int
+) -> Rendering:
+    return backend.render_drawer(gradient.generate(width, height))
 
 
 def test_gradient_single_color(fake_win):
     gradient = Gradient(Colors.red)
-    surface = gradient.generate(fake_win.backend, 100, 100)
+    surface = _render_gradient(fake_win.backend, gradient, 100, 100)
     assert surface.get_width() == 100
     assert surface.get_height() == 100
     # Check that the entire surface is red
@@ -17,7 +25,7 @@ def test_gradient_single_color(fake_win):
 
 def test_gradient_horizontal(fake_win):
     gradient = Gradient(Colors.red, Colors.blue, vertical=False)
-    surface = gradient.generate(fake_win.backend, 100, 50)
+    surface = _render_gradient(fake_win.backend, gradient, 100, 50)
     assert surface.get_width() == 100
     assert surface.get_height() == 50
     # Check colors at extremities
@@ -27,7 +35,7 @@ def test_gradient_horizontal(fake_win):
 
 def test_gradient_vertical(fake_win):
     gradient = Gradient(Colors.red, Colors.blue, vertical=True)
-    surface = gradient.generate(fake_win.backend, 50, 100)
+    surface = _render_gradient(fake_win.backend, gradient, 50, 100)
     assert surface.get_width() == 50
     assert surface.get_height() == 100
     # Check colors at extremities
@@ -37,7 +45,7 @@ def test_gradient_vertical(fake_win):
 
 def test_gradient_multiple_colors(fake_win):
     gradient = Gradient(Colors.red, Colors.green, Colors.blue)
-    surface = gradient.generate(fake_win.backend, 101, 50)
+    surface = _render_gradient(fake_win.backend, gradient, 101, 50)
     assert surface.get_width() == 101
     assert surface.get_height() == 50
     # Check colors at transition points
@@ -73,26 +81,24 @@ def test_gradient_empty():
 
 def test_gradient_surface_reuse(fake_win):
     gradient = Gradient(Colors.red, Colors.blue)
-    surface1 = gradient.generate(fake_win.backend, 100, 100)
-    surface2 = gradient.generate(fake_win.backend, 100, 100)
-    # Check that surfaces are different (no shared reference)
-    assert surface1 is not surface2
-    # Check that surfaces have the same content
-    for x in range(100):
-        for y in range(100):
-            assert surface1.get_at((x, y)) == surface2.get_at((x, y))
+    surface1 = _render_gradient(fake_win.backend, gradient, 100, 100)
+    surface2 = _render_gradient(fake_win.backend, gradient, 100, 100)
+    # Equal drawers hit the by-value render cache, so the same surface is reused
+    # (each render previously returned a fresh surface; sharing is safe because
+    # rasterized surfaces are only ever read back, never mutated in place).
+    assert surface1 is surface2
 
 
 def test_gradient_edge_cases(fake_win):
     # Test 1x1 surface
     gradient = Gradient(Colors.red, Colors.blue)
-    surface = gradient.generate(fake_win.backend, 1, 1)
+    surface = _render_gradient(fake_win.backend, gradient, 1, 1)
     assert surface.get_width() == 1
     assert surface.get_height() == 1
     assert surface.get_at((0, 0)) == Colors.red
 
     # Test with very large dimensions
-    surface = gradient.generate(fake_win.backend, 1000, 1000)
+    surface = _render_gradient(fake_win.backend, gradient, 1000, 1000)
     assert surface.get_width() == 1000
     assert surface.get_height() == 1000
     # Check start and end colors
@@ -102,7 +108,7 @@ def test_gradient_edge_cases(fake_win):
 
 def test_gradient_color_interpolation(fake_win):
     gradient = Gradient(Colors.red, Colors.blue)
-    surface = gradient.generate(fake_win.backend, 100, 1)
+    surface = _render_gradient(fake_win.backend, gradient, 100, 1)
 
     # Check middle point interpolation
     middle_color = surface.get_at((49, 0))
@@ -112,7 +118,7 @@ def test_gradient_color_interpolation(fake_win):
 
     # Test with transparent colors
     transparent_gradient = Gradient(Colors.transparent, Colors.red)
-    surface = transparent_gradient.generate(fake_win.backend, 100, 1)
+    surface = _render_gradient(fake_win.backend, transparent_gradient, 100, 1)
     assert surface.get_at((0, 0)) == Colors.transparent
     assert surface.get_at((99, 0)) == Colors.red
 
@@ -122,17 +128,17 @@ def test_gradient_error_cases(fake_win):
 
     # Test with negative dimensions
     with pytest.raises(ValueError, match="width cannot be negative"):
-        gradient.generate(fake_win.backend, -1, 100)
+        gradient.generate(-1, 100)
 
     with pytest.raises(ValueError, match="height cannot be negative"):
-        gradient.generate(fake_win.backend, 100, -1)
+        gradient.generate(100, -1)
 
     # zero-dimensions are supported
-    surface = gradient.generate(fake_win.backend, 0, 100)
+    surface = _render_gradient(fake_win.backend, gradient, 0, 100)
     assert surface.get_width() == 0
     assert surface.get_height() == 100
 
-    surface = gradient.generate(fake_win.backend, 100, 0)
+    surface = _render_gradient(fake_win.backend, gradient, 100, 0)
     assert surface.get_width() == 100
     assert surface.get_height() == 0
 
@@ -140,7 +146,7 @@ def test_gradient_error_cases(fake_win):
 def test_gradient_similar_colors(fake_win):
     # Test with very similar colors
     similar_gradient = Gradient(Colors.red, Color(255, 0, 1))
-    surface = similar_gradient.generate(fake_win.backend, 100, 1)
+    surface = _render_gradient(fake_win.backend, similar_gradient, 100, 1)
 
     # Check that interpolation is still working
     middle_color = surface.get_at((49, 0))

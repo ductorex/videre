@@ -1,5 +1,5 @@
 from videre.core.constants import Alignment
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer, Drawing
 from videre.core.sides.border import Border
 from videre.core.sides.padding import Padding
 from videre.gradient import ColoringDefinition, Gradient
@@ -121,9 +121,7 @@ class Container(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        backend = window.backend
-
+    ) -> Drawer:
         square = self.square
         width = _resolve_size(self.width, width)
         height = _resolve_size(self.height, height)
@@ -190,22 +188,20 @@ class Container(AbstractLayout):
             inner_height, inner_surface.get_height(), self.vertical_alignment
         )
         # inner_box = Rect(0, 0, inner_width - x, inner_height - y)
-        surface = self.background_color.generate(
-            window.backend, outer_width, outer_height
-        )
+        surface = self.background_color.generate(outer_width, outer_height)
         for border_color, border_points in border.describe_borders(
             outer_width, outer_height
         ):
             if border_points:
                 if border_points[0] == border_points[-1]:
                     # Certainly a line
-                    backend.line(
+                    Drawing.line(
                         surface, border_color, border_points[0], border_points[1]
                     )
                 else:
-                    backend.filled_polygon(surface, border_points, border_color)
+                    Drawing.filled_polygon(surface, border_points, border_color)
         inner_x, inner_y = margin.left + x, margin.top + y
-        backend.blit(surface, inner_surface, (inner_x, inner_y))
+        Drawing.blit(surface, inner_surface, (inner_x, inner_y))
         self._set_child_position(control, inner_x, inner_y)
         return surface
 

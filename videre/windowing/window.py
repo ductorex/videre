@@ -5,6 +5,7 @@ from typing import Any, Callable, Sequence
 from videre.colors import Color, ColorDef, Colors, parse_color
 from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import WINDOW_FPS, Alignment
+from videre.core.drawer import Drawer
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.rendering_result import AbstractTextRendering, Rendering
 from videre.core.tasks import (
@@ -47,6 +48,8 @@ class Window:
         "_backend",
         "_font_size_pts",
         "_font_height",
+        "_last_screen",
+        "_last_drawer",
     )
 
     def __init__(
@@ -76,6 +79,11 @@ class Window:
         )
         self._font_size_pts = font_size
         self._font_height: int | None = None
+
+        # Last (screen, drawer) actually painted, kept by identity to skip
+        # repainting an unchanged frame (see `_refresh`).
+        self._last_screen: Rendering | None = None
+        self._last_drawer: Drawer | None = None
 
         self._exit_code = 0
         self._exit_exception: Exception | None = None
@@ -154,7 +162,6 @@ class Window:
         compact: bool = True,
     ) -> AbstractTextRendering:
         return TextRendering(
-            self._backend,
             size=size or self._font_size_pts,
             bold=strong,
             italic=italic,
@@ -175,7 +182,18 @@ class Window:
 
     def _refresh(self, screen: Rendering) -> None:
         self._layout.screen = screen
-        self._layout.render(self)
+        screen_drawer = self._layout.render(self)
+        # The screen is a persistent buffer: `flip()` re-presents it unchanged,
+        # so when neither the buffer nor the drawer changed (the whole widget
+        # tree is clean -> `render` returns the very same cached Drawer), there
+        # is nothing to repaint. Comparing the screen too catches a buffer swap
+        # at unchanged size (e.g. a same-size resize), which the drawer identity
+        # alone would miss.
+        if screen is self._last_screen and screen_drawer is self._last_drawer:
+            return
+        self._backend.render_drawer(screen_drawer, dst=screen)
+        self._last_screen = screen
+        self._last_drawer = screen_drawer
 
     def notify(self, notification: Any):
         self._post_event(NotificationTask(notification))

@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Sequence
 
 from videre.colors import Color, Colors
+from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry
 from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
@@ -96,20 +97,20 @@ class WindowLayout(AbstractControlsLayout):
 
     def render(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         screen = self.screen
         return super().render(window, screen.get_width(), screen.get_height())
 
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        backend = window.backend
-        screen = self.screen
+    ) -> Drawer:
+        assert self._screen is not None
+        screen = Drawer(self._screen.get_width(), self.screen.get_height())
 
         screen_width, screen_height = screen.get_width(), screen.get_height()
-        backend.fill(screen, self.background)
+        Drawing.fill(screen, self.background)
         for control in self._controls():
             surface = control.render(window, screen_width, screen_height)
-            backend.blit(screen, surface, (control.x, control.y))
+            Drawing.blit(screen, surface, (control.x, control.y))
 
         return screen

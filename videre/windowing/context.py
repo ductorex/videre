@@ -1,5 +1,5 @@
 from videre.colors import Colors
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer, Drawing
 from videre.core.sides.border import Border
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.container import Container
@@ -29,16 +29,14 @@ class Context(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        backend = window.backend
-
+    ) -> Drawer:
         self._relative._assert_rendered()
         (container,) = self._controls()
         x = self._relative.global_x + self._x
         y = self._relative.global_y + self._relative.rendered_height + self._y
 
         control_surface = container.render(window, None, None)
-        surface = backend.new_surface(width or 0, height or 0)
-        backend.blit(surface, control_surface, (x, y))
+        surface = Drawer(width or 0, height or 0)
+        Drawing.blit(surface, control_surface, (x, y))
         self._set_child_position(container, x, y)
         return surface

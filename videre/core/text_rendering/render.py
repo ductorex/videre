@@ -18,10 +18,9 @@ import bisect
 from dataclasses import dataclass
 
 from videre.colors import Color, Colors
-from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
+from videre.core.drawer import Drawer, Drawing
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import Rendering
 from videre.core.text_editing import EditUnit, segment_edit_units
 from videre.core.text_rendering.glyph_partition import (
     GlyphLine,
@@ -122,7 +121,6 @@ def layout_glyph_lines(
 def render_text(
     text: str,
     *,
-    backend: AbstractBackend,
     rasterizer: GlyphRasterizer,
     shaper: Shaper,
     size: int,
@@ -138,7 +136,7 @@ def render_text(
     compact: bool = True,
     subpixel: bool = False,
     selection: tuple[int, int] | None = None,
-) -> tuple[RenderedText, Rendering]:
+) -> tuple[RenderedText, Drawer]:
     """Paint `text` and return `(caret info, surface)`. = shape + layout + paint;
     the document path splits these (shape once, `paint_glyph_lines` per width)."""
     lines = build_glyph_lines(
@@ -153,7 +151,6 @@ def render_text(
     )
     return paint_glyph_lines(
         lines,
-        backend=backend,
         rasterizer=rasterizer,
         size=size,
         color=color,
@@ -253,7 +250,6 @@ def assemble_glyph_lines(
 def paint_assembled(
     assembled: AssembledText,
     *,
-    backend: AbstractBackend,
     rasterizer: GlyphRasterizer,
     size: int,
     color: Color | None = None,
@@ -261,22 +257,21 @@ def paint_assembled(
     bold: bool = False,
     subpixel: bool = False,
     selection: tuple[int, int] | None = None,
-) -> Rendering:
+) -> Drawer:
     """Paint half of `paint_glyph_lines`: blit an `AssembledText`'s paint plan
     onto a fresh surface (selection ribbon first, so glyphs sit over it). Pure
     rasterization, no geometry — the only part `document.render` runs that
     `document.layout` skips."""
     color = color or Colors.black
-    out = backend.new_surface(assembled.surface_w, assembled.surface_h)
+    out = Drawer(assembled.surface_w, assembled.surface_h)
     # Selection background first, so glyphs sit on top of it.
     if selection is not None and selection[0] < selection[1]:
         for rect in assembled.rendered._selection_rects(*selection):
-            backend.box(out, rect, _SELECTION_RGBA)
+            Drawing.box(out, rect, _SELECTION_RGBA)
     for glyphs, x_offset, extra, baseline in assembled.paint:
         _paint_line(
             out,
             glyphs,
-            backend,
             rasterizer,
             size,
             color,
@@ -293,7 +288,6 @@ def paint_assembled(
 def paint_glyph_lines(
     lines: list[tuple[GlyphLine, bool]],
     *,
-    backend: AbstractBackend,
     rasterizer: GlyphRasterizer,
     size: int,
     color: Color | None = None,
@@ -306,7 +300,7 @@ def paint_glyph_lines(
     subpixel: bool = False,
     edit_units: tuple[EditUnit, ...] = (),
     selection: tuple[int, int] | None = None,
-) -> tuple[RenderedText, Rendering]:
+) -> tuple[RenderedText, Drawer]:
     """Lay out + paint pre-built visual glyph lines (the output of
     `layout_glyph_lines`) into `(caret info, surface)`. = `assemble_glyph_lines`
     then `paint_assembled`; the document caches the former (paint-free, shared
@@ -322,7 +316,6 @@ def paint_glyph_lines(
     )
     out = paint_assembled(
         assembled,
-        backend=backend,
         rasterizer=rasterizer,
         size=size,
         color=color,
@@ -337,35 +330,34 @@ def paint_glyph_lines(
 def render_char(
     c: str,
     *,
-    backend: AbstractBackend,
     rasterizer: GlyphRasterizer,
     shaper: Shaper,
     size: int,
     color: Color | None = None,
     bold: bool = False,
     italic: bool = False,
-) -> Rendering:
+) -> Drawer:
     """Rasterize a single character to a tightly-fitted surface — just the
     glyph bitmap, no advance / baseline padding. Empty or unsupported input
     yields a zero-size surface. Underline is intentionally not applied (matches
     the legacy `render_char`). Used by `Character` / `Checkbox` / `Radio`."""
     color = color or Colors.black
     if not c:
-        return backend.zero()
+        return Drawer()
     for line in partition_text(c).lines:
         sline = shape_line(line, shaper, size, bold=bold, italic=italic)
         for cluster in sline.clusters:
             if cluster.glyphs:
                 g = cluster.glyphs[0]
                 if not g.paint:
-                    return backend.zero()
+                    return Drawer()
                 glyph = rasterizer.render_single_glyph(
                     g.font_path, size, g.bold, g.italic, g.glyph_id, color
                 )
                 if glyph.image is None:
-                    return backend.zero()
-                return _sprite_surface(backend, glyph)
-    return backend.zero()
+                    return Drawer()
+                return _sprite_surface(glyph)
+    return Drawer()
 
 
 def _line_items(
@@ -435,9 +427,8 @@ def _edit_unit_index(starts: list[int], pos: int) -> int:
 
 
 def _paint_line(
-    out: Rendering,
+    out: Drawer,
     glyphs: list[PositionedGlyph],
-    backend: AbstractBackend,
     rasterizer: GlyphRasterizer,
     size: int,
     color: Color,
@@ -470,7 +461,7 @@ def _paint_line(
             if not sprite.empty():
                 blit_x = int_x + sprite.bitmap_left
                 blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
-                backend.blit(out, _sprite_surface(backend, sprite), (blit_x, blit_y))
+                Drawing.blit(out, _sprite_surface(sprite), (blit_x, blit_y))
 
     if underline:
         line_width = track[-1]
@@ -480,7 +471,7 @@ def _paint_line(
             ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * size))
         # `box` (filled), not `rectangle` (1px outline): a thickness >= 3px
         # underline drawn as an outline renders hollow ("rectangle" look).
-        backend.box(
+        Drawing.box(
             out,
             Rectangle(
                 int(line_start),
@@ -559,6 +550,6 @@ def _align_offset(
     return int(round(envelope_offset - measure.left))
 
 
-def _sprite_surface(backend: AbstractBackend, glyph: Glyph) -> Rendering:
+def _sprite_surface(glyph: Glyph) -> Drawer:
     assert glyph.image is not None
-    return backend.image_from_bytes(glyph.image.tobytes(), (glyph.width, glyph.height))
+    return Drawing.image_from_bytes(glyph.image.tobytes(), (glyph.width, glyph.height))

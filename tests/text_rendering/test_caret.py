@@ -7,7 +7,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_blue, pixels_red
+from tests.common import pixels_blue, pixels_red, rasterize
 from videre.colors import Color
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
 from videre.core.text_rendering.render import render_text
@@ -35,15 +35,10 @@ def rasterizer() -> GlyphRasterizer:
 
 
 def _render(text, fake_win, shaper, rasterizer, **kw):
-    return render_text(
-        text,
-        backend=fake_win.backend,
-        rasterizer=rasterizer,
-        shaper=shaper,
-        size=16,
-        color=BLACK,
-        **kw,
+    rendered, drawer = render_text(
+        text, rasterizer=rasterizer, shaper=shaper, size=16, color=BLACK, **kw
     )
+    return rendered, rasterize(fake_win.backend, drawer)
 
 
 # -- size --------------------------------------------------------------------

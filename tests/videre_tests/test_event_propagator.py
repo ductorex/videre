@@ -1,6 +1,6 @@
 from videre import Window
+from videre.core.drawer import Drawer
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.rendering_result import Rendering
 from videre.layouts.container import Container
 from videre.widgets.widget import Widget
 from videre.widgets.widget_utils import MouseOwnership
@@ -17,8 +17,8 @@ class MockWidget(Widget):
 
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        return window.backend.zero()
+    ) -> Drawer:
+        return Drawer()
 
     def _log_event(self, event_name, *args, **kwargs):
         self.events_received.append((event_name, args, kwargs))

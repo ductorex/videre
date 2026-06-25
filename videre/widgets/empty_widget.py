@@ -1,4 +1,4 @@
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer
 from videre.widgets.widget import Widget
 
 
@@ -8,5 +8,5 @@ class EmptyWidget(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        return window.backend.new_surface(0, 0)
+    ) -> Drawer:
+        return Drawer()

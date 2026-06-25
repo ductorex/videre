@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING
+
 from videre.colors import Color
+from videre.core.drawer import Drawer, Drawing
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.rendering_result import Rendering
 from videre.layouts.scroll._scroll_background import _ScrollBackground
 from videre.widgets.widget import Widget
 from videre.widgets.widget_utils import MouseOwnership
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class _HScrollBar(Widget):
@@ -79,7 +84,7 @@ class _HScrollBar(Widget):
         self, x_in_parent: int, y_in_parent: int
     ) -> MouseOwnership | None:
         if (
-            self._surface
+            self.is_rendered()
             and 0 <= x_in_parent < self._bar_length()
             and self.y <= y_in_parent < self.y + self.thickness
         ):
@@ -134,8 +139,8 @@ class _HScrollBar(Widget):
             self.on_jump(round(content_pos))
 
     def _compute(
-        self, window, view_width: int, view_height: int
-    ) -> tuple[Rendering, tuple[int, int]]:
+        self, window: "Window", view_width: int, view_height: int
+    ) -> tuple[Drawer, tuple[int, int]]:
         thickness = self.thickness
         h_scroll_x, h_scroll_width = self._compute_scroll_metrics(
             view_width,
@@ -143,8 +148,8 @@ class _HScrollBar(Widget):
             self.content_pos,
             scrollbar_length=(max(0, view_width - thickness) if self.both else None),
         )
-        h_scroll = window.backend.new_surface(h_scroll_width, thickness)
-        window.backend.fill(h_scroll, self.color)
+        h_scroll = Drawer(h_scroll_width, thickness)
+        Drawing.fill(h_scroll, self.color)
         pos = (h_scroll_x, view_height - thickness)
         return h_scroll, pos
 
@@ -160,7 +165,7 @@ class _HScrollBar(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         # NB: here, width is view width, and height is view height.
         assert width and height
         scroll, pos = self._compute(window, width, height)

@@ -1,4 +1,4 @@
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.widgets.widget import Widget
 
@@ -13,6 +13,6 @@ class ControlLayout(AbstractLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         (control,) = self._controls()
         return control.render(window, width, height)

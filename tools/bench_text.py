@@ -96,8 +96,8 @@ def _row(name: str, us: float) -> str:
 
 def run() -> None:
     samp = samples()
-    with StepWindow(width=900, height=600) as win:
-        shaped = TextRendering(win.backend, size=SIZE)
+    with StepWindow(width=900, height=600):
+        shaped = TextRendering(size=SIZE)
 
         head = f"{'texte':16} | {'rendu us':>10} {'%fr':>6}"
 

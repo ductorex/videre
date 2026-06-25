@@ -12,7 +12,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_alpha
+from tests.common import pixels_alpha, rasterize
 from videre.colors import Color
 from videre.core.text_rendering import GlyphRasterizer, Shaper, TextRendering
 from videre.core.text_rendering.rasterizer import _bgra_to_numpy_array
@@ -102,10 +102,8 @@ def test_render_text_with_translucent_color(fake_win) -> None:
     glyph coverage by the requested alpha; output alpha must be
     bounded by the requested alpha."""
     text = "abc"
-    _, rendered = TextRendering(fake_win.backend, size=24).render_text(
-        text, color=Color(255, 0, 0, 128)
-    )
-    arr_a = pixels_alpha(rendered)
+    _, rendered = TextRendering(size=24).render_text(text, color=Color(255, 0, 0, 128))
+    arr_a = pixels_alpha(rasterize(fake_win.backend, rendered))
     # Glyph pixels should never reach full opacity since input alpha
     # was capped at 128.
     assert int(arr_a.max()) <= 128

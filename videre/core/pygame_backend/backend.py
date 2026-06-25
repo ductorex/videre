@@ -8,8 +8,23 @@ import pygame.gfxdraw
 from PIL.Image import Image
 
 from videre.colors import Color
-from videre.core.abstract_backend import AbstractBackend, _Position
+from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import WINDOW_FPS
+from videre.core.drawer import (
+    Args,
+    BlitArgs,
+    BoxArgs,
+    CopyArgs,
+    Drawer,
+    FillArgs,
+    FilledPolygonArgs,
+    ImageArgs,
+    ImageFromBytesArgs,
+    LineArgs,
+    PositionTuple,
+    RectangleArgs,
+    SmoothScaleArgs,
+)
 from videre.core.events import (
     ExitEvent,
     KeyDownEvent,
@@ -46,6 +61,86 @@ logger = logging.getLogger(__name__)
 class Pygame(AbstractBackend):
     __slots__ = ()
 
+    def _paint_drawer(self, drawer: Drawer, dst: Rendering | None) -> Rendering:
+        """Replay a Drawer's command IR onto a real pygame surface — the
+        rasterization seam behind `render_drawer` (which adds the value cache).
+
+        A drawer is a flat list of commands expressed in its own local
+        coordinates. A *generative* command (image / image_from_bytes /
+        smoothscale / copy) yields the base surface and, by construction, comes
+        first; every other command *mutates* that surface. The surface is
+        created lazily at the drawer's own size when no generative command
+        opened it (so a purely generative drawer allocates nothing extra, and an
+        empty drawer still yields a zero-size surface). Nested drawers — blit,
+        smoothscale, copy — recurse through `render_drawer`, so they hit the
+        cache too.
+
+        `dst`, when given, is drawn onto directly and returned — no intermediate
+        full-surface allocation (used by `Window._refresh` to paint the screen).
+        It must cover the drawer and is the *root* surface only: it is never
+        propagated into the recursion. A generative command composites onto
+        `dst` instead of replacing it.
+        """
+        surface: Rendering | None = dst
+        for args in drawer:
+            match args:
+                case ImageArgs(image=image):
+                    surface = self._compose(surface, self.image(image))
+                case ImageFromBytesArgs(data=data, width=width, height=height):
+                    surface = self._compose(
+                        surface, self.image_from_bytes(data, (int(width), int(height)))
+                    )
+                case SmoothScaleArgs(drawer=source):
+                    surface = self._compose(
+                        surface,
+                        self.smoothscale(
+                            self.render_drawer(source),
+                            drawer.get_width(),
+                            drawer.get_height(),
+                        ),
+                    )
+                case CopyArgs(drawer=source):
+                    surface = self._compose(
+                        surface, self.copy(self.render_drawer(source))
+                    )
+                case _:
+                    if surface is None:
+                        surface = self.new_surface(
+                            drawer.get_width(), drawer.get_height()
+                        )
+                    self._replay(surface, args)
+        if surface is None:
+            surface = self.new_surface(drawer.get_width(), drawer.get_height())
+        return surface
+
+    def _compose(self, surface: Rendering | None, produced: Rendering) -> Rendering:
+        """Place a *generative* command's output. With no surface yet, the
+        produced surface *becomes* the surface (the lazy / no-`dst` case); onto
+        an existing surface (e.g. `dst`) it composites at the origin, so a
+        caller-supplied `dst` is never silently dropped."""
+        if surface is None:
+            return produced
+        self.blit(surface, produced, (0, 0))
+        return surface
+
+    def _replay(self, surface: Rendering, args: Args) -> None:
+        """Apply one *mutating* Drawer command onto an existing surface."""
+        match args:
+            case FillArgs(color=color, rectangle=rectangle):
+                self.fill(surface, color, rectangle)
+            case BlitArgs(drawer=source, position=position):
+                self.blit(surface, self.render_drawer(source), (position.x, position.y))
+            case LineArgs(color=color, start=start, end=end):
+                self.line(surface, color, (start.x, start.y), (end.x, end.y))
+            case RectangleArgs(rectangle=rectangle, color=color):
+                self.rectangle(surface, rectangle, color)
+            case BoxArgs(rectangle=rectangle, color=color):
+                self.box(surface, rectangle, color)
+            case FilledPolygonArgs(points=points, color=color):
+                self.filled_polygon(surface, [(p.x, p.y) for p in points], color)
+            case _:
+                raise NotImplementedError(type(args).__name__, args)
+
     def new_color(self, color: Color) -> PygameColor:
         return PygameColor(color.r, color.g, color.b, color.a)
 
@@ -63,11 +158,11 @@ class Pygame(AbstractBackend):
             self.new_rect(rectangle) if rectangle is not None else None,
         )
 
-    def blit(self, dst: Rendering, src: Rendering, position: _Position) -> None:
+    def blit(self, dst: Rendering, src: Rendering, position: PositionTuple) -> None:
         _deref(dst).blit(_deref(src), position)
 
     def line(
-        self, surface: Rendering, color: Color, start: _Position, end: _Position
+        self, surface: Rendering, color: Color, start: PositionTuple, end: PositionTuple
     ) -> None:
         # `pygame.draw.line` over `pygame.gfxdraw.line`: faster on tight
         # loops (gradients trace hundreds of lines per frame) and supports
@@ -86,7 +181,7 @@ class Pygame(AbstractBackend):
         )
 
     def filled_polygon(
-        self, surface: Rendering, points: Sequence[_Position], color: Color
+        self, surface: Rendering, points: Sequence[PositionTuple], color: Color
     ) -> None:
         pygame.gfxdraw.filled_polygon(_deref(surface), points, self.new_color(color))
 
@@ -197,7 +292,13 @@ class Pygame(AbstractBackend):
 
 
 class PygameBackend(Pygame):
-    __slots__ = ("__default_cursor", "__text_cursor", "_screen", "_clock")
+    __slots__ = (
+        "__default_cursor",
+        "__text_cursor",
+        "_screen",
+        "_screen_rendering",
+        "_clock",
+    )
 
     def __init__(
         self,
@@ -227,6 +328,11 @@ class PygameBackend(Pygame):
         self.__default_cursor = pygame.mouse.get_cursor()
         self.__text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
         self._screen: Surface | None = None
+        # Stable wrapper over `_screen`: recreated only when the underlying
+        # buffer is (re)allocated (start / resize_screen), never per-frame. Its
+        # identity lets `Window._refresh` skip repainting an unchanged screen
+        # while still detecting a buffer swap (e.g. a same-size resize).
+        self._screen_rendering: PygameRendering | None = None
         self._clock: pygame.time.Clock | None = None
 
     def _set_text_cursor(self) -> None:
@@ -247,6 +353,7 @@ class PygameBackend(Pygame):
         if self._hide:
             flags |= pygame.HIDDEN
         self._screen = pygame.display.set_mode((self._width, self._height), flags=flags)
+        self._screen_rendering = PygameRendering(self._screen)
         pygame.display.set_caption(self._title)
 
         # Initialize keyboard repeat.
@@ -267,6 +374,7 @@ class PygameBackend(Pygame):
         if self._hide:
             flags |= pygame.HIDDEN
         self._screen = pygame.display.set_mode((width, height), flags=flags)
+        self._screen_rendering = PygameRendering(self._screen)
         pygame.event.post(Event(pygame.WINDOWRESIZED, x=width, y=height))
 
     def _step(self, fps: int | None = None) -> None:
@@ -299,8 +407,8 @@ class PygameBackend(Pygame):
             )
 
         # Refresh screen.
-        assert self._screen is not None
-        self._render_manager(PygameRendering(self._screen))
+        assert self._screen_rendering is not None
+        self._render_manager(self._screen_rendering)
         pygame.display.flip()
 
         # Process pending tasks.

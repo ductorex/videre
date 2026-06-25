@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer, Drawing
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 
@@ -49,9 +49,7 @@ class Row(AbstractControlsLayout):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
-        backend = window.backend
-
+    ) -> Drawer:
         h_hint = height if self.expand_vertical else None
         max_height = 0
         total_width = 0
@@ -59,7 +57,7 @@ class Row(AbstractControlsLayout):
 
         space = self.space
 
-        rendered: list[tuple[Widget, Rendering] | None] = [None] * len(controls)
+        rendered: list[tuple[Widget, Drawer] | None] = [None] * len(controls)
         sizes: list[int | None] = [None] * len(controls)
 
         total_space = space * max(0, len(controls) - 1)
@@ -122,7 +120,7 @@ class Row(AbstractControlsLayout):
                 if alignment == Alignment.START
                 else max(height, max_height)
             )
-        row = backend.new_surface(width, height)
+        row = Drawer(width, height)
         x = 0
         for i, render in enumerate(rendered):
             if render:
@@ -130,7 +128,7 @@ class Row(AbstractControlsLayout):
                 size_i = sizes[i]
                 assert size_i is not None
                 y = self._align_dim(height, surface.get_height(), alignment)
-                backend.blit(row, surface, (x, y))
+                Drawing.blit(row, surface, (x, y))
                 self._set_child_position(ctrl, x, y)
                 x += size_i + space
             else:

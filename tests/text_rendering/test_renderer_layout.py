@@ -10,7 +10,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_alpha, pixels_red
+from tests.common import pixels_alpha, pixels_red, rasterize
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.text_rendering import TextRendering
@@ -30,11 +30,9 @@ def metrics_16() -> tuple[int, int, int]:
     return line_metrics(path, 16)
 
 
-def _surface_height(fake_win, text: str, **kwargs) -> int:
+def _surface_height(text: str, **kwargs) -> int:
     return (
-        TextRendering(fake_win.backend, **kwargs)
-        .render_text(text, color=Color(0, 0, 0))[1]
-        .get_height()
+        TextRendering(**kwargs).render_text(text, color=Color(0, 0, 0))[1].get_height()
     )
 
 
@@ -43,7 +41,7 @@ def _surface_height(fake_win, text: str, **kwargs) -> int:
 
 def test_single_line_compact_height(fake_win, metrics_16: tuple[int, int, int]) -> None:
     asc, desc, _ = metrics_16
-    height = _surface_height(fake_win, "Hello", size=16)
+    height = _surface_height("Hello", size=16)
     assert height == asc + 2 + desc  # h_delta default = 2
 
 
@@ -51,20 +49,20 @@ def test_single_line_non_compact_height(
     fake_win, metrics_16: tuple[int, int, int]
 ) -> None:
     _, desc, line_h = metrics_16
-    height = _surface_height(fake_win, "Hello", size=16, compact=False)
+    height = _surface_height("Hello", size=16, compact=False)
     assert height == line_h + 2 + desc  # line_spacing = line_h + h_delta(2)
 
 
 def test_height_delta_zero_is_smaller_than_default(fake_win) -> None:
-    h_default = _surface_height(fake_win, "Hello", size=16)
-    h_zero = _surface_height(fake_win, "Hello", size=16, height_delta=0)
+    h_default = _surface_height("Hello", size=16)
+    h_zero = _surface_height("Hello", size=16, height_delta=0)
     assert h_zero < h_default
     assert h_default - h_zero == 2  # exactly the difference of height_delta
 
 
 def test_height_delta_large_is_taller_than_default(fake_win) -> None:
-    h_default = _surface_height(fake_win, "Hello", size=16)
-    h_big = _surface_height(fake_win, "Hello", size=16, height_delta=10)
+    h_default = _surface_height("Hello", size=16)
+    h_big = _surface_height("Hello", size=16, height_delta=10)
     assert h_big - h_default == 8  # h_delta=10 vs default 2
 
 
@@ -80,9 +78,9 @@ def test_multi_line_stacks_at_line_spacing(
     """
     asc, desc, line_h = metrics_16
     line_spacing = line_h + 2  # h_delta default
-    h1 = _surface_height(fake_win, "L1", size=16)
-    h2 = _surface_height(fake_win, "L1\nL2", size=16)
-    h3 = _surface_height(fake_win, "L1\nL2\nL3", size=16)
+    h1 = _surface_height("L1", size=16)
+    h2 = _surface_height("L1\nL2", size=16)
+    h3 = _surface_height("L1\nL2\nL3", size=16)
     assert h1 == asc + 2 + desc
     assert h2 - h1 == line_spacing
     assert h3 - h2 == line_spacing
@@ -91,8 +89,8 @@ def test_multi_line_stacks_at_line_spacing(
 def test_multi_line_non_compact(fake_win, metrics_16: tuple[int, int, int]) -> None:
     _, desc, line_h = metrics_16
     line_spacing = line_h + 2
-    h1 = _surface_height(fake_win, "L1", size=16, compact=False)
-    h2 = _surface_height(fake_win, "L1\nL2", size=16, compact=False)
+    h1 = _surface_height("L1", size=16, compact=False)
+    h2 = _surface_height("L1\nL2", size=16, compact=False)
     assert h1 == line_spacing + desc
     assert h2 - h1 == line_spacing
 
@@ -104,9 +102,7 @@ def test_empty_text_reserves_one_line_slot(
     fake_win, metrics_16: tuple[int, int, int]
 ) -> None:
     asc, desc, _ = metrics_16
-    s = TextRendering(fake_win.backend, size=16).render_text("", color=Color(0, 0, 0))[
-        1
-    ]
+    s = TextRendering(size=16).render_text("", color=Color(0, 0, 0))[1]
     # No glyph -> no width, but the height still reserves one line slot.
     assert s.get_width() == 0
     assert s.get_height() == asc + 2 + desc
@@ -135,7 +131,7 @@ def test_result_dims_match_surface(
     with RIGHT/CENTER alignment makes the surface wider than the inked
     content — so the result stores the surface dimensions verbatim.
     """
-    result, surface = TextRendering(fake_win.backend, **init_kwargs).render_text(
+    result, surface = TextRendering(**init_kwargs).render_text(
         text, color=Color(0, 0, 0), **render_kwargs
     )
     assert result.get_width() == surface.get_width()
@@ -151,10 +147,8 @@ def test_underline_does_not_resize_line(fake_win, size: int) -> None:
     underline lives inside the descender region (or is clipped if the
     font's underline_position would push it past)."""
     text = "underline test"
-    s_off = TextRendering(fake_win.backend, size=size).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
-    s_on = TextRendering(fake_win.backend, size=size).render_text(
+    s_off = TextRendering(size=size).render_text(text, color=Color(0, 0, 0))[1]
+    s_on = TextRendering(size=size).render_text(
         text, color=Color(0, 0, 0), underline=True
     )[1]
     assert (s_on.get_width(), s_on.get_height()) == (
@@ -170,12 +164,16 @@ def test_underline_pixels_below_baseline(
     of the rendered text."""
     asc, _, _ = metrics_16
     text = "abc"  # short, no descenders, easy to inspect
-    s_on = TextRendering(fake_win.backend, size=16).render_text(
-        text, color=Color(0, 0, 0), underline=True
-    )[1]
-    s_off = TextRendering(fake_win.backend, size=16).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
+    s_on = rasterize(
+        fake_win.backend,
+        TextRendering(size=16).render_text(text, color=Color(0, 0, 0), underline=True)[
+            1
+        ],
+    )
+    s_off = rasterize(
+        fake_win.backend,
+        TextRendering(size=16).render_text(text, color=Color(0, 0, 0))[1],
+    )
 
     # Same dimensions
     assert (s_on.get_width(), s_on.get_height()) == (
@@ -196,9 +194,10 @@ def test_underline_color_matches_text(fake_win) -> None:
     """The underline takes the same RGB color as the text."""
     text = "abc"
     color = Color(255, 0, 0)  # red
-    s = TextRendering(fake_win.backend, size=16).render_text(
-        text, color=color, underline=True
-    )[1]
+    s = rasterize(
+        fake_win.backend,
+        TextRendering(size=16).render_text(text, color=color, underline=True)[1],
+    )
     arr_r = pixels_red(s)
     arr_a = pixels_alpha(s)
     # Find a pixel at the underline strip with non-zero alpha; its red
@@ -225,9 +224,12 @@ def test_underline_multiline_no_glyph_collision(
     asc, desc, line_h = metrics_16
     line_spacing = line_h + 2
     text = "FF\nFF"  # two lines, easy ascender shape
-    s_on = TextRendering(fake_win.backend, size=16).render_text(
-        text, color=Color(0, 0, 0), underline=True
-    )[1]
+    s_on = rasterize(
+        fake_win.backend,
+        TextRendering(size=16).render_text(text, color=Color(0, 0, 0), underline=True)[
+            1
+        ],
+    )
     # Line 2 baseline is at (asc + h_delta) + line_spacing = asc + 2 + line_spacing.
     line2_baseline = asc + 2 + line_spacing
     line2_top = line2_baseline - asc  # top of glyphs on line 2
@@ -255,23 +257,23 @@ def test_underline_multiline_no_glyph_collision(
 
 def test_bold_renders_wider_than_regular(fake_win) -> None:
     text = "Hello bold"
-    s_reg = TextRendering(fake_win.backend, size=24).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
-    s_bold = TextRendering(fake_win.backend, size=24, bold=True).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
+    s_reg = TextRendering(size=24).render_text(text, color=Color(0, 0, 0))[1]
+    s_bold = TextRendering(size=24, bold=True).render_text(text, color=Color(0, 0, 0))[
+        1
+    ]
     assert s_bold.get_width() > s_reg.get_width()
 
 
 def test_italic_does_not_crash_and_is_not_identical(fake_win) -> None:
     text = "Hello italic"
-    s_reg = TextRendering(fake_win.backend, size=24).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
-    s_it = TextRendering(fake_win.backend, size=24, italic=True).render_text(
-        text, color=Color(0, 0, 0)
-    )[1]
+    s_reg = rasterize(
+        fake_win.backend,
+        TextRendering(size=24).render_text(text, color=Color(0, 0, 0))[1],
+    )
+    s_it = rasterize(
+        fake_win.backend,
+        TextRendering(size=24, italic=True).render_text(text, color=Color(0, 0, 0))[1],
+    )
     assert s_it.get_width() > 0 and s_it.get_height() > 0
     # Italic shears the glyphs; pixel content must differ even if dims
     # happen to match.
@@ -285,16 +287,16 @@ def test_italic_does_not_crash_and_is_not_identical(fake_win) -> None:
 
 
 def test_render_char_empty_returns_zero_size(fake_win) -> None:
-    s = TextRendering(fake_win.backend, size=16).render_char("")
+    s = TextRendering(size=16).render_char("")
     assert (s.get_width(), s.get_height()) == (0, 0)
 
 
 def test_render_char_returns_tight_glyph_bitmap(fake_win) -> None:
-    """`render_char` must return a glyph-tight surface, not a baseline-
+    """`render_char` must return a glyph-tight surface, not a sbaseline-
     padded one. A latin uppercase letter at size 16 should fit in a box
     much smaller than the font's full line height (which would be ~17px
     tall when including ascender + descender)."""
-    s = TextRendering(fake_win.backend, size=16).render_char("A")
+    s = TextRendering(size=16).render_char("A")
     w, h = s.get_width(), s.get_height()
     assert w > 0 and h > 0
     # Tight bitmap: A is shorter than the full line height (which would
@@ -317,7 +319,7 @@ def test_render_char_widget_symbols_have_pixels(fake_win, char: str) -> None:
     surfaces at the typical symbol size (otherwise the widgets render
     blank). Pins the FontProvider routes those codepoints to a font
     that actually has the glyph."""
-    s = TextRendering(fake_win.backend, size=22).render_char(char)
+    s = rasterize(fake_win.backend, TextRendering(size=22).render_char(char))
     w, h = s.get_width(), s.get_height()
     assert w > 0 and h > 0
     arr = pixels_alpha(s)
@@ -327,7 +329,9 @@ def test_render_char_widget_symbols_have_pixels(fake_win, char: str) -> None:
 def test_render_char_color_applied(fake_win) -> None:
     """The color argument must color the glyph pixels (alpha-modulated
     by the font's antialiased coverage)."""
-    s = TextRendering(fake_win.backend, size=16).render_char("A", Color(255, 0, 0))
+    s = rasterize(
+        fake_win.backend, TextRendering(size=16).render_char("A", Color(255, 0, 0))
+    )
     arr_r = pixels_red(s)
     arr_a = pixels_alpha(s)
     fully_opaque = arr_a == 255
@@ -338,7 +342,7 @@ def test_render_char_color_applied(fake_win) -> None:
 def test_render_char_cached_returns_independent_surfaces(fake_win) -> None:
     """Two calls for the same character must return independent
     surfaces (caller may freely blit onto either one)."""
-    r = TextRendering(fake_win.backend, size=16)
+    r = TextRendering(size=16)
     s1 = r.render_char("A")
     s2 = r.render_char("A")
     assert s1 is not s2  # not the same object

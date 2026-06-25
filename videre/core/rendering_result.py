@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from videre.colors import Color
 from videre.core.caret_position import CaretPosition
 from videre.core.constants import TextAlign, TextSpacePolicy
+from videre.core.drawer import Drawer
 from videre.core.text_editing import EditUnit
 
 
@@ -157,7 +158,7 @@ class AbstractTextRendering(ABC):
     __slots__ = ()
 
     @abstractmethod
-    def render_char(self, c: str, color: Color | None = None) -> Rendering: ...
+    def render_char(self, c: str, color: Color | None = None) -> Drawer: ...
 
     @abstractmethod
     def render_text(
@@ -171,7 +172,7 @@ class AbstractTextRendering(ABC):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[TextRenderingResult, Rendering]: ...
+    ) -> tuple[TextRenderingResult, Drawer]: ...
 
     @abstractmethod
     def document(self, text: str) -> "AbstractTextDocument":
@@ -226,4 +227,4 @@ class AbstractTextDocument(ABC):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[TextRenderingResult, Rendering]: ...
+    ) -> tuple[TextRenderingResult, Drawer]: ...

@@ -3,9 +3,9 @@ import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Self
 
+from videre.core.drawer import Drawer, Position
 from videre.core.events import KeyboardEntry, MouseButton, MouseEvent
-from videre.core.position_mapping import Position, PositionMapping
-from videre.core.rendering_result import Rendering
+from videre.core.position_mapping import PositionMapping
 from videre.widgets.widget_utils import MouseOwnership
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class Widget(ABC):
         self._new = new
         self._old_update: tuple[Window, int | None, int | None] | None = None
         self._transient_state = {}
-        self._surface: Rendering | None = None
+        self._surface: Drawer | None = None
         self._rc = 0
         self.data = data
 
@@ -136,10 +136,13 @@ class Widget(ABC):
             return self._parent.global_y + self.y
         return self.y
 
-    def _assert_rendered(self) -> Rendering:
+    def _assert_rendered(self) -> Drawer:
         if not self._surface:
             raise RuntimeError(f"{self} not yet drawn")
         return self._surface
+
+    def is_rendered(self) -> bool:
+        return self._surface is not None
 
     @property
     def top(self) -> int:
@@ -190,7 +193,7 @@ class Widget(ABC):
         self, x_in_parent: int, y_in_parent: int
     ) -> MouseOwnership | None:
         if (
-            self._surface
+            self.is_rendered()
             and self.left <= x_in_parent <= self.right
             and self.top <= y_in_parent <= self.bottom
         ):
@@ -267,7 +270,7 @@ class Widget(ABC):
 
     def render(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         new_update = (window, width, height)
         if (
             self._surface is None
@@ -286,7 +289,7 @@ class Widget(ABC):
     @abstractmethod
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         raise NotImplementedError()
 
     def handle_mouse_wheel(self, x: int, y: int, shift: bool):

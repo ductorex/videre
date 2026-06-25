@@ -1,8 +1,7 @@
 from typing import Self
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.abstract_backend import AbstractBackend
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer, Drawing
 
 
 class Gradient:
@@ -27,16 +26,16 @@ class Gradient:
         a = int(color1.a + (color2.a - color1.a) * factor)
         return Color(r, g, b, a)
 
-    def generate(self, backend: AbstractBackend, width: int, height: int) -> Rendering:
+    def generate(self, width: int, height: int) -> Drawer:
         if width < 0:
             raise ValueError("width cannot be negative")
         if height < 0:
             raise ValueError("height cannot be negative")
 
-        surface = backend.new_surface(width, height)
+        surface = Drawer(width, height)
 
         if len(self._colors) == 1:
-            backend.fill(surface, self._colors[0])
+            Drawing.fill(surface, self._colors[0])
             return surface
 
         if self._vertical:
@@ -59,7 +58,7 @@ class Gradient:
                 )
 
                 # Draw a horizontal line
-                backend.line(surface, color, (0, i), (width - 1, i))
+                Drawing.line(surface, color, (0, i), (width - 1, i))
         else:
             # Horizontal gradient
             for i in range(width):
@@ -80,7 +79,7 @@ class Gradient:
                 )
 
                 # Draw a vertical line
-                backend.line(surface, color, (i, 0), (i, height - 1))
+                Drawing.line(surface, color, (i, 0), (i, height - 1))
 
         return surface
 

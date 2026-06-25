@@ -2,11 +2,8 @@ from typing import Any
 
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
-from videre.core.rendering_result import (
-    AbstractTextDocument,
-    Rendering,
-    TextRenderingResult,
-)
+from videre.core.drawer import Drawer
+from videre.core.rendering_result import AbstractTextDocument, TextRenderingResult
 from videre.widgets.widget import Widget
 
 
@@ -177,7 +174,7 @@ class Text(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         wrap = self.wrap
         text_ret, surface_ret = self._get_document(window).render(
             width=(None if wrap is None else width),

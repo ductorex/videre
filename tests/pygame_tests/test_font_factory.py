@@ -1,10 +1,7 @@
-from typing import cast
-
 import pygame
 import pygame.freetype
 import pytest
 
-from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.text_rendering.render import font_metrics
 from videre.core.text_rendering.renderer import TextRendering
 from videre.fonts.font_utils import FontUtils
@@ -69,18 +66,8 @@ def test_render_text(fake_win, wrap_words):
     assert ascender == 27
     assert descender == 8
 
-    tr_compact = TextRendering(
-        cast(PygameBackend, fake_win.backend),
-        size=size,
-        height_delta=height_delta,
-        compact=True,
-    )
-    tr_full = TextRendering(
-        cast(PygameBackend, fake_win.backend),
-        size=size,
-        height_delta=height_delta,
-        compact=False,
-    )
+    tr_compact = TextRendering(size=size, height_delta=height_delta, compact=True)
+    tr_full = TextRendering(size=size, height_delta=height_delta, compact=False)
 
     def ff_render_text(text):
         return tr_compact.render_text(text, wrap_words=wrap_words)[1]

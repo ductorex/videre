@@ -1,7 +1,6 @@
 import pytest
 
 from videre import Text
-from videre.core.rendering_result import Rendering
 from videre.widgets.empty_widget import EmptyWidget
 
 
@@ -50,15 +49,14 @@ class TestWidgetAdvanced:
     def test_widget_surface_rendering_lifecycle(self, fake_win):
         widget = Text("Test Content", size=16)
 
-        assert widget._surface is None
+        assert not widget.is_rendered()
 
         fake_win.controls = [widget]
         fake_win.render()
 
-        assert widget._surface is not None
-        assert isinstance(widget._surface, Rendering)
-        assert widget._surface.get_width() > 0
-        assert widget._surface.get_height() > 0
+        assert widget.is_rendered()
+        assert widget.rendered_width > 0
+        assert widget.rendered_height > 0
 
     def test_widget_coordinate_calculations(self, fake_win):
         widget = Text("Test", size=16)

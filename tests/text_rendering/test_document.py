@@ -9,7 +9,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_alpha
+from tests.common import pixels_alpha, rasterize
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.text_editing import segment_edit_units
@@ -55,7 +55,6 @@ def test_document_render_matches_render_text(
 ):
     rt_result, rt_surface = render_text(
         text,
-        backend=fake_win.backend,
         rasterizer=rasterizer,
         shaper=shaper,
         size=16,
@@ -64,9 +63,7 @@ def test_document_render_matches_render_text(
         wrap_words=wrap_words,
         align=align,
     )
-    doc = TextDocument(
-        text, backend=fake_win.backend, shaper=shaper, rasterizer=rasterizer, size=16
-    )
+    doc = TextDocument(text, shaper=shaper, rasterizer=rasterizer, size=16)
     doc_result, doc_surface = doc.render(
         width, color=BLACK, wrap_words=wrap_words, align=align
     )
@@ -76,7 +73,10 @@ def test_document_render_matches_render_text(
         rt_result.get_height(),
     )
     assert doc_result.total_visual_count() == rt_result.total_visual_count()
-    assert np.array_equal(pixels_alpha(doc_surface), pixels_alpha(rt_surface))
+    assert np.array_equal(
+        pixels_alpha(rasterize(fake_win.backend, doc_surface)),
+        pixels_alpha(rasterize(fake_win.backend, rt_surface)),
+    )
 
 
 @pytest.mark.parametrize(
@@ -98,9 +98,7 @@ def test_document_layout_matches_render(
     """`layout()` returns the SAME caret/hit-test contract as `render()[0]` —
     and from the shared per-width cache, so it is the very same object (no second
     wrap/reorder), without painting a surface."""
-    doc = TextDocument(
-        text, backend=fake_win.backend, shaper=shaper, rasterizer=rasterizer, size=16
-    )
+    doc = TextDocument(text, shaper=shaper, rasterizer=rasterizer, size=16)
     laid = doc.layout(width, wrap_words=wrap_words, align=align)
     rendered, _surface = doc.render(
         width, color=BLACK, wrap_words=wrap_words, align=align
@@ -118,11 +116,7 @@ def test_document_layout_cache_keyed_on_layout_params(fake_win, shaper, rasteriz
     reuses the instance, a different width recomputes, and `render` at the cached
     key paints from `layout`'s instance (a single wrap per width)."""
     doc = TextDocument(
-        "hello world foo bar baz",
-        backend=fake_win.backend,
-        shaper=shaper,
-        rasterizer=rasterizer,
-        size=16,
+        "hello world foo bar baz", shaper=shaper, rasterizer=rasterizer, size=16
     )
     wide = doc.layout(200, wrap_words=True)
     assert doc.layout(200, wrap_words=True) is wide  # same key → cached
@@ -134,9 +128,7 @@ def test_document_layout_cache_keyed_on_layout_params(fake_win, shaper, rasteriz
 
 def test_document_exposes_text_and_edit_units(fake_win, shaper, rasterizer):
     text = "café " + ARAB
-    doc = TextDocument(
-        text, backend=fake_win.backend, shaper=shaper, rasterizer=rasterizer, size=16
-    )
+    doc = TextDocument(text, shaper=shaper, rasterizer=rasterizer, size=16)
     assert doc.text == text
     assert doc.edit_units == segment_edit_units(text)
 
@@ -148,9 +140,7 @@ def test_caret_items_are_edit_units_not_codepoints(fake_win, shaper, rasterizer)
     text = (
         "ae" + chr(0x301) + "b"
     )  # a | e + combining acute | b: 4 codepoints, 3 graphemes
-    doc = TextDocument(
-        text, backend=fake_win.backend, shaper=shaper, rasterizer=rasterizer, size=16
-    )
+    doc = TextDocument(text, shaper=shaper, rasterizer=rasterizer, size=16)
     rendered, _ = doc.render()
     assert len(doc.edit_units) == 3  # the document agrees: 3 graphemes
     assert rendered.total_visual_count() == 3  # caret too: not 4 codepoints

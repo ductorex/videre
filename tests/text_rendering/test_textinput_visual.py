@@ -26,10 +26,8 @@ def _init_pygame() -> None:
 ARAB = chr(0x0623) + chr(0x0628) + chr(0x062C)
 
 
-def _render(fake_win, text: str):
-    return TextRendering(fake_win.backend, size=16).render_text(
-        text, color=Color(0, 0, 0)
-    )
+def _render(text: str):
+    return TextRendering(size=16).render_text(text, color=Color(0, 0, 0))
 
 
 # -- compute_key_x with shaped rendered (visual movement) ------------------
@@ -49,7 +47,7 @@ def _compute(out, *, text: str, cursor: int, ctrl=False, shift=False, right=True
 
 def test_compute_key_x_visual_right_in_ltr_matches_source_order(fake_win) -> None:
     """LTR text: visual right == source+1 (no surprise)."""
-    out, _ = _render(fake_win, "hello")
+    out, _ = _render("hello")
     ret = _compute(out, text="hello", cursor=0, right=True)
     assert ret.out_pos == 1
 
@@ -60,7 +58,7 @@ def test_compute_key_x_visual_right_in_pure_rtl_decreases_source(fake_win) -> No
     next glyph in visual order corresponds to a smaller source
     position. This is exactly what the user wants when typing arrow
     keys in Arabic text."""
-    out, _ = _render(fake_win, ARAB)
+    out, _ = _render(ARAB)
     # Start at source position 3 (visual leftmost). Visual right moves
     # to source 2 (one glyph to the right pixel-wise).
     ret = _compute(out, text=ARAB, cursor=3, right=True)
@@ -69,7 +67,7 @@ def test_compute_key_x_visual_right_in_pure_rtl_decreases_source(fake_win) -> No
 
 def test_compute_key_x_visual_left_in_pure_rtl_increases_source(fake_win) -> None:
     """Symmetric: visual left in RTL increases source position."""
-    out, _ = _render(fake_win, ARAB)
+    out, _ = _render(ARAB)
     ret = _compute(out, text=ARAB, cursor=2, right=False)
     assert ret.out_pos == 3
 
@@ -81,7 +79,7 @@ def test_visual_state_at_pixel_clicks_at_left_edge_yields_first_position(
     fake_win,
 ) -> None:
     """Clicking at x=0 should return source position 0."""
-    out, _ = _render(fake_win, "hello world")
+    out, _ = _render("hello world")
     assert out.visual_state_at_pixel(0, 0).pos == 0
 
 
@@ -91,7 +89,7 @@ def test_visual_state_at_pixel_clicks_inside_rtl_run_picks_visual_glyph(
     """Clicking inside the visual middle of a 3-glyph Arabic word
     should yield a source position that's inside the run (1 or 2,
     not the endpoints 0 or 3)."""
-    out, rendered = _render(fake_win, ARAB)
+    out, rendered = _render(ARAB)
     mid_x = rendered.get_width() // 2
     pos = out.visual_state_at_pixel(mid_x, 0).pos
     assert 0 < pos < 3, f"middle click should hit run interior, got {pos}"
@@ -103,7 +101,7 @@ def test_visual_state_at_pixel_clicks_inside_rtl_run_picks_visual_glyph(
 def test_ctrl_right_visual_in_ltr_matches_source_order(fake_win) -> None:
     """LTR text: visual word-end == source word-end."""
     text = "hello world"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     ret = _compute(out, text=text, cursor=0, ctrl=True, right=True)
     assert ret.out_pos == 5  # end of "hello"
 
@@ -112,7 +110,7 @@ def test_ctrl_right_visual_jumps_to_next_word_in_ltr_then_rtl(fake_win) -> None:
     """Mixed LTR-RTL: starting at source 0, Ctrl+Right jumps to the
     end of "abc" (= 3) — the next word-end visually to the right."""
     text = "abc " + ARAB
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     ret = _compute(out, text=text, cursor=0, ctrl=True, right=True)
     assert ret.out_pos == 3
 
@@ -120,7 +118,7 @@ def test_ctrl_right_visual_jumps_to_next_word_in_ltr_then_rtl(fake_win) -> None:
 def test_ctrl_left_visual_in_ltr_matches_source_order(fake_win) -> None:
     """LTR text: Ctrl+Left (visual) == cursword's word-start."""
     text = "hello world"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     ret = _compute(out, text=text, cursor=11, ctrl=True, right=False)
     assert ret.out_pos == 6  # start of "world"
 
@@ -194,7 +192,7 @@ def _backward_traversal(out, start: int) -> list[int]:
 
 def test_turkish_ottoman_forward_traversal_reaches_end(fake_win) -> None:
     """Arrow-right from source position 0 must land at `len(text)`."""
-    out, _ = _render(fake_win, TURK_OTTOMAN)
+    out, _ = _render(TURK_OTTOMAN)
     visited = _forward_traversal(out, 0, len(TURK_OTTOMAN))
     final = visited[-1]
     assert final == len(TURK_OTTOMAN), (
@@ -205,7 +203,7 @@ def test_turkish_ottoman_forward_traversal_reaches_end(fake_win) -> None:
 
 def test_turkish_ottoman_backward_traversal_reaches_start(fake_win) -> None:
     """Symmetric: arrow-left from `len(text)` must reach 0."""
-    out, _ = _render(fake_win, TURK_OTTOMAN)
+    out, _ = _render(TURK_OTTOMAN)
     visited = _backward_traversal(out, len(TURK_OTTOMAN))
     final = visited[-1]
     assert final == 0, (
@@ -217,7 +215,7 @@ def test_turkish_ottoman_backward_traversal_reaches_start(fake_win) -> None:
 def test_turkish_ottoman_forward_then_backward_round_trip(fake_win) -> None:
     """Stronger: a forward traversal followed by a backward one must
     visit exactly the same set of source positions."""
-    out, _ = _render(fake_win, TURK_OTTOMAN)
+    out, _ = _render(TURK_OTTOMAN)
     forward = _forward_traversal(out, 0, len(TURK_OTTOMAN))
     backward = _backward_traversal(out, len(TURK_OTTOMAN))
     assert set(forward) == set(backward), (
@@ -265,7 +263,7 @@ def _backward_pixels(out, start: int) -> list[int]:
 def test_turkish_ottoman_forward_caret_pixel_is_monotonic(fake_win) -> None:
     """The painted caret must drift visually left-to-right as the
     user presses arrow-right; no jump backwards in pixels."""
-    out, _ = _render(fake_win, TURK_OTTOMAN)
+    out, _ = _render(TURK_OTTOMAN)
     xs = _forward_pixels(out, 0, len(TURK_OTTOMAN))
     for a, b in zip(xs, xs[1:]):
         assert a <= b, (
@@ -277,7 +275,7 @@ def test_turkish_ottoman_forward_caret_pixel_is_monotonic(fake_win) -> None:
 def test_turkish_ottoman_backward_caret_pixel_is_monotonic(fake_win) -> None:
     """Symmetric: the painted caret must drift visually right-to-left
     as the user presses arrow-left."""
-    out, _ = _render(fake_win, TURK_OTTOMAN)
+    out, _ = _render(TURK_OTTOMAN)
     xs = _backward_pixels(out, len(TURK_OTTOMAN))
     for a, b in zip(xs, xs[1:]):
         assert a >= b, (
@@ -292,7 +290,7 @@ def test_hello_plus_turkish_ottoman_backward_caret_pixel_is_monotonic(fake_win) 
     backward with arrow-left. The painted caret must drift left
     monotonically — no jump across the Arabic run."""
     text = "Hello!" + TURK_OTTOMAN
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     xs = _backward_pixels(out, len(text))
     for a, b in zip(xs, xs[1:]):
         assert a >= b, (
@@ -306,14 +304,14 @@ def test_hello_plus_turkish_ottoman_backward_caret_pixel_is_monotonic(fake_win) 
 
 def test_visual_range_to_source_set_pure_ltr_is_contiguous_range(fake_win) -> None:
     """LTR text: the source set is just `range(start, end)`."""
-    out, _ = _render(fake_win, "hello world")
+    out, _ = _render("hello world")
     assert out.visual_range_to_source_set(0, 5) == frozenset(range(0, 5))
 
 
 def test_visual_range_to_source_set_pure_rtl_is_set_of_source_indices(fake_win) -> None:
     """3-codepoint Arabic word: visual order is reversed in source.
     Selecting the whole word visually gives source set {0, 1, 2}."""
-    out, _ = _render(fake_win, ARAB)
+    out, _ = _render(ARAB)
     assert out.visual_range_to_source_set(0, 3) == frozenset({0, 1, 2})
 
 
@@ -323,7 +321,7 @@ def test_visual_range_to_source_set_partial_rtl_picks_visually_adjacent(
     """Selecting visual positions [0, 2) in a 3-char Arabic word
     picks the visual-leftmost 2 items, which in source order are
     the two LAST codepoints (largest source indices)."""
-    out, _ = _render(fake_win, ARAB)
+    out, _ = _render(ARAB)
     # ARAB has 3 codepoints (source 0, 1, 2). In visual order from
     # left to right: item[0] covers source 2, item[1] covers source 1,
     # item[2] covers source 0. Selection [0, 2) = items 0 and 1 =
@@ -334,11 +332,11 @@ def test_visual_range_to_source_set_partial_rtl_picks_visually_adjacent(
 def test_visual_range_to_source_set_across_ltr_rtl_boundary_is_non_contiguous(
     fake_win,
 ) -> None:
-    """Selection that crosses a LTR/RTL boundary: source set is the
+    """Selection that crosses an LTR/RTL boundary: source set is the
     union of the contiguous LTR slice and the contiguous RTL slice,
     which on its own may be non-contiguous in source order."""
     text = "ab" + ARAB + "cd"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     # Visual order: a, b, ARAB_visual_left (src 4), ARAB_mid (src 3),
     # ARAB_visual_right (src 2), c, d.
     # Selecting visual [1, 4) = items b, ARAB_visual_left, ARAB_mid
@@ -349,7 +347,7 @@ def test_visual_range_to_source_set_across_ltr_rtl_boundary_is_non_contiguous(
 def test_visual_selection_rects_pure_ltr_returns_one_contiguous_rect(fake_win) -> None:
     """LTR text: one rectangle covering [item[start].x_start,
     item[end-1].x_end]."""
-    out, _ = _render(fake_win, "hello world")
+    out, _ = _render("hello world")
     rects = out._selection_rects(0, 5)
     assert len(rects) == 1
     assert rects[0].width > 0
@@ -359,7 +357,7 @@ def test_visual_selection_rects_across_bidi_boundary_is_single_ribbon(fake_win) 
     """The whole point of the visual model: even on a bidi-mixed
     selection, the rectangle is a single ribbon (no gaps)."""
     text = "ab" + ARAB + "cd"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     rects = out._selection_rects(1, 5)  # spans from 'b' to ARAB middle
     assert len(rects) == 1
 
@@ -368,21 +366,21 @@ def test_total_visual_count_matches_total_items(fake_win) -> None:
     """The select-all upper bound equals the sum of items across all
     lines. For a single-line LTR text it equals len(text)."""
     text = "hello"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     assert out.total_visual_count() == len(text)
 
 
 def test_total_visual_count_arabic_matches_codepoint_count(fake_win) -> None:
     """For an Arabic word (one cluster per codepoint), total visual
     count equals the codepoint count."""
-    out, _ = _render(fake_win, ARAB)
+    out, _ = _render(ARAB)
     assert out.total_visual_count() == len(ARAB)
 
 
 def test_visual_state_at_round_trips_with_state_visual_pos(fake_win) -> None:
     """For every valid visual position, visual_state_at(v).visual_pos
     must equal v."""
-    out, _ = _render(fake_win, "ab" + ARAB + "cd")
+    out, _ = _render("ab" + ARAB + "cd")
     total = out.total_visual_count()
     for v in range(total + 1):
         assert out.visual_state_at(v).visual_pos == v
@@ -394,7 +392,7 @@ def test_delete_visual_selection_across_ltr_rtl_boundary(fake_win) -> None:
     filtering out those indices. Asserts the rebuilt string is what
     the user would expect."""
     text = "ab" + ARAB + "cd"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     # Select visual [1, 4) = source set {1, 3, 4}.
     indices = sorted(out.visual_range_to_source_set(1, 4))
     keep = set(indices)
@@ -408,7 +406,7 @@ def test_copy_visual_selection_preserves_source_order(fake_win) -> None:
     (= what browsers / Word do). The clipboard payload, re-rendered
     in another app, reproduces the original visual look."""
     text = "ab" + ARAB + "cd"
-    out, _ = _render(fake_win, text)
+    out, _ = _render(text)
     # Select visual [1, 4) = source set {1, 3, 4}.
     indices = sorted(out.visual_range_to_source_set(1, 4))
     copied = "".join(text[i] for i in indices)

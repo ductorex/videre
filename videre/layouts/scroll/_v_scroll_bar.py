@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
+from videre.core.drawer import Drawer, Drawing
 from videre.core.events import MouseButton, MouseEvent
-from videre.core.rendering_result import Rendering
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 from videre.widgets.widget_utils import MouseOwnership
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class _VScrollBar(_HScrollBar):
@@ -18,7 +23,7 @@ class _VScrollBar(_HScrollBar):
         self, x_in_parent: int, y_in_parent: int
     ) -> MouseOwnership | None:
         if (
-            self._surface
+            self.is_rendered()
             and self.x <= x_in_parent < self.x + self.thickness
             and 0 <= y_in_parent < self._bar_length()
         ):
@@ -56,8 +61,8 @@ class _VScrollBar(_HScrollBar):
             self.on_jump(round(content_pos))
 
     def _compute(
-        self, window, view_width: int, view_height: int
-    ) -> tuple[Rendering, tuple[int, int]]:
+        self, window: "Window", view_width: int, view_height: int
+    ) -> tuple[Drawer, tuple[int, int]]:
         thickness = self.thickness
         v_scroll_y, v_scroll_height = self._compute_scroll_metrics(
             view_height,
@@ -65,7 +70,7 @@ class _VScrollBar(_HScrollBar):
             self.content_pos,
             scrollbar_length=(max(0, view_height - thickness) if self.both else None),
         )
-        v_scroll = window.backend.new_surface(thickness, v_scroll_height)
-        window.backend.fill(v_scroll, self.color)
+        v_scroll = Drawer(thickness, v_scroll_height)
+        Drawing.fill(v_scroll, self.color)
         pos = (view_width - thickness, v_scroll_y)
         return v_scroll, pos

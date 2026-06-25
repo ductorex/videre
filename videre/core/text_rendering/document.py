@@ -6,9 +6,9 @@ resize never re-shapes. See docs/text-document-and-contract.md.
 """
 
 from videre.colors import Color
-from videre.core.abstract_backend import AbstractBackend
 from videre.core.constants import TextAlign, TextSpacePolicy
-from videre.core.rendering_result import AbstractTextDocument, Rendering
+from videre.core.drawer import Drawer
+from videre.core.rendering_result import AbstractTextDocument
 from videre.core.text_editing import EditUnit
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
 from videre.core.text_rendering.render import (
@@ -27,7 +27,6 @@ class TextDocument(AbstractTextDocument):
         "_text",
         "_edit_units",
         "_shaped_lines",
-        "_backend",
         "_rasterizer",
         "_size",
         "_bold",
@@ -42,7 +41,6 @@ class TextDocument(AbstractTextDocument):
         self,
         text: str,
         *,
-        backend: AbstractBackend,
         shaper: Shaper,
         rasterizer: GlyphRasterizer,
         size: int,
@@ -61,7 +59,6 @@ class TextDocument(AbstractTextDocument):
             shape_line(line, shaper, size, bold=bold, italic=italic)
             for line in partition.lines
         ]
-        self._backend = backend
         self._rasterizer = rasterizer
         self._size = size
         self._bold = bold
@@ -139,11 +136,10 @@ class TextDocument(AbstractTextDocument):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[RenderedText, Rendering]:
+    ) -> tuple[RenderedText, Drawer]:
         assembled = self._lay_out(width, wrap_words, space_policy, align)
         out = paint_assembled(
             assembled,
-            backend=self._backend,
             rasterizer=self._rasterizer,
             size=self._size,
             color=color,

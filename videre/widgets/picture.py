@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, BinaryIO
 
 from PIL import Image
 
-from videre.core.rendering_result import Rendering
+from videre.core.drawer import Drawer
 from videre.widgets.text import Text
 from videre.widgets.widget import Widget
 
@@ -43,14 +43,14 @@ class Picture(Widget):
     def alt(self, alt: str):
         self._set_wprop("alt", alt or "image")
 
-    def _src_to_surface(self, window: "Window"):
+    def _src_to_surface(self, window: "Window") -> Drawer | None:
         src = self.src
         try:
             if isinstance(src, (bytes, bytearray)):
                 src = io.BytesIO(src)
             assert isinstance(src, (str, Path, io.BytesIO))
             image = Image.open(src).convert("RGBA")
-            return window.backend.image(image)
+            return Drawer.image(image)
 
         except Exception as exc:
             print(f"Cannot load an image: {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -58,7 +58,7 @@ class Picture(Widget):
 
     def draw(
         self, window, width: int | None = None, height: int | None = None
-    ) -> Rendering:
+    ) -> Drawer:
         surface = self._src_to_surface(window)
         if surface is None:
             surface = Text(self.alt).render(window, width, height)

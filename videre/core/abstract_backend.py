@@ -1,17 +1,17 @@
 import io
 from abc import ABC, abstractmethod
-from typing import Callable, Sequence, TypeAlias
+from collections import OrderedDict
+from typing import Callable, Sequence
 
 from PIL.Image import Image
 
 from videre.colors import Color
 from videre.core.constants import WINDOW_FPS
+from videre.core.drawer import Drawer, PositionTuple
 from videre.core.events import VidereEvent
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
 from videre.core.tasks import TaskManager, VidereTask
-
-_Position: TypeAlias = tuple[int | float, int | float]
 
 
 class AbstractBackend(ABC):
@@ -27,6 +27,7 @@ class AbstractBackend(ABC):
         "_task_manager",
         "_cursor_is_default",
         "_running",
+        "_drawer_cache",
     )
 
     def __init__(
@@ -52,6 +53,7 @@ class AbstractBackend(ABC):
         self._running: bool = True
 
         self._cursor_is_default = True
+        self._drawer_cache: OrderedDict[Drawer, Rendering] = OrderedDict()
 
     @property
     def running(self) -> bool:
@@ -137,6 +139,40 @@ class AbstractBackend(ABC):
     def _handle_resize(self, width: int, height: int) -> None:
         self._width, self._height = width, height
 
+    _DRAWER_CACHE_SIZE = 512
+
+    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
+        """Rasterize a Drawer to a Rendering, memoizing by value.
+
+        Drawers hash/compare by content, so an unchanged sub-tree (a clean
+        widget reuses its cached Drawer frame to frame) hits the cache instead
+        of being repainted. Only `dst=None` calls are cached: the root screen
+        (painted onto `dst`) changes almost every frame and is never stored.
+        Backed by a bounded LRU. Cached surfaces are read-only — the visitor
+        only ever mutates `dst` or a fresh surface, and `copy()` shields the
+        in-place edits (`TextInput`), so sharing a cached surface is safe.
+        """
+        if dst is not None:
+            return self._paint_drawer(drawer, dst)
+        cache = self._drawer_cache
+        cached = cache.get(drawer)
+        if cached is not None:
+            cache.move_to_end(drawer)
+            return cached
+        surface = self._paint_drawer(drawer, None)
+        cache[drawer] = surface
+        if len(cache) > self._DRAWER_CACHE_SIZE:
+            cache.popitem(last=False)
+        return surface
+
+    @abstractmethod
+    def _paint_drawer(self, drawer: Drawer, dst: Rendering | None) -> Rendering:
+        """Replay `drawer`'s commands onto `dst` (or a fresh surface when None)
+        and return it — the single rasterization seam each backend implements.
+        `render_drawer` wraps this with the by-value LRU cache; recursion goes
+        back through `render_drawer` so nested drawers are cached too."""
+        ...
+
     @abstractmethod
     def new_surface(self, width: int | float, height: int | float) -> Rendering: ...
 
@@ -146,11 +182,11 @@ class AbstractBackend(ABC):
     ) -> None: ...
 
     @abstractmethod
-    def blit(self, dst: Rendering, src: Rendering, position: _Position) -> None: ...
+    def blit(self, dst: Rendering, src: Rendering, position: PositionTuple) -> None: ...
 
     @abstractmethod
     def line(
-        self, surface: Rendering, color: Color, start: _Position, end: _Position
+        self, surface: Rendering, color: Color, start: PositionTuple, end: PositionTuple
     ) -> None: ...
 
     @abstractmethod
@@ -163,7 +199,7 @@ class AbstractBackend(ABC):
 
     @abstractmethod
     def filled_polygon(
-        self, surface: Rendering, points: Sequence[_Position], color: Color
+        self, surface: Rendering, points: Sequence[PositionTuple], color: Color
     ) -> None: ...
 
     @abstractmethod

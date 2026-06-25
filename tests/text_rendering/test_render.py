@@ -10,7 +10,7 @@ import pygame
 import pygame.freetype
 import pytest
 
-from tests.common import pixels_alpha
+from tests.common import pixels_alpha, rasterize
 from videre.colors import Color
 from videre.core.constants import TextAlign
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
@@ -37,15 +37,10 @@ def rasterizer() -> GlyphRasterizer:
 
 
 def _render(text, fake_win, shaper, rasterizer, **kw):
-    return render_text(
-        text,
-        backend=fake_win.backend,
-        rasterizer=rasterizer,
-        shaper=shaper,
-        size=16,
-        color=BLACK,
-        **kw,
+    drawer = render_text(
+        text, rasterizer=rasterizer, shaper=shaper, size=16, color=BLACK, **kw
     )[1]
+    return rasterize(fake_win.backend, drawer)
 
 
 def _content_columns(surface) -> np.ndarray:
@@ -81,14 +76,16 @@ def test_glyph_overhang_is_not_clipped(
     fake_win, shaper, rasterizer, text, italic
 ) -> None:
     line = _render(text, fake_win, shaper, rasterizer, italic=italic)
-    glyph = render_char(
-        text,
-        backend=fake_win.backend,
-        rasterizer=rasterizer,
-        shaper=shaper,
-        size=16,
-        color=BLACK,
-        italic=italic,
+    glyph = rasterize(
+        fake_win.backend,
+        render_char(
+            text,
+            rasterizer=rasterizer,
+            shaper=shaper,
+            size=16,
+            color=BLACK,
+            italic=italic,
+        ),
     )
 
     line_ink = int((pixels_alpha(line) > 0).sum())

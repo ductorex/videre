@@ -24,6 +24,7 @@ import pygame
 import pygame.freetype
 import pytest
 
+from tests.common import rasterize
 from videre.colors import Color
 from videre.core.pygame_backend.definitions import PygameRendering
 from videre.core.rendering_result import Rendering
@@ -81,9 +82,10 @@ def _png(rendering: Rendering) -> bytes:
 
 @pytest.mark.parametrize("name", sorted(_SAMPLES))
 def test_text_sample_renders_to_snapshot(fake_win, image_regression, name: str) -> None:
-    _, surface = TextRendering(fake_win.backend, size=_SIZE).render_text(
+    _, surface = TextRendering(size=_SIZE).render_text(
         _SAMPLES[name], color=Color(0, 0, 0), width=_WIDTH, wrap_words=True
     )
+    surface = rasterize(fake_win.backend, surface)
     image_regression.check(_png(surface), diff_threshold=0)
 
 
@@ -96,9 +98,12 @@ def test_line_endings_render_identically(fake_win) -> None:
     keys = ["lines_linux", "lines_mac", "lines_windows", "lines_malformed"]
     renders = {
         k: _png(
-            TextRendering(fake_win.backend, size=_SIZE).render_text(
-                TEXT_SAMPLES[k], color=Color(0, 0, 0), width=_WIDTH, wrap_words=True
-            )[1]
+            rasterize(
+                fake_win.backend,
+                TextRendering(size=_SIZE).render_text(
+                    TEXT_SAMPLES[k], color=Color(0, 0, 0), width=_WIDTH, wrap_words=True
+                )[1],
+            )
         )
         for k in keys
     }

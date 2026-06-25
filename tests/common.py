@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 from videre.colors import Color, ColorDef
+from videre.core.abstract_backend import AbstractBackend
+from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry
 from videre.core.rendering_result import Rendering
 from videre.testing.utils import HD, SD
@@ -41,9 +43,9 @@ class TrackerWidget(Widget):
         super().__init__(**kwargs)
         self.events = []
 
-    def draw(self, window, width=None, height=None):
-        surface = window.backend.new_surface(width or 50, height or 50)
-        window.backend.fill(surface, Color(200, 200, 200))
+    def draw(self, window, width=None, height=None) -> Drawer:
+        surface = Drawer(width or 50, height or 50)
+        Drawing.fill(surface, Color(200, 200, 200))
         return surface
 
     def handle_mouse_wheel(self, x, y, shift):
@@ -96,6 +98,17 @@ class TrackerWidget(Widget):
     def handle_mouse_down_canceled(self, button):
         self.events.append(("mouse_down_canceled", button))
         return self
+
+
+def rasterize(backend: AbstractBackend, drawer: Drawer) -> Rendering:
+    """Replay a Drawer's command IR to a real surface for pixel inspection.
+
+    The shaped renderer (`render_text` / `render_char` / `document.render`)
+    now returns a paint-free `Drawer`; tests that read pixels (`pixels_*`) or
+    serialize a snapshot (`_png`) need the rasterized `Rendering`. Mirrors what
+    `Window._refresh` does in production.
+    """
+    return backend.render_drawer(drawer)
 
 
 def _channel(rendering: Rendering, attr: str) -> np.ndarray:
