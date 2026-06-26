@@ -9,7 +9,7 @@ from videre.gradient import Gradient
 def _render_gradient(
     renderer: AbstractRenderer, gradient: Gradient, width: int, height: int
 ) -> Rendering:
-    return renderer.render_drawer(gradient.generate(width, height))
+    return renderer.materialize(gradient.generate(width, height))
 
 
 def test_gradient_single_color(fake_win):

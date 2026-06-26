@@ -1,6 +1,7 @@
 import logging
 
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer, Drawing, crop_drawer
+from videre.core.rectangle import Rectangle
 from videre.layouts.abstractlayout import AbstractLayout, get_top_mouse_wheel_owner
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 from videre.layouts.scroll._v_scroll_bar import _VScrollBar
@@ -252,7 +253,12 @@ class ScrollView(AbstractLayout):
                 self._content_y = end_pos
 
         view = Drawer(width, height)
-        Drawing.blit(view, content, (self._content_x, self._content_y))
+        # Paint only the visible slice: cropping drops the off-screen children so
+        # `materialize` allocates a viewport-sized surface and composes a handful
+        # of children instead of the whole (possibly huge) content. Pixel-identical
+        # to blitting `content` at the offset; far cheaper for long lists.
+        visible = Rectangle(-self._content_x, -self._content_y, width, height)
+        Drawing.blit(view, crop_drawer(content, visible), (0, 0))
 
         both = has_h_scroll and has_v_scroll
         if has_h_scroll:

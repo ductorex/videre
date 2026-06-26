@@ -8,20 +8,19 @@ from videre.testing.step_window import StepWindow
 
 @contextlib.contextmanager
 def _count_screen_paints():
-    """Count how many times the *screen* (root, `dst is not None`) is painted.
+    """Count how many times the *screen* (root) is painted.
 
-    Sub-drawers go through `_paint_drawer(..., dst=None)` and are not counted:
-    only the root repaint that `Window._refresh` triggers is.
+    `render_drawer` is the once-per-frame root paint that `Window._refresh`
+    triggers; sub-drawers go through `materialize` and are not counted.
     """
-    real = PygameRenderer._paint_drawer
+    real = PygameRenderer.render_drawer
     counter = {"screen": 0}
 
     def counting(self, drawer, dst):
-        if dst is not None:
-            counter["screen"] += 1
+        counter["screen"] += 1
         return real(self, drawer, dst)
 
-    with patch.object(PygameRenderer, "_paint_drawer", counting):
+    with patch.object(PygameRenderer, "render_drawer", counting):
         yield counter
 
 

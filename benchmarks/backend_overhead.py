@@ -29,11 +29,11 @@ import timeit
 
 import pygame
 import pygame.gfxdraw
-from videre.core.pygame_backend.backend import PygameRenderer, PygameWindowing, _deref
-from videre.core.pygame_backend.definitions import PygameColor, Rect, Surface
 
 import videre
 from videre.colors import Color
+from videre.core.pygame_backend.backend import PygameRenderer, PygameWindowing, _deref
+from videre.core.pygame_backend.definitions import PygameColor, Rect, Surface
 from videre.core.rectangle import Rectangle
 from videre.core.tasks import TaskManager
 from videre.testing.step_window import StepWindow

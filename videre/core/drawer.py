@@ -201,6 +201,117 @@ class Drawer:
         return out
 
 
+_GENERATIVE = (ImageArgs, ImageFromBytesArgs, SmoothScaleArgs, CopyArgs)
+
+
+def _overlaps(left: int, top: int, width: int, height: int, rect: Rectangle) -> bool:
+    """Half-open AABB overlap of ``[left, left+width) x [top, top+height)`` with
+    `rect`. Strict: a box merely touching `rect`'s edge shares no pixel and is
+    dropped. Callers pass a 1-pixel extent for inclusive-endpoint shapes (lines,
+    polygons) so those are not wrongly dropped at the boundary."""
+    return (
+        left < rect.left + rect.width
+        and left + width > rect.left
+        and top < rect.top + rect.height
+        and top + height > rect.top
+    )
+
+
+def _is_generative(drawer: Drawer) -> bool:
+    """A drawer whose pixels come from a base surface (image / scaled / copied):
+    it cannot be pruned to a sub-region by dropping commands."""
+    return any(isinstance(cmd, _GENERATIVE) for cmd in drawer)
+
+
+def crop_drawer(drawer: Drawer, rect: Rectangle) -> Drawer:
+    """Return a new ``Drawer(rect.width, rect.height)`` showing only the part of
+    `drawer` inside `rect` (in `drawer`'s local coords), with `rect`'s top-left
+    mapped to ``(0, 0)``.
+
+    The point is to avoid rasterizing what a ScrollView never shows: a tall
+    content drawer (e.g. a 90-row column) becomes a viewport-sized drawer holding
+    only the handful of children that intersect the view, so ``materialize``
+    allocates a small surface and composes a few children instead of a giant one.
+
+    Rules: a command fully outside `rect` is dropped; otherwise it is kept,
+    translated by ``(-rect.left, -rect.top)`` — anything still overflowing the
+    cropped drawer is clipped by the renderer (surface bounds), so nothing needs
+    trimming. A kept child keeps its **identity** (same ``Drawer`` object) so it
+    still hits the ``materialize`` cache. A straddling child *larger than `rect`*
+    would re-introduce an oversized surface if kept whole, so it is recursively
+    cropped instead — unless it is generative (image/scale/copy), which cannot be
+    pruned and is kept whole. A generative `drawer` itself can't be pruned at
+    all: it is re-anchored whole at the negative offset (same as a plain offset
+    blit — correct, cache-friendly, just not size-reduced)."""
+    out = Drawer(rect.width, rect.height)
+    if _is_generative(drawer):
+        out.blit(drawer, Position(int(-rect.left), int(-rect.top)))
+        return out
+    dx, dy = int(-rect.left), int(-rect.top)
+    rl, rt, rw, rh = rect.left, rect.top, rect.width, rect.height
+    for cmd in drawer:
+        match cmd:
+            case FillArgs(color=color, rectangle=None):
+                out.fill(color)
+            case FillArgs(color=color, rectangle=r):
+                if _overlaps(r.left, r.top, r.width, r.height, rect):
+                    out.fill(
+                        color, Rectangle(r.left + dx, r.top + dy, r.width, r.height)
+                    )
+            case BlitArgs(drawer=child, position=pos):
+                cw, ch = child.get_width(), child.get_height()
+                if not _overlaps(pos.x, pos.y, cw, ch, rect):
+                    continue
+                inside = (
+                    pos.x >= rl
+                    and pos.y >= rt
+                    and pos.x + cw <= rl + rw
+                    and pos.y + ch <= rt + rh
+                )
+                if not inside and (cw > rw or ch > rh) and not _is_generative(child):
+                    ix0, iy0 = max(pos.x, rl), max(pos.y, rt)
+                    ix1, iy1 = min(pos.x + cw, rl + rw), min(pos.y + ch, rt + rh)
+                    child_rect = Rectangle(
+                        ix0 - pos.x, iy0 - pos.y, ix1 - ix0, iy1 - iy0
+                    )
+                    out.blit(
+                        crop_drawer(child, child_rect),
+                        Position(int(ix0 + dx), int(iy0 + dy)),
+                    )
+                else:
+                    out.blit(child, Position(int(pos.x + dx), int(pos.y + dy)))
+            case LineArgs(color=color, start=s, end=e):
+                bx, by = min(s.x, e.x), min(s.y, e.y)
+                if _overlaps(bx, by, abs(e.x - s.x) + 1, abs(e.y - s.y) + 1, rect):
+                    out.line(
+                        color,
+                        Position(s.x + dx, s.y + dy),
+                        Position(e.x + dx, e.y + dy),
+                    )
+            case RectangleArgs(rectangle=r, color=color):
+                if _overlaps(r.left, r.top, r.width, r.height, rect):
+                    out.rectangle(
+                        Rectangle(r.left + dx, r.top + dy, r.width, r.height), color
+                    )
+            case BoxArgs(rectangle=r, color=color):
+                if _overlaps(r.left, r.top, r.width, r.height, rect):
+                    out.box(
+                        Rectangle(r.left + dx, r.top + dy, r.width, r.height), color
+                    )
+            case FilledPolygonArgs(points=pts, color=color):
+                xs = [p.x for p in pts]
+                ys = [p.y for p in pts]
+                if pts and _overlaps(
+                    min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1, rect
+                ):
+                    out.filled_polygon(
+                        [Position(p.x + dx, p.y + dy) for p in pts], color
+                    )
+            case _:
+                raise NotImplementedError(type(cmd).__name__, cmd)
+    return out
+
+
 class Drawing:
     """Helper class for drawing using functions (class methods) instead of (object) methods."""
 

@@ -13,27 +13,35 @@ class AbstractRenderer(ABC):
     """The rendering half of a backend: turn a `Drawer` into pixels.
 
     Pure rasterization — no window, event loop or OS state. A backend is free
-    to rasterize however it likes (cache or not, software or GPU); the only
-    obligation is `render_drawer`. Instantiable on its own (no windowing), so
+    to rasterize however it likes (cache or not, software or GPU). Two seams:
+    `render_drawer` (paint a drawer onto a surface) and `materialize` (turn a
+    drawer into its own surface). Instantiable on its own (no windowing), so
     the rasterization can be benchmarked in isolation.
     """
 
     __slots__ = ()
 
     @abstractmethod
-    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
-        """Rasterize a Drawer to a Rendering — the sole rendering seam.
+    def render_drawer(self, drawer: Drawer, dst: Rendering) -> None:
+        """Paint `drawer`'s commands onto `dst` — the root frame paint.
 
-        Replay `drawer`'s commands and return the surface. With `dst` given,
-        paint onto it (the root screen, from `Window._refresh`) and return it;
-        with `dst=None`, produce a fresh surface (a nested sub-drawer, or a
-        one-shot rasterization in tests).
+        `dst` (the screen, from `Window._refresh`) must cover the drawer. This
+        is the once-per-frame root entry, so a backend may use it as the
+        boundary to cycle any per-frame cache. It draws onto `dst` and returns
+        nothing; to obtain a drawer as its own surface, use `materialize`.
+        """
+        ...
+
+    @abstractmethod
+    def materialize(self, drawer: Drawer) -> Rendering:
+        """Turn `drawer` into its own surface — a nested sub-drawer, or a
+        one-shot rasterization in tests.
 
         The contract says nothing about *how*: a software backend may memoize
         materialized surfaces by Drawer value (Drawers hash/compare by content),
-        while an immediate-mode GPU backend may flatten the tree into draw calls
-        and cache nothing. Whichever the strategy, callers must treat a returned
-        surface as read-only (`Drawer.copy()` shields in-place edits).
+        while an immediate-mode GPU backend may render to a texture. Whichever
+        the strategy, callers must treat the result as read-only
+        (`Drawer.copy()` shields in-place edits).
         """
         ...
 

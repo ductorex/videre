@@ -20,7 +20,7 @@ from videre.core.tasks import (
     TaskManager,
     VidereTask,
 )
-from videre.core.text_rendering import TextRendering
+from videre.core.text_rendering import GlyphRasterizer, Shaper, TextRendering
 from videre.core.utils import OnEvent, Procedure, launch_thread
 from videre.fonts.font_utils import FontUtils
 from videre.fonts.provider import FontProvider
@@ -47,6 +47,8 @@ class Window:
         "data",
         "_handled_exceptions",
         "_subpixel",
+        "_text_shaper",
+        "_text_glyph_rasterizer",
         "_event_manager",
         "_task_manager",
         "_renderer",
@@ -101,6 +103,8 @@ class Window:
 
         self._handled_exceptions = tuple(alert_on_exceptions)
         self._subpixel: bool = bool(handle_text_sub_pixels)
+        self._text_shaper = Shaper()
+        self._text_glyph_rasterizer = GlyphRasterizer()
 
         self.data = None
 
@@ -180,6 +184,8 @@ class Window:
             height_delta=height_delta,
             compact=compact,
             subpixel=self._subpixel,
+            shaper=self._text_shaper,
+            rasterizer=self._text_glyph_rasterizer,
         )
 
     def run(self) -> int:

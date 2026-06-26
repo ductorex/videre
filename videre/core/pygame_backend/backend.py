@@ -1,6 +1,5 @@
 import io
 import logging
-from collections import OrderedDict
 from collections.abc import Callable
 from typing import Sequence
 
@@ -67,105 +66,93 @@ class PygameRenderer(AbstractRenderer):
     """Pygame rasterizer: replays a Drawer's command IR onto pygame surfaces.
 
     Holds no window/event state — it can be instantiated and benchmarked on its
-    own. The by-value LRU cache is private here (the abstract contract is silent
-    on caching), so a GPU backend can ignore it.
+    own. The by-value surface cache is private here (the abstract contract is
+    silent on caching), so a GPU backend can ignore it.
     """
 
-    __slots__ = ("_drawer_cache",)
-
-    _DRAWER_CACHE_SIZE = 512
+    __slots__ = ("_cache", "_prev_cache")
 
     def __init__(self) -> None:
-        # By-value LRU of materialized sub-surfaces. This caching is a software
-        # / "retained" strategy private to this renderer, not part of the
-        # abstract contract: an immediate-mode GPU backend would skip it.
-        self._drawer_cache: OrderedDict[Drawer, Rendering] = OrderedDict()
+        # By-value cache of materialized sub-surfaces, double-buffered per frame.
+        # Drawers hash/compare by content, so equal sub-trees share a surface and
+        # a clean widget (same/equal Drawer frame to frame) is never repainted.
+        # Two generations are kept (current frame + previous); rotating on each
+        # root paint releases surfaces no longer used — this avoids both a memory
+        # leak and the thrash a small fixed-size LRU caused on large trees (e.g.
+        # 100 video cards), so a partial change (one hovered widget) re-rasterizes
+        # only what actually changed instead of the whole visible tree.
+        self._cache: dict[Drawer, Rendering] = {}
+        self._prev_cache: dict[Drawer, Rendering] = {}
 
-    def render_drawer(self, drawer: Drawer, dst: Rendering | None = None) -> Rendering:
-        """Rasterize a Drawer, memoizing materialized surfaces by value.
+    def render_drawer(self, drawer: Drawer, dst: Rendering) -> None:
+        """Paint a Drawer onto `dst` (the screen) — the once-per-frame root paint.
+
+        Cycles the two cache generations (this frame becomes the previous one,
+        releasing the surfaces left untouched), then replays the command IR onto
+        `dst`. `dst` covers the drawer and is the root surface only; nested
+        sub-drawers are materialized (cached) via `materialize`. Draws — returns
+        nothing.
+        """
+        # A root paint starts a new frame: keep this frame and the previous one,
+        # dropping older surfaces so unused drawers are released.
+        self._prev_cache = self._cache
+        self._cache = {}
+        self._paint(drawer, dst)
+
+    def materialize(self, drawer: Drawer) -> Rendering:
+        """Return `drawer` as its own surface, reusing an equal one seen this or
+        last frame.
 
         Drawers hash/compare by content, so an unchanged sub-tree (a clean
-        widget reuses its cached Drawer frame to frame) hits the cache instead
-        of being repainted. Only `dst=None` calls are cached: the root screen
-        (painted onto `dst`) changes almost every frame and is never stored.
-        Backed by a bounded LRU. Cached surfaces are read-only — the visitor
-        only ever mutates `dst` or a fresh surface, and `copy()` shields the
-        in-place edits (`TextInput`), so sharing a cached surface is safe.
+        widget hands back the same/equal Drawer frame to frame) hits the cache
+        instead of being repainted. The result is read-only — only ever used as
+        a blit source; `Drawer.copy()` shields the in-place edits (`TextInput`).
         """
-        if dst is not None:
-            return self._paint_drawer(drawer, dst)
-        cache = self._drawer_cache
-        cached = cache.get(drawer)
+        cached = self._cache.get(drawer)
         if cached is not None:
-            cache.move_to_end(drawer)
             return cached
-        surface = self._paint_drawer(drawer, None)
-        cache[drawer] = surface
-        if len(cache) > self._DRAWER_CACHE_SIZE:
-            cache.popitem(last=False)
+        cached = self._prev_cache.get(drawer)
+        if cached is not None:
+            self._cache[drawer] = cached  # promote into the current frame
+            return cached
+        surface = self.new_surface(drawer.get_width(), drawer.get_height())
+        self._paint(drawer, surface)
+        self._cache[drawer] = surface
         return surface
 
-    def _paint_drawer(self, drawer: Drawer, dst: Rendering | None) -> Rendering:
-        """Replay a Drawer's command IR onto a real pygame surface — the
-        rasterization seam behind `render_drawer` (which adds the value cache).
+    def _paint(self, drawer: Drawer, dst: Rendering) -> None:
+        """Replay a Drawer's command IR onto `dst`.
 
-        A drawer is a flat list of commands expressed in its own local
-        coordinates. A *generative* command (image / image_from_bytes /
-        smoothscale / copy) yields the base surface and, by construction, comes
-        first; every other command *mutates* that surface. The surface is
-        created lazily at the drawer's own size when no generative command
-        opened it (so a purely generative drawer allocates nothing extra, and an
-        empty drawer still yields a zero-size surface). Nested drawers — blit,
-        smoothscale, copy — recurse through `render_drawer`, so they hit the
-        cache too.
-
-        `dst`, when given, is drawn onto directly and returned — no intermediate
-        full-surface allocation (used by `Window._refresh` to paint the screen).
-        It must cover the drawer and is the *root* surface only: it is never
-        propagated into the recursion. A generative command composites onto
-        `dst` instead of replacing it.
+        A drawer is a flat list of commands in its own local coordinates; every
+        command writes onto `dst`. A generative command (image / image_from_bytes
+        / smoothscale / copy) blits its output at the origin; every other command
+        mutates `dst` in place. Nested drawers — blit, smoothscale, copy — are
+        materialized first (so they hit the cache), then blitted.
         """
-        surface: Rendering | None = dst
         for args in drawer:
             match args:
                 case ImageArgs(image=image):
-                    surface = self._compose(surface, self.image(image))
+                    self.blit(dst, self.image(image), (0, 0))
                 case ImageFromBytesArgs(data=data, width=width, height=height):
-                    surface = self._compose(
-                        surface, self.image_from_bytes(data, (int(width), int(height)))
+                    self.blit(
+                        dst,
+                        self.image_from_bytes(data, (int(width), int(height))),
+                        (0, 0),
                     )
                 case SmoothScaleArgs(drawer=source):
-                    surface = self._compose(
-                        surface,
+                    self.blit(
+                        dst,
                         self.smoothscale(
-                            self.render_drawer(source),
+                            self.materialize(source),
                             drawer.get_width(),
                             drawer.get_height(),
                         ),
+                        (0, 0),
                     )
                 case CopyArgs(drawer=source):
-                    surface = self._compose(
-                        surface, self.copy(self.render_drawer(source))
-                    )
+                    self.blit(dst, self.copy(self.materialize(source)), (0, 0))
                 case _:
-                    if surface is None:
-                        surface = self.new_surface(
-                            drawer.get_width(), drawer.get_height()
-                        )
-                    self._replay(surface, args)
-        if surface is None:
-            surface = self.new_surface(drawer.get_width(), drawer.get_height())
-        return surface
-
-    def _compose(self, surface: Rendering | None, produced: Rendering) -> Rendering:
-        """Place a *generative* command's output. With no surface yet, the
-        produced surface *becomes* the surface (the lazy / no-`dst` case); onto
-        an existing surface (e.g. `dst`) it composites at the origin, so a
-        caller-supplied `dst` is never silently dropped."""
-        if surface is None:
-            return produced
-        self.blit(surface, produced, (0, 0))
-        return surface
+                    self._replay(dst, args)
 
     def _replay(self, surface: Rendering, args: Args) -> None:
         """Apply one *mutating* Drawer command onto an existing surface."""
@@ -173,7 +160,7 @@ class PygameRenderer(AbstractRenderer):
             case FillArgs(color=color, rectangle=rectangle):
                 self.fill(surface, color, rectangle)
             case BlitArgs(drawer=source, position=position):
-                self.blit(surface, self.render_drawer(source), (position.x, position.y))
+                self.blit(surface, self.materialize(source), (position.x, position.y))
             case LineArgs(color=color, start=start, end=end):
                 self.line(surface, color, (start.x, start.y), (end.x, end.y))
             case RectangleArgs(rectangle=rectangle, color=color):

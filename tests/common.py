@@ -101,14 +101,13 @@ class TrackerWidget(Widget):
 
 
 def rasterize(renderer: AbstractRenderer, drawer: Drawer) -> Rendering:
-    """Replay a Drawer's command IR to a real surface for pixel inspection.
+    """Render a Drawer to its own surface for pixel inspection.
 
     The shaped renderer (`render_text` / `render_char` / `document.render`)
     now returns a paint-free `Drawer`; tests that read pixels (`pixels_*`) or
-    serialize a snapshot (`_png`) need the rasterized `Rendering`. Mirrors what
-    `Window._refresh` does in production.
+    serialize a snapshot (`_png`) need the rasterized `Rendering`.
     """
-    return renderer.render_drawer(drawer)
+    return renderer.materialize(drawer)
 
 
 def _channel(rendering: Rendering, attr: str) -> np.ndarray:

@@ -175,7 +175,7 @@ class AssembledText:
     returns and what `document.render` paints from (computed once, shared)."""
 
     rendered: RenderedText
-    paint: list[tuple[list[PositionedGlyph], int, float, int]]
+    paint: list[tuple[list[PositionedGlyph], int, int, list[float]]]
     surface_w: int
     surface_h: int
 
@@ -219,18 +219,23 @@ def assemble_glyph_lines(
     # Per line: alignment offset, justify slack, and the cluster geometry the
     # caret needs. `paint` keeps the glyphs + baseline for the paint pass.
     raw_lines: list[RawLine] = []
-    paint: list[tuple[list[PositionedGlyph], int, float, int]] = []
+    paint: list[tuple[list[PositionedGlyph], int, int, list[float]]] = []
     eu_starts = [eu.source_start for eu in edit_units]
     for i, (gl, is_end) in enumerate(lines):
         measure = measures[i]
         extra = _justify_extra(gl, measure, align, width, is_end)
         x_offset = _align_offset(align, measure, target_width)
+        # Pen origins, computed ONCE per line and shared by the caret geometry
+        # (`_line_items`) and the paint pass (`_paint_line`): the painted glyphs
+        # and the caret can never drift, and the O(glyphs) pen walk is no longer
+        # repeated per line per render.
+        track = _pen_track(gl.glyphs, extra)
         raw_lines.append(
             RawLine(
                 y_top=baselines[i] - m.ascender,
                 y_bottom=baselines[i] + m.descender,
                 x_offset=x_offset,
-                clusters=_line_items(gl, extra, eu_starts),
+                clusters=_line_items(gl, track, eu_starts),
                 source_start=gl.source_start,
                 source_end=(
                     gl.terminator.source_end
@@ -241,7 +246,7 @@ def assemble_glyph_lines(
                 terminator_at_visual_start=gl.terminator is not None and gl.base_is_rtl,
             )
         )
-        paint.append((gl.glyphs, x_offset, extra, baselines[i]))
+        paint.append((gl.glyphs, x_offset, baselines[i], track))
 
     rendered = build_rendered_text(raw_lines, m, surface_w, surface_h)
     return AssembledText(rendered, paint, surface_w, surface_h)
@@ -268,7 +273,7 @@ def paint_assembled(
     if selection is not None and selection[0] < selection[1]:
         for rect in assembled.rendered._selection_rects(*selection):
             Drawing.box(out, rect, _SELECTION_RGBA)
-    for glyphs, x_offset, extra, baseline in assembled.paint:
+    for glyphs, x_offset, baseline, track in assembled.paint:
         _paint_line(
             out,
             glyphs,
@@ -277,7 +282,7 @@ def paint_assembled(
             color,
             baseline,
             x_offset,
-            extra,
+            track,
             underline,
             bold,
             subpixel,
@@ -361,16 +366,15 @@ def render_char(
 
 
 def _line_items(
-    line: GlyphLine, justify_extra: float, edit_unit_starts: list[int]
+    line: GlyphLine, track: list[float], edit_unit_starts: list[int]
 ) -> list[tuple[int, int, int, int, bool]]:
     """Per visual EDIT UNIT, return `(source_start, source_end, x_start, x_end,
     is_rtl)`, x relative to the line's `x_offset`. Consecutive visual clusters in
     the same edit unit are merged into one item, so every caret position lands on
     a grapheme boundary (a ligature spanning several graphemes stays one item —
     the caret skips it whole, as the snapping did before). x-bounds come from the
-    shared `_pen_track`. With no `edit_unit_starts`, degrades to one item per
-    cluster."""
-    track = _pen_track(line.glyphs, justify_extra)
+    precomputed `track` (the same one the paint pass uses). With no
+    `edit_unit_starts`, degrades to one item per cluster."""
     items: list[tuple[int, int, int, int, bool]] = []
     clusters = line.clusters
     n = len(clusters)
@@ -434,14 +438,13 @@ def _paint_line(
     color: Color,
     baseline: int,
     x_offset: int,
-    justify_extra: float,
+    track: list[float],
     underline: bool,
     bold: bool,
     subpixel: bool,
 ) -> None:
     if not glyphs:
         return
-    track = _pen_track(glyphs, justify_extra)
     for i, g in enumerate(glyphs):
         # The phase is part of the bitmap's cache key, so resolve it from the
         # float pen BEFORE rasterizing. In pixel mode `subpixel_split` returns
@@ -503,10 +506,11 @@ def _pen_track(glyphs: list[PositionedGlyph], justify_extra: float) -> list[floa
 
     `track[i]` is the origin of glyph `i`; the trailing `track[-1]` is the
     line's total advance width (so `len(track) == len(glyphs) + 1`). JUSTIFY
-    slack is added once after the last glyph of each gap run. This is the single
-    source of truth for horizontal placement, shared by `_paint_line` (glyph
-    blit origin) and `_line_items` (edit-unit x-bounds) so the painted glyphs
-    and the caret geometry can never drift apart."""
+    slack is added once after the last glyph of each gap run. Computed once per
+    line in `assemble_glyph_lines`, it is the single source of truth for
+    horizontal placement, shared by `_paint_line` (glyph blit origin) and
+    `_line_items` (edit-unit x-bounds) so the painted glyphs and the caret
+    geometry can never drift apart."""
     gap_ends = _gap_run_ends(glyphs) if justify_extra else frozenset()
     track = [0.0]
     pen = 0.0
