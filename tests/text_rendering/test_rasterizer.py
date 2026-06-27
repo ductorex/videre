@@ -14,8 +14,10 @@ import pytest
 
 from tests.common import pixels_alpha, rasterize
 from videre.colors import Color
+from videre.core.drawer import ImageFromBytesArgs
 from videre.core.text_rendering import GlyphRasterizer, Shaper, TextRendering
 from videre.core.text_rendering.rasterizer import _bgra_to_numpy_array
+from videre.core.text_rendering.render import _sprite_surface
 from videre.fonts.provider import get_font_provider
 
 
@@ -91,6 +93,30 @@ def test_render_single_glyph_phase_cached_per_phase() -> None:
     assert a is b  # cache hit on identical key
     c = r.render_single_glyph(path, 24, False, False, gid, subpixel=True, phase=3)
     assert c is not a  # different phase -> different entry
+
+
+def test_render_single_glyph_keeps_cached_rgba_bytes() -> None:
+    """The paint path should reuse the glyph's RGBA bytes instead of converting
+    the numpy image back to bytes on every glyph occurrence."""
+    shaper = Shaper()
+    _, path = get_font_provider().get_font_info("A")
+    gid = shaper.shape(
+        text="A", font_path=path, size_px=24, script="Latn", right_to_left=False
+    )[0].glyph_id
+    glyph = GlyphRasterizer().render_single_glyph(path, 24, False, False, gid)
+
+    assert glyph.image is not None
+    assert glyph.rgba_bytes is not None
+    assert glyph.image.tobytes() == glyph.rgba_bytes
+    assert not glyph.image.flags.writeable
+
+    (cmd,) = list(_sprite_surface(glyph))
+    assert isinstance(cmd, ImageFromBytesArgs)
+    assert cmd.data is glyph.rgba_bytes
+
+    cache = {}
+    cached = _sprite_surface(glyph, cache)
+    assert _sprite_surface(glyph, cache) is cached
 
 
 # -- Color with explicit alpha ----------------------------------------------

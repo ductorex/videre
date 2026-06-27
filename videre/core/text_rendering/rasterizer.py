@@ -77,6 +77,7 @@ def _identity_transform() -> tuple[ft.Matrix, ft.Vector]:
 @dataclass(slots=True, frozen=True)
 class Glyph:
     image: np.ndarray | None
+    rgba_bytes: bytes | None
     width: int
     height: int
     bitmap_left: int
@@ -86,7 +87,7 @@ class Glyph:
         return self.image is None
 
 
-_GLYPH_ZERO = Glyph(None, 0, 0, 0, 0)
+_GLYPH_ZERO = Glyph(None, None, 0, 0, 0, 0)
 
 
 class GlyphRasterizer:
@@ -197,8 +198,16 @@ def _rasterize_glyph(
         image = None
 
     if image is None:
-        return Glyph(None, 0, 0, bitmap_left, bitmap_top)
-    return Glyph(image, width, rows, bitmap_left, bitmap_top)
+        return Glyph(None, None, 0, 0, bitmap_left, bitmap_top)
+    return _glyph_from_image(image, width, rows, bitmap_left, bitmap_top)
+
+
+def _glyph_from_image(
+    image: np.ndarray, width: int, rows: int, bitmap_left: int, bitmap_top: int
+) -> Glyph:
+    data = image.tobytes()
+    frozen_image = np.frombuffer(data, dtype=np.uint8).reshape((rows, width, 4))
+    return Glyph(frozen_image, data, width, rows, bitmap_left, bitmap_top)
 
 
 @lru_cache(maxsize=16384)

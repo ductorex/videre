@@ -268,6 +268,7 @@ def paint_assembled(
     `document.layout` skips."""
     color = color or Colors.black
     out = Drawer(assembled.surface_w, assembled.surface_h)
+    sprite_cache: dict[int, Drawer] = {}
     # Selection background first, so glyphs sit on top of it.
     if selection is not None and selection[0] < selection[1]:
         for rect in assembled.rendered._selection_rects(*selection):
@@ -285,6 +286,7 @@ def paint_assembled(
             underline,
             bold,
             subpixel,
+            sprite_cache,
         )
     return out
 
@@ -453,6 +455,7 @@ def _paint_line(
     underline: bool,
     bold: bool,
     subpixel: bool,
+    sprite_cache: dict[int, Drawer],
 ) -> None:
     if not glyphs:
         return
@@ -475,7 +478,9 @@ def _paint_line(
             if not sprite.empty():
                 blit_x = int_x + sprite.bitmap_left
                 blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
-                Drawing.blit(out, _sprite_surface(sprite), (blit_x, blit_y))
+                Drawing.blit(
+                    out, _sprite_surface(sprite, sprite_cache), (blit_x, blit_y)
+                )
 
     if underline:
         line_width = track[-1]
@@ -565,6 +570,13 @@ def _align_offset(
     return int(round(envelope_offset - measure.left))
 
 
-def _sprite_surface(glyph: Glyph) -> Drawer:
-    assert glyph.image is not None
-    return Drawing.image_from_bytes(glyph.image.tobytes(), (glyph.width, glyph.height))
+def _sprite_surface(glyph: Glyph, cache: dict[int, Drawer] | None = None) -> Drawer:
+    assert glyph.rgba_bytes is not None
+    if cache is None:
+        return Drawing.image_from_bytes(glyph.rgba_bytes, (glyph.width, glyph.height))
+    key = id(glyph)
+    drawer = cache.get(key)
+    if drawer is None:
+        drawer = Drawing.image_from_bytes(glyph.rgba_bytes, (glyph.width, glyph.height))
+        cache[key] = drawer
+    return drawer
