@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Iterator
 
 from uharfbuzz import Buffer, Face, Font, FontFuncs, ot_font_set_funcs, shape
 
@@ -29,7 +30,11 @@ from videre.core.text_rendering.glyph_partition import (
     build_clusters,
 )
 from videre.core.text_rendering.rasterizer import glyph_bitmap_bounds
-from videre.core.text_rendering.text_partition.model import Line, TextUnit
+from videre.core.text_rendering.text_partition.model import (
+    Line,
+    LogicalCharacter,
+    TextUnit,
+)
 from videre.core.text_rendering.utils import (
     SYNTHETIC_BOLD_STRENGTH,
     SYNTHETIC_SLANT_FACTOR,
@@ -140,6 +145,12 @@ class ShapedGlyph:
     y_offset: float
     ink_left: float = 0.0
     ink_right: float = 0.0
+
+
+@dataclass(slots=True, frozen=True)
+class _ShapeRun:
+    units: tuple[TextUnit, ...]
+    script: str
 
 
 class Shaper:
@@ -267,11 +278,13 @@ def shape_line(
     bold: bool = False,
     italic: bool = False,
 ) -> ShapedTextLine:
-    """Shape every component of `line` (gaps included) into a `ShapedTextLine`."""
+    """Shape a line into clusters, batching compatible units into HB runs."""
     clusters = [
         cluster
-        for unit in line.components
-        for cluster in _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
+        for run in _shape_runs(line.components)
+        for cluster in _shape_run(
+            run.units, run.script, shaper, size_px, bold=bold, italic=italic
+        )
     ]
     return ShapedTextLine(
         clusters=clusters,
@@ -282,15 +295,140 @@ def shape_line(
     )
 
 
-def _shape_unit(
-    unit: TextUnit, shaper: Shaper, size_px: int, *, bold: bool, italic: bool
+def _shape_runs(units: tuple[TextUnit, ...]) -> Iterator[_ShapeRun]:
+    """Yield maximal HarfBuzz-compatible runs.
+
+    `TextUnit` boundaries carry wrap metadata, so they must survive. They do
+    not all need their own HB buffer, though: adjacent units with the same font
+    and direction can share one buffer when their real text uses the same script.
+    Gap units are script-neutral and adopt the surrounding run's script.
+    """
+    run: list[TextUnit] = []
+    run_script: str | None = None
+    for unit in units:
+        if not run:
+            run = [unit]
+            run_script = None if unit.is_gap else unit.script
+            continue
+        joined_script = _joined_run_script(run[0], run_script, unit)
+        if joined_script is None:
+            yield _ShapeRun(tuple(run), run_script or "Zyyy")
+            run = [unit]
+            run_script = None if unit.is_gap else unit.script
+        else:
+            run.append(unit)
+            run_script = joined_script
+    if run:
+        yield _ShapeRun(tuple(run), run_script or "Zyyy")
+
+
+def _joined_run_script(
+    first: TextUnit, current_script: str | None, unit: TextUnit
+) -> str | None:
+    if first.font_path != unit.font_path or first.is_rtl != unit.is_rtl:
+        return None
+    if unit.is_gap:
+        return current_script
+    if current_script is None:
+        return unit.script
+    return current_script if unit.script == current_script else None
+
+
+def _shape_run(
+    units: tuple[TextUnit, ...],
+    script: str,
+    shaper: Shaper,
+    size_px: int,
+    *,
+    bold: bool,
+    italic: bool,
 ) -> list[ShapedCluster]:
-    text = "".join(
+    if len(units) == 1 and units[0].script == script:
+        return _shape_unit(units[0], shaper, size_px, bold=bold, italic=italic)
+
+    characters = [character for unit in units for character in unit.characters]
+    text = _shape_text(characters)
+    shaped = shaper.shape(
+        text=text,
+        font_path=units[0].font_path,
+        size_px=size_px,
+        script=script,
+        right_to_left=units[0].is_rtl,
+        bold=bold,
+        italic=italic,
+    )
+    if not shaped:
+        return []
+
+    unit_by_offset: list[int] = []
+    unit_ends: list[int] = []
+    offset = 0
+    for index, unit in enumerate(units):
+        offset += len(unit.characters)
+        unit_ends.append(offset)
+        unit_by_offset.extend([index] * len(unit.characters))
+
+    cluster_starts = sorted({glyph.cluster for glyph in shaped})
+    cluster_ends = {
+        cluster: (
+            cluster_starts[i + 1] if i + 1 < len(cluster_starts) else len(characters)
+        )
+        for i, cluster in enumerate(cluster_starts)
+    }
+    if _has_cross_unit_cluster(cluster_ends, unit_by_offset, unit_ends):
+        return [
+            cluster
+            for unit in units
+            for cluster in _shape_unit(unit, shaper, size_px, bold=bold, italic=italic)
+        ]
+
+    glyphs_by_unit: list[list[PositionedGlyph]] = [[] for _unit in units]
+    for glyph in shaped:
+        unit_index = unit_by_offset[glyph.cluster]
+        unit = units[unit_index]
+        start = glyph.cluster
+        end = cluster_ends[start]
+        glyphs_by_unit[unit_index].append(
+            _positioned_glyph(
+                glyph,
+                characters[start:end],
+                unit,
+                bold=bold,
+                italic=italic,
+                size_px=size_px,
+            )
+        )
+
+    return [
+        cluster
+        for unit, glyphs in zip(units, glyphs_by_unit)
+        for cluster in build_clusters(glyphs, unit)
+    ]
+
+
+def _shape_text(characters: list[LogicalCharacter]) -> str:
+    return "".join(
         "\ufffd"
         if character.edit_unit.kind is EditUnitKind.INVALID
         else character.character.c
-        for character in unit.characters
+        for character in characters
     )
+
+
+def _has_cross_unit_cluster(
+    cluster_ends: dict[int, int], unit_by_offset: list[int], unit_ends: list[int]
+) -> bool:
+    for start, end in cluster_ends.items():
+        unit_index = unit_by_offset[start]
+        if end > unit_ends[unit_index]:
+            return True
+    return False
+
+
+def _shape_unit(
+    unit: TextUnit, shaper: Shaper, size_px: int, *, bold: bool, italic: bool
+) -> list[ShapedCluster]:
+    text = _shape_text(list(unit.characters))
     shaped = shaper.shape(
         text=text,
         font_path=unit.font_path,
@@ -312,29 +450,39 @@ def _shape_unit(
     glyphs: list[PositionedGlyph] = []
     for glyph in shaped:
         characters = unit.characters[glyph.cluster : cluster_ends[glyph.cluster]]
-        kinds = {character.edit_unit.kind for character in characters}
-        paint = bool(kinds & {EditUnitKind.TEXT, EditUnitKind.INVALID})
-        is_tab = EditUnitKind.TAB in kinds
         glyphs.append(
-            PositionedGlyph(
-                glyph_id=glyph.glyph_id,
-                x_advance=(
-                    glyph.x_advance if paint else float(size_px) if is_tab else 0.0
-                ),
-                x_offset=glyph.x_offset if paint else 0.0,
-                y_offset=glyph.y_offset if paint else 0.0,
-                ink_left=glyph.ink_left if paint else 0.0,
-                ink_right=glyph.ink_right if paint else 0.0,
-                font_path=unit.font_path,
-                bold=bold,
-                italic=italic,
-                is_rtl=unit.is_rtl,
-                is_gap=unit.is_gap,
-                logical_position=characters[0].logical_position,
-                source_end=max(
-                    character.edit_unit.source_end for character in characters
-                ),
-                paint=paint,
+            _positioned_glyph(
+                glyph, characters, unit, bold=bold, italic=italic, size_px=size_px
             )
         )
     return build_clusters(glyphs, unit)
+
+
+def _positioned_glyph(
+    glyph: ShapedGlyph,
+    characters: tuple[LogicalCharacter, ...] | list[LogicalCharacter],
+    unit: TextUnit,
+    *,
+    bold: bool,
+    italic: bool,
+    size_px: int,
+) -> PositionedGlyph:
+    kinds = {character.edit_unit.kind for character in characters}
+    paint = bool(kinds & {EditUnitKind.TEXT, EditUnitKind.INVALID})
+    is_tab = EditUnitKind.TAB in kinds
+    return PositionedGlyph(
+        glyph_id=glyph.glyph_id,
+        x_advance=(glyph.x_advance if paint else float(size_px) if is_tab else 0.0),
+        x_offset=glyph.x_offset if paint else 0.0,
+        y_offset=glyph.y_offset if paint else 0.0,
+        ink_left=glyph.ink_left if paint else 0.0,
+        ink_right=glyph.ink_right if paint else 0.0,
+        font_path=unit.font_path,
+        bold=bold,
+        italic=italic,
+        is_rtl=unit.is_rtl,
+        is_gap=unit.is_gap,
+        logical_position=characters[0].logical_position,
+        source_end=max(character.edit_unit.source_end for character in characters),
+        paint=paint,
+    )

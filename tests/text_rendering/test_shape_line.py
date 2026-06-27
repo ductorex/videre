@@ -6,6 +6,8 @@ order in, emits visual order within a run, so an RTL unit's first glyph
 maps to its last logical character).
 """
 
+from dataclasses import replace
+
 import pygame
 import pygame.freetype
 import pytest
@@ -36,10 +38,50 @@ def _all_glyphs(sline):
     return [g for c in sline.clusters for g in c.glyphs]
 
 
+class CountingShaper(Shaper):
+    __slots__ = ("calls",)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[str] = []
+
+    def shape(self, *args, **kwargs):
+        self.calls.append(kwargs["text"] if "text" in kwargs else args[0])
+        return super().shape(*args, **kwargs)
+
+
 def test_unit_count_matches_components(shaper: Shaper) -> None:
     part, lines = _shape("hi world", shaper)
     for line, sline in zip(part.lines, lines):
         assert sum(c.starts_unit for c in sline.clusters) == len(line.components)
+
+
+def test_compatible_text_and_gap_units_share_harfbuzz_buffer() -> None:
+    (line,) = partition_text("alpha beta gamma").lines
+    assert len(line.components) == 5
+
+    shaper = CountingShaper()
+    sline = shape_line(line, shaper, 16)
+
+    assert shaper.calls == ["alpha beta gamma"]
+    assert sum(c.starts_unit for c in sline.clusters) == len(line.components)
+
+
+def test_cross_unit_ligature_cluster_keeps_unit_boundary(shaper: Shaper) -> None:
+    (line,) = partition_text("fi").lines
+    (unit,) = line.components
+    split_line = replace(
+        line,
+        components=(
+            replace(unit, characters=unit.characters[:1]),
+            replace(unit, characters=unit.characters[1:]),
+        ),
+    )
+
+    sline = shape_line(split_line, shaper, 16)
+
+    assert sum(c.starts_unit for c in sline.clusters) == 2
+    assert all(c.source_end <= 1 for c in sline.clusters if c.logical_position == 0)
 
 
 def test_base_direction_propagated(shaper: Shaper) -> None:
