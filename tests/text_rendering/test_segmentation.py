@@ -7,7 +7,12 @@ quotes, lead-block + CJK fusion, multi-font runs, bidi-formatter filtering).
 
 from typing import NamedTuple
 
+import pytest
+from pytest import MonkeyPatch
+
+from videre.core.text_rendering.text_partition import partition_utils, partitioner
 from videre.core.text_rendering.text_partition.partition_utils import (
+    PerFont,
     _split_by_font,
     _split_by_script,
 )
@@ -191,3 +196,49 @@ def test_split_by_font_emoji_in_latin_text_splits_pieces() -> None:
     assert "".join(p.text for p in pieces) == text
     fonts = {p.font_name for p in pieces}
     assert len(fonts) >= 2  # at least one font change happened
+
+
+def test_partition_text_reuses_edit_unit_boundaries_for_font_split(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """The high-level partition path already has grapheme boundaries from
+    `segment_edit_units`; it should not recompute them for each font split."""
+
+    def fail_grapheme_boundaries(_text: str) -> tuple[int, ...]:
+        raise AssertionError("partition_text should pass existing boundaries")
+
+    monkeypatch.setattr(
+        partition_utils, "grapheme_boundaries", fail_grapheme_boundaries
+    )
+
+    text = "cafe\u0301\U0001f600cd"
+    with pytest.raises(AssertionError, match="existing boundaries"):
+        _split_by_font(text)
+
+    calls: list[tuple[str, tuple[int, ...] | None]] = []
+    original_split_by_font = partitioner._split_by_font
+
+    def spy_split_by_font(
+        piece: str, boundaries: tuple[int, ...] | None = None
+    ) -> list[PerFont]:
+        calls.append((piece, boundaries))
+        assert boundaries is not None
+        return original_split_by_font(piece, boundaries)
+
+    monkeypatch.setattr(partitioner, "_split_by_font", spy_split_by_font)
+
+    (line,) = partitioner.partition_text(text).lines
+
+    assert (
+        "".join(c.character.c for unit in line.components for c in unit.characters)
+        == text
+    )
+    assert calls
+    accented_piece, accented_boundaries = next(
+        (piece, boundaries) for piece, boundaries in calls if "e\u0301" in piece
+    )
+    assert accented_boundaries is not None
+    accented_start = accented_piece.index("e\u0301")
+    assert accented_start in accented_boundaries
+    assert accented_start + 1 not in accented_boundaries
+    assert accented_start + 2 in accented_boundaries

@@ -95,7 +95,10 @@ def _partition_line(
     }
 
     vibidi_text = vibidi(line_text)
-    bidi = LineBidi(vibidi_text, tuple(positions))
+    line_positions = tuple(positions)
+    bidi = LineBidi(
+        vibidi_text, line_positions, {orig: i for i, orig in enumerate(line_positions)}
+    )
     base_is_rtl = vibidi_text.base_is_rtl
     if not line_text:
         return Line(
@@ -200,7 +203,9 @@ def _word_units(
             s_text = script_seg.text
             s_pos = d_pos[s_off : s_off + len(s_text)]
             f_off = 0
-            for per_font in _split_by_font(s_text):
+            for per_font in _split_by_font(
+                s_text, _edit_unit_boundaries(s_pos, unit_by_position)
+            ):
                 f_text = per_font.text
                 f_pos = s_pos[f_off : f_off + len(f_text)]
                 units.append(
@@ -236,3 +241,25 @@ def _runs(seq: list) -> Iterator[tuple[int, int]]:
             j += 1
         yield i, j
         i = j
+
+
+def _edit_unit_boundaries(
+    positions: list[int], unit_by_position: dict[int, EditUnit]
+) -> tuple[int, ...]:
+    """Relative grapheme boundaries for a source-position slice.
+
+    `partition_text` has already segmented the full source into `EditUnit`s.
+    Reuse that work when font routing needs grapheme clusters for a smaller
+    script run, instead of recomputing UAX #29 boundaries on the substring.
+    """
+    if not positions:
+        return (0,)
+    boundaries = [0]
+    current = unit_by_position[positions[0]]
+    for offset, position in enumerate(positions[1:], start=1):
+        unit = unit_by_position[position]
+        if unit != current:
+            boundaries.append(offset)
+            current = unit
+    boundaries.append(len(positions))
+    return tuple(boundaries)

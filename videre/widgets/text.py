@@ -1,10 +1,13 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from videre.colors import Color, ColorDef, parse_color
 from videre.core.constants import TextAlign, TextWrap
 from videre.core.drawer import Drawer
 from videre.core.rendering_result import AbstractTextDocument, TextRenderingResult
 from videre.widgets.widget import Widget
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class Text(Widget):
@@ -157,7 +160,7 @@ class Text(Widget):
             raise TypeError("Selection must be a tuple of two integers or None.")
         self._set_wprop("selection", selection)
 
-    def _text_rendering(self, window):
+    def _text_rendering(self, window: "Window"):
         return window.text_rendering(
             size=self.size,
             strong=self.strong,
@@ -165,18 +168,19 @@ class Text(Widget):
             height_delta=self.height_delta,
         )
 
-    def _get_document(self, window) -> AbstractTextDocument:
+    def get_document(self, window: "Window") -> AbstractTextDocument:
         """Cache the shaped document (text-only shape) across frames; a resize
         keeps it and only `render(width)` is replayed."""
         if self._document is None:
             self._document = self._text_rendering(window).document(self.text)
+        assert self._document is not None
         return self._document
 
     def draw(
-        self, window, width: int | None = None, height: int | None = None
+        self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Drawer:
         wrap = self.wrap
-        text_ret, surface_ret = self._get_document(window).render(
+        text_ret, surface_ret = self.get_document(window).render(
             width=(None if wrap is None else width),
             color=self.color,
             wrap_words=(wrap == TextWrap.WORD),

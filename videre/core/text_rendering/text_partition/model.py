@@ -34,10 +34,13 @@ class LineBidi:
     original-text index of the i-th character of the filtered line text vibidi
     saw, so a glyph's `logical_position` maps to a vibidi index via the inverse —
     letting the reorder translate between the two coordinate spaces.
+    `orig_to_index` is the inverse of `positions`, built with the `LineBidi`
+    value instead of derived later by the reorder step.
     """
 
     vibidi_text: VibidiText
     positions: tuple[int, ...]
+    orig_to_index: dict[int, int]
 
     @property
     def base_is_rtl(self) -> bool:

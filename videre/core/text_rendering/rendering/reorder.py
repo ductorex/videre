@@ -34,11 +34,10 @@ def reorder_line(line: ShapedTextLine) -> GlyphLine:
     # Reorder whole clusters: a cluster maps to one source position, hence one
     # bidi level, so moving it as a block is correct (unlike a unit, which may
     # mix levels). Clusters carry their ORIGINAL-text position; vibidi indexes
-    # the filtered line text, so invert `positions` to translate, ask vibidi for
-    # this sub-line's visual order, and rank each cluster by it. Glyphs keep
-    # HarfBuzz order inside their cluster.
-    orig_to_index = {orig: i for i, orig in enumerate(bidi.positions)}
-    indices = [orig_to_index[cluster.logical_position] for cluster in clusters]
+    # the filtered line text, so use `LineBidi`'s inverse mapping to translate,
+    # ask vibidi for this sub-line's visual order, and rank each cluster by it.
+    # Glyphs keep HarfBuzz order inside their cluster.
+    indices = [bidi.orig_to_index[cluster.logical_position] for cluster in clusters]
     visual = bidi.vibidi_text.reorder_retaining_controls(min(indices), max(indices) + 1)
     rank = {pos.logical: pos.visual for pos in visual}
     order = sorted(range(len(clusters)), key=lambda i: rank[indices[i]])

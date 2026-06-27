@@ -1,14 +1,15 @@
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from cursword import get_next_word_end_position, get_previous_word_start_position
 
 from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
+from videre.core.constants import TextWrap
 from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.rectangle import Rectangle
-from videre.core.rendering_result import CursorState
+from videre.core.rendering_result import CursorState, TextRenderingResult
 from videre.core.text_editing import (
     EditUnit,
     expand_to_edit_units,
@@ -22,6 +23,9 @@ from videre.widgets.text import Text
 from videre.widgets.textinput.keyboard_handling import compute_key_x
 from videre.widgets.widget import Widget
 from videre.widgets.widget_utils import MouseOwnership
+
+if TYPE_CHECKING:
+    from videre.windowing.window import Window
 
 
 class TextInput(AbstractLayout):
@@ -150,7 +154,7 @@ class TextInput(AbstractLayout):
     def _get_cursor(self) -> int:
         return self._cursor_pos
 
-    def _ensure_state(self) -> CursorState:
+    def _ensure_state(self, window=None) -> CursorState:
         """Return a valid navigation state for the current cursor, deriving one
         from the backend if the cache is empty.
 
@@ -160,11 +164,31 @@ class TextInput(AbstractLayout):
         snapping pass — is what keeps the cursor off the middle of a cluster,
         including right after an insertion that stored a raw position."""
         if self._cursor_state is None:
-            rendered = self._text._rendered
-            assert rendered is not None
-            self._cursor_state = rendered.visual_state(self._cursor_pos)
+            self._cursor_state = self._current_layout(window).visual_state(
+                self._cursor_pos
+            )
             self._cursor_pos = self._cursor_state.pos
         return self._cursor_state
+
+    def _current_layout(self, window: "Window | None" = None) -> TextRenderingResult:
+        """Return caret/hit-test geometry for the current text.
+
+        Event handling can receive several text/key events before the next draw.
+        If the child `Text` changed in that window, its last painted result is
+        stale; compute only the layout contract from the cached document and let
+        the upcoming draw update the painted result together with the new drawer.
+        """
+        text_width = None
+        if self._container.is_rendered():
+            margin = self._container.padding + self._container.border.margin()
+            text_width = margin.get_inner_width(self._container.rendered_width)
+
+        wrap = self._text.wrap
+        return self._text.get_document(window or self.get_window()).layout(
+            width=None if wrap is None else text_width,
+            wrap_words=wrap == TextWrap.WORD,
+            align=None if wrap is None else self._text.align,
+        )
 
     def _edit_units(self) -> tuple[EditUnit, ...]:
         """Edit units of the current text, taken from the backend's document —
@@ -172,12 +196,8 @@ class TextInput(AbstractLayout):
         `TextInput` neither re-segments nor snaps. Each backend's document
         decides the granularity (grapheme for shaped, codepoint for legacy);
         reading it rather than guessing locally keeps editing consistent with
-        the live renderer. Rebuilt from the backend when a text mutation dropped
-        the cache (`_document` is None until the next draw)."""
-        doc = self._text._document
-        if doc is None:
-            doc = self._text._get_document(self.get_window())
-        return doc.edit_units
+        the live renderer."""
+        return self._text.get_document(self.get_window()).edit_units
 
     def _selection_source_indices(self) -> tuple[int, ...]:
         """Sorted tuple of source indices covered by the current
@@ -190,8 +210,7 @@ class TextInput(AbstractLayout):
         selection = self._get_selection()
         if selection is None or selection[0] == selection[1]:
             return ()
-        rendered = self._text._rendered
-        assert rendered is not None
+        rendered = self._current_layout()
         start, end = selection
         raw = rendered.visual_range_to_source_set(start, end)
         units = self._edit_units()
@@ -238,8 +257,7 @@ class TextInput(AbstractLayout):
         # Character positions are relative to widget itself.
         # To make correct comparisons between mouse and characters,
         # we convert mouse position into widget coordinates.
-        rendered = self._text._rendered
-        assert rendered is not None
+        rendered = self._current_layout()
         state = rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
         # `_selecting_pivot` is a visual position (= index in the
         # visual codepoint sequence), so the selection ribbon stays
@@ -253,8 +271,7 @@ class TextInput(AbstractLayout):
         assert self._selecting_pivot is not None
         assert self._has_selection()
         self._debug("mouse_down_move")
-        rendered = self._text._rendered
-        assert rendered is not None
+        rendered = self._current_layout()
         state = rendered.visual_state_at_pixel(event.x - self.x, event.y - self.y)
 
         pivot = self._selecting_pivot
@@ -341,8 +358,7 @@ class TextInput(AbstractLayout):
                 self._text.text = out_text
                 self._set_cursor_to_pos(out_pos)
         elif key.left or key.right:
-            rendered = self._text._rendered
-            assert rendered is not None
+            rendered = self._current_layout()
             ret = compute_key_x(
                 text=self._text.text,
                 cursor_state=self._ensure_state(),
@@ -358,8 +374,7 @@ class TextInput(AbstractLayout):
             if key.A:
                 # Select all — span the entire visual sequence so the
                 # ribbon covers the whole text on screen.
-                rendered = self._text._rendered
-                assert rendered is not None
+                rendered = self._current_layout()
                 total = rendered.total_visual_count()
                 self._set_selection(0, total)
                 self._set_cursor_to_pos(len(self._text.text))
@@ -393,7 +408,7 @@ class TextInput(AbstractLayout):
         # may not match where the cursor visually came from after an
         # arrow press).
         if self._has_focus():
-            caret = self._ensure_state().pixel
+            caret = self._ensure_state(window).pixel
             cursor_rect = self._get_cursor_rect(caret)
             Drawing.box(surface, cursor_rect, Colors.black)
 

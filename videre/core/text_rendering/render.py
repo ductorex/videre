@@ -14,7 +14,6 @@ so there is a single source of truth for cluster geometry.
 
 from __future__ import annotations
 
-import bisect
 from dataclasses import dataclass
 
 from videre.colors import Color, Colors
@@ -220,7 +219,7 @@ def assemble_glyph_lines(
     # caret needs. `paint` keeps the glyphs + baseline for the paint pass.
     raw_lines: list[RawLine] = []
     paint: list[tuple[list[PositionedGlyph], int, int, list[float]]] = []
-    eu_starts = [eu.source_start for eu in edit_units]
+    edit_unit_indices = _edit_unit_indices_by_source_position(edit_units)
     for i, (gl, is_end) in enumerate(lines):
         measure = measures[i]
         extra = _justify_extra(gl, measure, align, width, is_end)
@@ -235,7 +234,7 @@ def assemble_glyph_lines(
                 y_top=baselines[i] - m.ascender,
                 y_bottom=baselines[i] + m.descender,
                 x_offset=x_offset,
-                clusters=_line_items(gl, track, eu_starts),
+                clusters=_line_items(gl, track, edit_unit_indices),
                 source_start=gl.source_start,
                 source_end=(
                     gl.terminator.source_end
@@ -366,7 +365,7 @@ def render_char(
 
 
 def _line_items(
-    line: GlyphLine, track: list[float], edit_unit_starts: list[int]
+    line: GlyphLine, track: list[float], edit_unit_indices: list[int]
 ) -> list[tuple[int, int, int, int, bool]]:
     """Per visual EDIT UNIT, return `(source_start, source_end, x_start, x_end,
     is_rtl)`, x relative to the line's `x_offset`. Consecutive visual clusters in
@@ -374,7 +373,7 @@ def _line_items(
     a grapheme boundary (a ligature spanning several graphemes stays one item —
     the caret skips it whole, as the snapping did before). x-bounds come from the
     precomputed `track` (the same one the paint pass uses). With no
-    `edit_unit_starts`, degrades to one item per cluster."""
+    `edit_unit_indices`, degrades to one item per cluster."""
     items: list[tuple[int, int, int, int, bool]] = []
     clusters = line.clusters
     n = len(clusters)
@@ -383,11 +382,11 @@ def _line_items(
     while i < n:
         end_offset = offset + len(clusters[i].glyphs)
         j = i + 1
-        if edit_unit_starts:
-            eu = _edit_unit_index(edit_unit_starts, clusters[i].logical_position)
+        if edit_unit_indices:
+            eu = _edit_unit_index(edit_unit_indices, clusters[i].logical_position)
             while (
                 j < n
-                and _edit_unit_index(edit_unit_starts, clusters[j].logical_position)
+                and _edit_unit_index(edit_unit_indices, clusters[j].logical_position)
                 == eu
             ):
                 end_offset += len(clusters[j].glyphs)
@@ -424,10 +423,22 @@ def _line_items(
     return items
 
 
-def _edit_unit_index(starts: list[int], pos: int) -> int:
-    """Index of the edit unit containing source position `pos` (edit units tile
-    the text, sorted by `source_start`)."""
-    return bisect.bisect_right(starts, pos) - 1
+def _edit_unit_indices_by_source_position(
+    edit_units: tuple[EditUnit, ...],
+) -> list[int]:
+    """Dense source-position -> edit-unit index table for one layout pass."""
+    if not edit_units:
+        return []
+    indices = [-1] * edit_units[-1].source_end
+    for i, unit in enumerate(edit_units):
+        for pos in range(unit.source_start, unit.source_end):
+            indices[pos] = i
+    return indices
+
+
+def _edit_unit_index(indices: list[int], pos: int) -> int:
+    """Index of the edit unit containing source position `pos`."""
+    return indices[pos] if 0 <= pos < len(indices) else -1
 
 
 def _paint_line(

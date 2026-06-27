@@ -693,3 +693,19 @@ def test_grapheme_text_input_inserts_on_a_boundary(fake_win):
     fake_win.render()
     assert ti.value == "xé"  # inserted before the cluster, not inside it
     assert ti._get_cursor() == 1  # cursor on a boundary
+
+
+def test_text_input_then_arrow_before_render_uses_fresh_layout(fake_win):
+    fake_user = fake_win.user
+    ti = videre.TextInput(text="")
+    fake_win.controls = [ti]
+    fake_win.render()
+    _focus_at_start(fake_win, ti)
+    assert ti._has_focus()
+
+    fake_user.text_input("a")
+    fake_user.keyboard_entry("right")
+    fake_win.render()
+
+    assert ti.value == "a"
+    assert ti._get_cursor() == 1

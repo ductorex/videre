@@ -81,17 +81,23 @@ def _shaping_script(text: str) -> str:
     return "Zyyy"
 
 
-def _split_by_font(text: str) -> list[PerFont]:
+def _split_by_font(
+    text: str, boundaries: tuple[int, ...] | None = None
+) -> list[PerFont]:
     """Split one script run by font.
 
     Format and control characters stay attached to the current font even when
     they have no cmap entry: HarfBuzz needs join controls and variation
     selectors in the same shaping buffer as the characters they modify.
     Other neutral characters stay when the cmap supports them; otherwise the
-    provider selects a fallback. Callers split by script first.
+    provider selects a fallback. Callers split by script first. When available,
+    pass grapheme boundaries already computed by `segment_edit_units` so
+    partitioning does not run UAX #29 again on each script piece.
     """
     if not text:
         return []
+    if boundaries is None:
+        boundaries = grapheme_boundaries(text)
     provider = get_font_provider()
 
     anchor_name: str
@@ -106,7 +112,6 @@ def _split_by_font(text: str) -> list[PerFont]:
     result: list[PerFont] = []
     chunks: list[str] = []
     name, path = anchor_name, anchor_path
-    boundaries = grapheme_boundaries(text)
     for start, end in zip(boundaries, boundaries[1:]):
         cluster = text[start:end]
         if all(_stays_with_current_font(c) for c in cluster):
