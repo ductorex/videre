@@ -40,7 +40,7 @@ class FontMetrics:
     line_spacing: int
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class _Item:
     """One cluster (or gap) on a line. `source_start < source_end` regardless
     of direction; `x_start < x_end` in pixels relative to the line's
