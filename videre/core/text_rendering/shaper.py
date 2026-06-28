@@ -110,7 +110,7 @@ class _FreetypeFontFuncsForHb:
         )
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class ShapedGlyph:
     """A single glyph as produced by HarfBuzz, with positions in pixels.
 

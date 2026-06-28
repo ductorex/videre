@@ -9,13 +9,13 @@ from videre.core.textual.unicode_char import NEUTRAL_SCRIPTS, get_character
 from videre.fonts.provider import get_font_provider
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class TextScript:
     text: str
     script: str  # ISO 15924 code
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class PerFont:
     text: str
     font_name: str

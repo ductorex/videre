@@ -6,7 +6,7 @@ from videre.core.text_editing import EditUnit
 from videre.core.text_rendering.text_partition.model import LineBidi, TextUnit
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class PositionedGlyph:
     """One shaped, positioned glyph, ready to rasterize and blit.
 
@@ -64,7 +64,7 @@ class PositionedGlyph:
     paint: bool
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class ShapedCluster:
     """One HarfBuzz cluster (a base plus its marks, or a ligature), pre-measured.
 
@@ -135,7 +135,7 @@ class GlyphLine:
         return self._glyphs
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class GlyphMeasure:
     """Horizontal geometry of a glyph sequence relative to its pen origin."""
 

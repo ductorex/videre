@@ -16,7 +16,7 @@ from videre.core.textual.unicode_char import Character
 from videre.core.vibidi.vibidi import VibidiText
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class TextPartition:
     # Python str, containing text to be rendered.
     text: str
@@ -25,7 +25,7 @@ class TextPartition:
     lines: tuple[Line, ...]
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class LineBidi:
     """Per-line bidi context, carried from segmentation down to the L2 reorder.
 
@@ -47,7 +47,7 @@ class LineBidi:
         return self.vibidi_text.base_is_rtl
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class Line:
     """
     Unwrapped line of logical text, with components ordered in logical order (same as in TextPartition.text).
@@ -90,7 +90,7 @@ class Line:
                 assert after is None or not after.is_gap
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class TextUnit:
     """
     Sequence of consecutive characters renderable with 1 single font,
@@ -120,7 +120,7 @@ class TextUnit:
     is_gap: bool
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class LogicalCharacter:
     character: Character
     # Logical position of this character in the ORIGINAL, unfiltered text

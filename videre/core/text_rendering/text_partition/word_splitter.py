@@ -52,7 +52,7 @@ _LB_COMBINING_RESET = frozenset({"BK", "CR", "LF", "NL", "SP", "ZW"})
 _LB_BREAK_AFTER = frozenset({"HY"})
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class WordSpan:
     start: int
     end: int
@@ -61,7 +61,7 @@ class WordSpan:
     no_break_before: tuple[int, ...] = ()
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class GapSpan:
     start: int
     end: int
