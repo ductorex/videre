@@ -1,3 +1,4 @@
+import videre
 from videre.core.utils import OnEvent
 from videre.widgets.widget_utils import WidgetByKeyGetter
 
@@ -52,7 +53,6 @@ def test_on_event_keys_items():
 
 
 def test_widget_by_key_getter(fake_win):
-    import videre
 
     button = videre.Button("Hello", key="my_key")
     fake_win.controls = [button]

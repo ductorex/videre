@@ -3,6 +3,7 @@ import pytest
 import videre
 from tests.common import win_hd_parameters, win_parameters
 from videre import Column, Container, ScrollView, Text
+from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 
 
 class TestScrollViewRendering:
@@ -412,7 +413,6 @@ class TestScrollViewAlgorithms:
     def test_scroll_metrics_calculation(self):
         """Test _compute_scroll_metrics calculation accuracy"""
         # Test the static method directly
-        from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 
         # Case: content larger than view
         view_length = 200
@@ -432,7 +432,6 @@ class TestScrollViewAlgorithms:
 
     def test_can_scroll_logic(self):
         """Test _can_scroll method logic"""
-        from videre.layouts.scroll.scrollview import ScrollView
 
         # Test scroll up (direction > 0) - should work if content_pos < 0
         assert ScrollView._can_scroll(1, True, 200, 500, -100) is True

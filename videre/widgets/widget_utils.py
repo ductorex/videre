@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from videre.widgets.widget import Widget
+
+
 class WidgetByKeyGetter:
     __slots__ = ("key",)
 
@@ -18,7 +24,6 @@ class MouseOwnership:
     __slots__ = ("widget", "x_in_parent", "y_in_parent")
 
     def __init__(self, widget, x_in_parent: int, y_in_parent: int):
-        from videre.widgets.widget import Widget
 
         self.widget: Widget = widget
         self.x_in_parent = x_in_parent

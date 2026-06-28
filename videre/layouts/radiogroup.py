@@ -51,7 +51,7 @@ class RadioGroup(ControlLayout):
         self._set_new_value(new_value)
 
     def _set_new_value(self, new_value: Any, react=True):
-        from videre.widgets.radio import Radio
+        from videre.widgets.radio import Radio, is_radio  # noqa: PLC0415
 
         if new_value == self._get_wprop("value"):
             return
@@ -64,9 +64,3 @@ class RadioGroup(ControlLayout):
             on_change = self.on_change
             if on_change:
                 on_change(self)
-
-
-def is_radio(widget) -> bool:
-    from videre.widgets.radio import Radio
-
-    return isinstance(widget, Radio)

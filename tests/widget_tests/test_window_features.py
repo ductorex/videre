@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 
 import videre
+from videre.testing.step_window import StepWindow
+from videre.widgets.context_button import ContextButton
 from videre.windowing.fancyclosebutton import FancyCloseButton
 
 # --- repr and background ---
@@ -93,7 +95,6 @@ def test_escape_closes_fancybox(fake_win):
 
 def test_escape_closes_context(fake_win):
     fake_user = fake_win.user
-    from videre.widgets.context_button import ContextButton
 
     cb = ContextButton("Menu", actions=[("Action", None)])  # ty: ignore[invalid-argument-type]
     fake_win.controls = [cb]
@@ -146,7 +147,6 @@ def test_clear_notification_callbacks(fake_win):
 
 
 def test_force_alert_on_handled_exception():
-    from videre.testing.step_window import StepWindow
 
     def raise_value_error():
         raise ValueError("test error")

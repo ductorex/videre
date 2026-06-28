@@ -57,7 +57,9 @@ skip-magic-trailing-comma = true
 line-ending = "cr-lf"
 
 [tool.ruff.lint]
-extend-select = ["I"]
+# "I": sort imports
+# "PLC0415": alert for local imports
+extend-select = ["I", "PLC0415"]
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = false

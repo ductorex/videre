@@ -7,6 +7,7 @@ identity / recursion / generative wrap) and prove pixel equivalence with the old
 "blit the whole content at the offset" approach.
 """
 
+from tests.common import rasterize
 from videre.colors import Colors
 from videre.core.drawer import BlitArgs, Drawer, FillArgs, Position, crop_drawer
 from videre.core.rectangle import Rectangle
@@ -104,7 +105,6 @@ def test_crop_generative_drawer_is_wrapped():
 def test_crop_pixels_match_offset_blit(fake_win):
     # The strong guarantee: cropping then blitting at (0,0) is pixel-identical to
     # blitting the whole content at the scroll offset.
-    from tests.common import rasterize
 
     parent, _ = _stack(6, w=50, h=50)  # 50 x 300
     offset_y = -120

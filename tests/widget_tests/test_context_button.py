@@ -1,5 +1,5 @@
 import videre
-from videre.widgets.context_button import ContextButton
+from videre.widgets.context_button import ContextButton, _Action
 
 
 def test_context_button_open_close(fake_win):
@@ -50,7 +50,6 @@ def test_context_button_execute_action(fake_win):
     assert cb._context is not None
 
     # Find the first action
-    from videre.widgets.context_button import _Action
 
     action_widgets = fake_win.find(_Action)
     assert len(action_widgets) == 2
