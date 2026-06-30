@@ -58,8 +58,8 @@ def test_gradient_parse():
     # Test with a color
     gradient = Gradient.parse(Colors.red)
     assert isinstance(gradient, Gradient)
-    assert len(gradient._colors) == 1
-    assert gradient._colors[0] == Colors.red
+    assert len(gradient.colors) == 1
+    assert gradient.colors[0] == Colors.red
 
     # Test with an existing gradient
     original_gradient = Gradient(Colors.red, Colors.blue)
@@ -69,14 +69,14 @@ def test_gradient_parse():
     # Test with a color string
     gradient = Gradient.parse("red")
     assert isinstance(gradient, Gradient)
-    assert len(gradient._colors) == 1
-    assert gradient._colors[0] == Colors.red
+    assert len(gradient.colors) == 1
+    assert gradient.colors[0] == Colors.red
 
 
 def test_gradient_empty():
     gradient = Gradient()
-    assert len(gradient._colors) == 1
-    assert gradient._colors[0] == Colors.transparent
+    assert len(gradient.colors) == 1
+    assert gradient.colors[0] == Colors.transparent
 
 
 def test_gradient_surface_reuse(fake_win):

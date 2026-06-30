@@ -15,8 +15,24 @@ class Gradient:
     __slots__ = ("_colors", "_vertical")
 
     def __init__(self, *colors: Color, vertical=False):
-        self._colors = colors or [Colors.transparent]
+        self._colors: tuple[Color, ...] = colors or (Colors.transparent,)
         self._vertical: bool = vertical
+
+    def __hash__(self) -> int:
+        return hash(self._colors + (self._vertical,))
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Gradient):
+            return NotImplemented
+        return self._colors == other._colors and self._vertical is other._vertical
+
+    @property
+    def colors(self) -> tuple[Color, ...]:
+        return self._colors
+
+    @property
+    def vertical(self) -> bool:
+        return self._vertical
 
     def _interpolate_color(self, color1: Color, color2: Color, factor: float) -> Color:
         """Interpolate between two colors based on a factor (0.0 to 1.0)."""
