@@ -9,4 +9,4 @@ class EmptyWidget(Widget):
     def draw(
         self, window, width: int | None = None, height: int | None = None
     ) -> Drawer:
-        return Drawer()
+        return window.drawing.new_surface(0, 0)

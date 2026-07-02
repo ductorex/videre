@@ -29,7 +29,7 @@ class TextPartition:
 class LineBidi:
     """Per-line bidi context, carried from segmentation down to the L2 reorder.
 
-    `vibidi_text` is the resolved bidi of the WHOLE logical line (levels computed
+    `vibidi_text` is the resolved bidi of the WHOLE source line (levels computed
     with full line context; they stay internal to vibidi). `positions[i]` is the
     original-text index of the i-th character of the filtered line text vibidi
     saw, so a glyph's `logical_position` maps to a vibidi index via the inverse —

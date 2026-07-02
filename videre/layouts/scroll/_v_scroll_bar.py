@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.events import MouseButton, MouseEvent
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
 from videre.widgets.widget_utils import MouseOwnership
@@ -70,7 +70,7 @@ class _VScrollBar(_HScrollBar):
             self.content_pos,
             scrollbar_length=(max(0, view_height - thickness) if self.both else None),
         )
-        v_scroll = Drawer(thickness, v_scroll_height)
-        Drawing.fill(v_scroll, self.color)
+        v_scroll = window.drawing.new_surface(thickness, v_scroll_height)
+        window.drawing.fill(v_scroll, self.color)
         pos = (view_width - thickness, v_scroll_y)
         return v_scroll, pos

@@ -6,6 +6,7 @@ from typing import Iterator, Sequence, TypeAlias
 from PIL.Image import Image
 
 from videre.colors import Color
+from videre.core.dpi import DevicePx, LogicalPx, to_device_ceil
 from videre.core.rectangle import Rectangle
 
 PositionTuple: TypeAlias = tuple[int, int]
@@ -39,12 +40,14 @@ class LineArgs:
     color: Color
     start: Position
     end: Position
+    width: int = 1
 
 
 @dataclass(slots=True, frozen=True)
 class RectangleArgs:
     rectangle: Rectangle
     color: Color
+    width: int = 1
 
 
 @dataclass(slots=True, frozen=True)
@@ -107,21 +110,57 @@ Args: TypeAlias = (
 
 
 class Drawer:
-    """
-    Drawer offers a per-widget API (each widget builds its own Drawer in local coordinates)
-    and is rendered by an external visitor. The visitor either flattens the tree of nested
-    drawers into a single sequence of primitives, executed directly on the screen,
-    or goes through drawers recursively.
-    — if possible, no intermediate surface is allocated.
+    """A recorded list of draw commands in device pixels, plus the logical
+    size the rest of the framework sees.
+
+    Layouts read `get_width`/`get_height` (logical); the backend allocates
+    `device_width` × `device_height` and replays the commands 1:1, knowing
+    nothing about scaling. At scale 1.0 both sizes are equal. The recording
+    methods here are the raw device layer: widgets never call them directly
+    — they record through `window.drawing`, which converts logical
+    coordinates at record time (see videre/core/drawing.py); only code that
+    already works in device pixels (the text pipeline) records raw.
     """
 
-    __slots__ = ("_width", "_height", "_commands", "_hash")
+    __slots__ = (
+        "_width",
+        "_height",
+        "_device_width",
+        "_device_height",
+        "_scale",
+        "_commands",
+        "_hash",
+    )
 
     def __init__(self, width: int | float = 0, height: int | float = 0):
+        # Identity construction: logical == device, scale 1.0. Scaled
+        # drawers come from `Drawing`; device-built content (text) gets its
+        # logical size afterwards via `set_logical_size`.
         self._width = int(width)
         self._height = int(height)
+        self._device_width = self._width
+        self._device_height = self._height
+        self._scale = 1.0
         self._commands: list[Args] = []
         self._hash: int | None = None
+
+    @classmethod
+    def at_scale(cls, width: int | float, height: int | float, scale: float) -> Drawer:
+        """A logical-size drawer whose device surface is ceil(size × scale).
+
+        Ceil, because the device slot a parent gives a child depends on the
+        child's position and can reach ceil — any smaller surface could
+        leave a visible gap. The cost: when the slot is smaller than ceil,
+        the surface overlaps the next sibling's slot by one pixel, hidden
+        by paint order unless that sibling is transparent. The trade-off is
+        intrinsic: a drawer is recorded without knowing where it will be
+        blitted."""
+        out = cls(width, height)
+        if scale != 1.0:
+            out._device_width = to_device_ceil(out._width, scale)
+            out._device_height = to_device_ceil(out._height, scale)
+            out._scale = float(scale)
+        return out
 
     def __hash__(self) -> int:
         # Memoized: `__hash__` walks the whole command tree (sub-drawers
@@ -130,7 +169,16 @@ class Drawer:
         # key); `_cmd` resets this. Mutating a Drawer after it has been hashed
         # and cached is unsupported.
         if self._hash is None:
-            self._hash = hash((self._width, self._height, tuple(self._commands)))
+            self._hash = hash(
+                (
+                    self._width,
+                    self._height,
+                    self._device_width,
+                    self._device_height,
+                    self._scale,
+                    tuple(self._commands),
+                )
+            )
         return self._hash
 
     def __eq__(self, other: object) -> bool:
@@ -138,6 +186,9 @@ class Drawer:
             isinstance(other, Drawer)
             and self._width == other._width
             and self._height == other._height
+            and self._device_width == other._device_width
+            and self._device_height == other._device_height
+            and self._scale == other._scale
             and self._commands == other._commands
         )
 
@@ -148,11 +199,42 @@ class Drawer:
         self._commands.append(args)
         self._hash = None
 
-    def get_width(self) -> int:
+    def get_width(self) -> LogicalPx:
+        """Logical width — what layouts measure and stack with."""
         return self._width
 
-    def get_height(self) -> int:
+    def get_height(self) -> LogicalPx:
+        """Logical height — what layouts measure and stack with."""
         return self._height
+
+    @property
+    def device_width(self) -> DevicePx:
+        """Surface width in device pixels — what the backend allocates."""
+        return self._device_width
+
+    @property
+    def device_height(self) -> DevicePx:
+        """Surface height in device pixels — what the backend allocates."""
+        return self._device_height
+
+    @property
+    def scale(self) -> float:
+        """Device pixels per logical pixel of this drawer's coordinates."""
+        return self._scale
+
+    def set_logical_size(
+        self, width: LogicalPx, height: LogicalPx, scale: float
+    ) -> None:
+        """Give a device-built drawer (e.g. rasterized text) the logical
+        size layouts should see. Arguments are derived from the device size
+        (which never changes), so re-applying is a no-op."""
+        width, height, scale = int(width), int(height), float(scale)
+        if (self._width, self._height, self._scale) == (width, height, scale):
+            return
+        self._width = width
+        self._height = height
+        self._scale = scale
+        self._hash = None
 
     def fill(self, color: Color, rectangle: Rectangle | None = None) -> None:
         self._cmd(FillArgs(color, rectangle))
@@ -160,11 +242,13 @@ class Drawer:
     def blit(self, drawer: Drawer, position: Position) -> None:
         self._cmd(BlitArgs(drawer, position))
 
-    def line(self, color: Color, start: Position, end: Position) -> None:
-        self._cmd(LineArgs(color, start, end))
+    def line(
+        self, color: Color, start: Position, end: Position, width: int = 1
+    ) -> None:
+        self._cmd(LineArgs(color, start, end, width))
 
-    def rectangle(self, rectangle: Rectangle, color: Color) -> None:
-        self._cmd(RectangleArgs(rectangle, color))
+    def rectangle(self, rectangle: Rectangle, color: Color, width: int = 1) -> None:
+        self._cmd(RectangleArgs(rectangle, color, width))
 
     def box(self, rectangle: Rectangle, color: Color) -> None:
         self._cmd(BoxArgs(rectangle, color))
@@ -174,6 +258,9 @@ class Drawer:
 
     def copy(self) -> Drawer:
         out = Drawer(self._width, self._height)
+        out._device_width = self._device_width
+        out._device_height = self._device_height
+        out._scale = self._scale
         out._cmd(CopyArgs(self))
         return out
 
@@ -199,168 +286,3 @@ class Drawer:
         out = Drawer(width, height)
         out._cmd(ImageFromBytesArgs(data, width, height))
         return out
-
-
-_GENERATIVE = (ImageArgs, ImageFromBytesArgs, SmoothScaleArgs, CopyArgs)
-
-
-def _overlaps(left: int, top: int, width: int, height: int, rect: Rectangle) -> bool:
-    """Half-open AABB overlap of ``[left, left+width) x [top, top+height)`` with
-    `rect`. Strict: a box merely touching `rect`'s edge shares no pixel and is
-    dropped. Callers pass a 1-pixel extent for inclusive-endpoint shapes (lines,
-    polygons) so those are not wrongly dropped at the boundary."""
-    return (
-        left < rect.left + rect.width
-        and left + width > rect.left
-        and top < rect.top + rect.height
-        and top + height > rect.top
-    )
-
-
-def _is_generative(drawer: Drawer) -> bool:
-    """A drawer whose pixels come from a base surface (image / scaled / copied):
-    it cannot be pruned to a sub-region by dropping commands."""
-    return any(isinstance(cmd, _GENERATIVE) for cmd in drawer)
-
-
-def crop_drawer(drawer: Drawer, rect: Rectangle) -> Drawer:
-    """Return a new ``Drawer(rect.width, rect.height)`` showing only the part of
-    `drawer` inside `rect` (in `drawer`'s local coords), with `rect`'s top-left
-    mapped to ``(0, 0)``.
-
-    The point is to avoid rasterizing what a ScrollView never shows: a tall
-    content drawer (e.g. a 90-row column) becomes a viewport-sized drawer holding
-    only the handful of children that intersect the view, so ``materialize``
-    allocates a small surface and composes a few children instead of a giant one.
-
-    Rules: a command fully outside `rect` is dropped; otherwise it is kept,
-    translated by ``(-rect.left, -rect.top)`` — anything still overflowing the
-    cropped drawer is clipped by the renderer (surface bounds), so nothing needs
-    trimming. A kept child keeps its **identity** (same ``Drawer`` object) so it
-    still hits the ``materialize`` cache. A straddling child *larger than `rect`*
-    would re-introduce an oversized surface if kept whole, so it is recursively
-    cropped instead — unless it is generative (image/scale/copy), which cannot be
-    pruned and is kept whole. A generative `drawer` itself can't be pruned at
-    all: it is re-anchored whole at the negative offset (same as a plain offset
-    blit — correct, cache-friendly, just not size-reduced)."""
-    out = Drawer(rect.width, rect.height)
-    if _is_generative(drawer):
-        out.blit(drawer, Position(int(-rect.left), int(-rect.top)))
-        return out
-    dx, dy = int(-rect.left), int(-rect.top)
-    rl, rt, rw, rh = rect.left, rect.top, rect.width, rect.height
-    for cmd in drawer:
-        match cmd:
-            case FillArgs(color=color, rectangle=None):
-                out.fill(color)
-            case FillArgs(color=color, rectangle=r):
-                if _overlaps(r.left, r.top, r.width, r.height, rect):
-                    out.fill(
-                        color, Rectangle(r.left + dx, r.top + dy, r.width, r.height)
-                    )
-            case BlitArgs(drawer=child, position=pos):
-                cw, ch = child.get_width(), child.get_height()
-                if not _overlaps(pos.x, pos.y, cw, ch, rect):
-                    continue
-                inside = (
-                    pos.x >= rl
-                    and pos.y >= rt
-                    and pos.x + cw <= rl + rw
-                    and pos.y + ch <= rt + rh
-                )
-                if not inside and (cw > rw or ch > rh) and not _is_generative(child):
-                    ix0, iy0 = max(pos.x, rl), max(pos.y, rt)
-                    ix1, iy1 = min(pos.x + cw, rl + rw), min(pos.y + ch, rt + rh)
-                    child_rect = Rectangle(
-                        ix0 - pos.x, iy0 - pos.y, ix1 - ix0, iy1 - iy0
-                    )
-                    out.blit(
-                        crop_drawer(child, child_rect),
-                        Position(int(ix0 + dx), int(iy0 + dy)),
-                    )
-                else:
-                    out.blit(child, Position(int(pos.x + dx), int(pos.y + dy)))
-            case LineArgs(color=color, start=s, end=e):
-                bx, by = min(s.x, e.x), min(s.y, e.y)
-                if _overlaps(bx, by, abs(e.x - s.x) + 1, abs(e.y - s.y) + 1, rect):
-                    out.line(
-                        color,
-                        Position(s.x + dx, s.y + dy),
-                        Position(e.x + dx, e.y + dy),
-                    )
-            case RectangleArgs(rectangle=r, color=color):
-                if _overlaps(r.left, r.top, r.width, r.height, rect):
-                    out.rectangle(
-                        Rectangle(r.left + dx, r.top + dy, r.width, r.height), color
-                    )
-            case BoxArgs(rectangle=r, color=color):
-                if _overlaps(r.left, r.top, r.width, r.height, rect):
-                    out.box(
-                        Rectangle(r.left + dx, r.top + dy, r.width, r.height), color
-                    )
-            case FilledPolygonArgs(points=pts, color=color):
-                xs = [p.x for p in pts]
-                ys = [p.y for p in pts]
-                if pts and _overlaps(
-                    min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1, rect
-                ):
-                    out.filled_polygon(
-                        [Position(p.x + dx, p.y + dy) for p in pts], color
-                    )
-            case _:
-                raise NotImplementedError(type(cmd).__name__, cmd)
-    return out
-
-
-class Drawing:
-    """Helper class for drawing using functions (class methods) instead of (object) methods."""
-
-    @classmethod
-    def new_surface(cls, width: int, height: int) -> Drawer:
-        return Drawer(width, height)
-
-    @classmethod
-    def fill(
-        cls, self: Drawer, color: Color, rectangle: Rectangle | None = None
-    ) -> None:
-        self.fill(color, rectangle)
-
-    @classmethod
-    def blit(cls, self: Drawer, drawer: Drawer, position: PositionTuple) -> None:
-        self.blit(drawer, Position(*position))
-
-    @classmethod
-    def line(
-        cls, self: Drawer, color: Color, start: PositionTuple, end: PositionTuple
-    ) -> None:
-        self.line(color, Position(*start), Position(*end))
-
-    @classmethod
-    def rectangle(cls, self: Drawer, rectangle: Rectangle, color: Color) -> None:
-        self.rectangle(rectangle, color)
-
-    @classmethod
-    def box(cls, self: Drawer, rectangle: Rectangle, color: Color) -> None:
-        self.box(rectangle, color)
-
-    @classmethod
-    def filled_polygon(
-        cls, self: Drawer, points: Sequence[PositionTuple], color: Color
-    ) -> None:
-        self.filled_polygon([Position(*point) for point in points], color)
-
-    @classmethod
-    def copy(cls, self: Drawer) -> Drawer:
-        return self.copy()
-
-    @classmethod
-    def smoothscale(cls, drawer: Drawer, width: int, height: int) -> Drawer:
-        return Drawer.smoothscale(drawer, width, height)
-
-    @classmethod
-    def image(cls, image: Image) -> Drawer:
-        return Drawer.image(image)
-
-    @classmethod
-    def image_from_bytes(cls, data: bytes, dimensions: PositionTuple) -> Drawer:
-        return Drawer.image_from_bytes(data, *dimensions)

@@ -14,6 +14,15 @@ from videre.core.abstract_backend import (
     AbstractWindowing,
 )
 from videre.core.constants import WINDOW_FPS
+from videre.core.dpi import (
+    DevicePx,
+    LogicalPx,
+    declare_dpi_awareness,
+    system_scale_factor,
+    to_device,
+    to_logical_floor,
+    to_logical_slot,
+)
 from videre.core.drawer import (
     Args,
     BlitArgs,
@@ -103,10 +112,12 @@ class PygameRenderer(AbstractRenderer):
         """Return `drawer` as its own surface, reusing an equal one seen this or
         last frame.
 
-        Drawers hash/compare by content, so an unchanged sub-tree (a clean
-        widget hands back the same/equal Drawer frame to frame) hits the cache
-        instead of being repainted. The result is read-only — only ever used as
-        a blit source; `Drawer.copy()` shields the in-place edits (`TextInput`).
+        The surface is allocated at the drawer's *device* size (Drawer
+        commands are device pixels — see `videre.core.drawer`). Drawers
+        hash/compare by content, so an unchanged sub-tree (a clean widget hands
+        back the same/equal Drawer frame to frame) hits the cache instead of
+        being repainted. The result is read-only — only ever used as a blit
+        source; `Drawer.copy()` shields the in-place edits (`TextInput`).
         """
         cached = self._cache.get(drawer)
         if cached is not None:
@@ -115,28 +126,40 @@ class PygameRenderer(AbstractRenderer):
         if cached is not None:
             self._cache[drawer] = cached  # promote into the current frame
             return cached
-        surface = self.new_surface(drawer.get_width(), drawer.get_height())
+        surface = self.new_surface(drawer.device_width, drawer.device_height)
         self._paint(drawer, surface)
         self._cache[drawer] = surface
         return surface
 
     def _paint(self, drawer: Drawer, dst: Rendering) -> None:
-        """Replay a Drawer's command IR onto `dst`.
+        """Replay a Drawer's command IR onto `dst` (device pixels, 1:1).
 
         A drawer is a flat list of commands in its own local coordinates; every
         command writes onto `dst`. A generative command (image / image_from_bytes
-        / smoothscale / copy) blits its output at the origin; every other command
-        mutates `dst` in place. Nested drawers — blit, smoothscale, copy — are
+        / smoothscale / copy) blits its output at the origin, resampled to the
+        drawer's device size when needed (a no-op for an already-matching
+        source, e.g. a density-matched bitmap); every other command mutates
+        `dst` in place. Nested drawers — blit, smoothscale, copy — are
         materialized first (so they hit the cache), then blitted.
         """
         for args in drawer:
             match args:
                 case ImageArgs(image=image):
-                    self.blit(dst, self.image(image), (0, 0))
+                    self.blit(
+                        dst,
+                        self.smoothscale(
+                            self.image(image), drawer.device_width, drawer.device_height
+                        ),
+                        (0, 0),
+                    )
                 case ImageFromBytesArgs(data=data, width=width, height=height):
                     self.blit(
                         dst,
-                        self.image_from_bytes(data, (int(width), int(height))),
+                        self.smoothscale(
+                            self.image_from_bytes(data, (int(width), int(height))),
+                            drawer.device_width,
+                            drawer.device_height,
+                        ),
                         (0, 0),
                     )
                 case SmoothScaleArgs(drawer=source):
@@ -144,8 +167,8 @@ class PygameRenderer(AbstractRenderer):
                         dst,
                         self.smoothscale(
                             self.materialize(source),
-                            drawer.get_width(),
-                            drawer.get_height(),
+                            drawer.device_width,
+                            drawer.device_height,
                         ),
                         (0, 0),
                     )
@@ -161,10 +184,10 @@ class PygameRenderer(AbstractRenderer):
                 self.fill(surface, color, rectangle)
             case BlitArgs(drawer=source, position=position):
                 self.blit(surface, self.materialize(source), (position.x, position.y))
-            case LineArgs(color=color, start=start, end=end):
-                self.line(surface, color, (start.x, start.y), (end.x, end.y))
-            case RectangleArgs(rectangle=rectangle, color=color):
-                self.rectangle(surface, rectangle, color)
+            case LineArgs(color=color, start=start, end=end, width=width):
+                self.line(surface, color, (start.x, start.y), (end.x, end.y), width)
+            case RectangleArgs(rectangle=rectangle, color=color, width=width):
+                self.rectangle(surface, rectangle, color, width)
             case BoxArgs(rectangle=rectangle, color=color):
                 self.box(surface, rectangle, color)
             case FilledPolygonArgs(points=points, color=color):
@@ -193,18 +216,31 @@ class PygameRenderer(AbstractRenderer):
         _deref(dst).blit(_deref(src), position)
 
     def line(
-        self, surface: Rendering, color: Color, start: PositionTuple, end: PositionTuple
+        self,
+        surface: Rendering,
+        color: Color,
+        start: PositionTuple,
+        end: PositionTuple,
+        width: int = 1,
     ) -> None:
         # `pygame.draw.line` over `pygame.gfxdraw.line`: faster on tight
         # loops (gradients trace hundreds of lines per frame) and supports
-        # a `width` parameter if we ever need thicker strokes. `gfxdraw`
-        # only offers pixel-exact non-AA single-pixel lines.
-        pygame.draw.line(_deref(surface), self.new_color(color), start, end)
+        # a `width` parameter for the scaled paint's thicker strokes.
+        # `gfxdraw` only offers pixel-exact non-AA single-pixel lines.
+        pygame.draw.line(_deref(surface), self.new_color(color), start, end, width)
 
-    def rectangle(self, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
-        pygame.gfxdraw.rectangle(
-            _deref(surface), self.new_rect(rectangle), self.new_color(color)
-        )
+    def rectangle(
+        self, surface: Rendering, rectangle: Rectangle, color: Color, width: int = 1
+    ) -> None:
+        if width == 1:
+            pygame.gfxdraw.rectangle(
+                _deref(surface), self.new_rect(rectangle), self.new_color(color)
+            )
+        else:
+            # Thicker outline (scaled paint): pygame.draw.rect strokes inward.
+            pygame.draw.rect(
+                _deref(surface), self.new_color(color), self.new_rect(rectangle), width
+            )
 
     def box(self, surface: Rendering, rectangle: Rectangle, color: Color) -> None:
         pygame.gfxdraw.box(
@@ -219,9 +255,13 @@ class PygameRenderer(AbstractRenderer):
     def smoothscale(
         self, surface: Rendering, width: int | float, height: int | float
     ) -> Rendering:
-        return PygameRendering(
-            pygame.transform.smoothscale(_deref(surface), (width, height))
-        )
+        src = _deref(surface)
+        if (src.get_width(), src.get_height()) == (int(width), int(height)):
+            # Already at target size: skip the resample (keeps a
+            # density-matched bitmap pixel-perfect). Callers only blit the
+            # result, so returning the same object is safe.
+            return surface
+        return PygameRendering(pygame.transform.smoothscale(src, (width, height)))
 
     def copy(self, surface: Rendering) -> Rendering:
         return PygameRendering(_deref(surface).copy())
@@ -270,6 +310,7 @@ class PygameWindowing(AbstractWindowing):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> None:
         super().__init__(
             width=width,
@@ -280,7 +321,20 @@ class PygameWindowing(AbstractWindowing):
             task_manager=task_manager,
             hide=hide,
             fps=fps,
+            dpi_aware=dpi_aware,
         )
+
+        # DPI opt-in — must run BEFORE pygame.init(): SDL's video init
+        # creates a hidden window, and the OS declaration must precede any
+        # window. `_width`/`_height` stay logical; `start()` opens the OS
+        # window at device size, so the compositor never bitmap-stretches
+        # (the blur an unaware process gets). SDL2 has no cross-platform
+        # scale query (SDL3 will); videre.core.dpi reads 1.0 where the
+        # platform offers nothing, keeping today's behavior.
+        if dpi_aware and declare_dpi_awareness():
+            scale = system_scale_factor()
+            if scale > 0 and scale != 1.0:
+                self._scale_factor = scale
 
         # Init pygame here.
         pygame.init()
@@ -294,6 +348,28 @@ class PygameWindowing(AbstractWindowing):
         # while still detecting a buffer swap (e.g. a same-size resize).
         self._screen_rendering: PygameRendering | None = None
         self._clock: pygame.time.Clock | None = None
+
+    def _to_device(self, value: LogicalPx) -> DevicePx:
+        """Logical length → device pixels (half-up; identity at scale 1.0)."""
+        scale = self._scale_factor
+        return value if scale == 1.0 else to_device(value, scale)
+
+    def _to_logical(self, value: DevicePx) -> LogicalPx:
+        """Device pointer coordinate → the logical pixel whose rendered slot
+        contains it (see `dpi.to_logical_slot`; identity at scale 1.0)."""
+        scale = self._scale_factor
+        return value if scale == 1.0 else to_logical_slot(value, scale)
+
+    def _to_logical_size(self, value: DevicePx) -> LogicalPx:
+        """Device length → logical (floor: the logical window always fits
+        inside the device buffer; identity at scale 1.0)."""
+        scale = self._scale_factor
+        return value if scale == 1.0 else to_logical_floor(value, scale)
+
+    def _to_logical_delta(self, value: DevicePx) -> LogicalPx:
+        """Device delta (signed, e.g. mouse `rel`) → logical, rounded."""
+        scale = self._scale_factor
+        return value if scale == 1.0 else int(round(value / scale))
 
     def _set_text_cursor(self) -> None:
         pygame.mouse.set_cursor((8, 16), (0, 0), *self.__text_cursor)
@@ -312,8 +388,12 @@ class PygameWindowing(AbstractWindowing):
         flags = pygame.RESIZABLE
         if self._hide:
             flags |= pygame.HIDDEN
-        self._screen = pygame.display.set_mode((self._width, self._height), flags=flags)
+        self._screen = pygame.display.set_mode(
+            (self._to_device(self._width), self._to_device(self._height)), flags=flags
+        )
         self._screen_rendering = PygameRendering(self._screen)
+        # The buffer the OS actually granted — the root drawer is sized on it.
+        self._set_device_size(self._screen.get_width(), self._screen.get_height())
         pygame.display.set_caption(self._title)
 
         # Initialize keyboard repeat.
@@ -330,12 +410,16 @@ class PygameWindowing(AbstractWindowing):
         pygame.quit()
 
     def resize_screen(self, width: int, height: int) -> None:
+        # `width`/`height` are logical; the OS window (and the posted event,
+        # like a real OS resize) are device-pixel sized.
         flags = pygame.RESIZABLE
         if self._hide:
             flags |= pygame.HIDDEN
-        self._screen = pygame.display.set_mode((width, height), flags=flags)
+        device_w, device_h = self._to_device(width), self._to_device(height)
+        self._screen = pygame.display.set_mode((device_w, device_h), flags=flags)
         self._screen_rendering = PygameRendering(self._screen)
-        pygame.event.post(Event(pygame.WINDOWRESIZED, x=width, y=height))
+        self._set_device_size(self._screen.get_width(), self._screen.get_height())
+        pygame.event.post(Event(pygame.WINDOWRESIZED, x=device_w, y=device_h))
 
     def _step(self, fps: int | None = None) -> None:
         # Handle interface events.
@@ -404,11 +488,14 @@ class PygameWindowing(AbstractWindowing):
     @_on_event(pygame.WINDOWRESIZED)
     def _resize_window(self, event: Event) -> None:
         # This method immediately handles event without dispatching to videre event manager.
-        width, height = event.x, event.y
+        width, height = event.x, event.y  # device pixels (OS window size)
         if self._screen is not None:
             assert self._screen.get_width() == width
             assert self._screen.get_height() == height
-        self._handle_resize(width, height)
+        # Keep the real buffer size: an OS resize can grant any device
+        # size (see `AbstractWindowing.device_width`).
+        self._set_device_size(width, height)
+        self._handle_resize(self._to_logical_size(width), self._to_logical_size(height))
 
     @_on_event(pygame.MOUSEWHEEL)
     def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
@@ -424,8 +511,8 @@ class PygameWindowing(AbstractWindowing):
         shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
         return self._event_dispatcher(
             MouseWheelEvent(
-                mouse_x=mouse_x,
-                mouse_y=mouse_y,
+                mouse_x=self._to_logical(mouse_x),
+                mouse_y=self._to_logical(mouse_y),
                 wheel_dx=wheel_dx,
                 wheel_dy=wheel_dy,
                 shift=shift,
@@ -434,13 +521,13 @@ class PygameWindowing(AbstractWindowing):
 
     @_on_event(pygame.MOUSEBUTTONDOWN)
     def _on_mouse_button_down(self, event: Event) -> VidereTask | None:
-        x, y = event.pos
+        x, y = self._to_logical(event.pos[0]), self._to_logical(event.pos[1])
         button = pygame_to_mouse_button(event.button)
         return self._event_dispatcher(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
 
     @_on_event(pygame.MOUSEBUTTONUP)
     def _on_mouse_button_up(self, event: Event) -> VidereTask | None:
-        x, y = event.pos
+        x, y = self._to_logical(event.pos[0]), self._to_logical(event.pos[1])
         button = pygame_to_mouse_button(event.button)
         return self._event_dispatcher(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
@@ -448,10 +535,10 @@ class PygameWindowing(AbstractWindowing):
     def _on_mouse_motion(self, event: Event) -> VidereTask | None:
         return self._event_dispatcher(
             MouseMotionEvent(
-                x=event.pos[0],
-                y=event.pos[1],
-                dx=event.rel[0],
-                dy=event.rel[1],
+                x=self._to_logical(event.pos[0]),
+                y=self._to_logical(event.pos[1]),
+                dx=self._to_logical_delta(event.rel[0]),
+                dy=self._to_logical_delta(event.rel[1]),
                 buttons=pygame_to_mouse_buttons(event.buttons),
             )
         )
@@ -569,6 +656,7 @@ class PygameBackend(AbstractBackend):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> AbstractWindowing:
         return PygameWindowing(
             width=width,
@@ -579,6 +667,7 @@ class PygameBackend(AbstractBackend):
             task_manager=task_manager,
             hide=hide,
             fps=fps,
+            dpi_aware=dpi_aware,
         )
 
 

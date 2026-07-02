@@ -1,7 +1,8 @@
 from typing import Self
 
 from videre.colors import Color, ColorDef, Colors, parse_color
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer, Position
+from videre.core.drawing import Drawing
 
 
 class Gradient:
@@ -42,23 +43,27 @@ class Gradient:
         a = int(color1.a + (color2.a - color1.a) * factor)
         return Color(r, g, b, a)
 
-    def generate(self, width: int, height: int) -> Drawer:
+    def generate(self, drawing: Drawing, width: int, height: int) -> Drawer:
         if width < 0:
             raise ValueError("width cannot be negative")
         if height < 0:
             raise ValueError("height cannot be negative")
 
-        surface = Drawer(width, height)
+        surface = drawing.new_surface(width, height)
 
         if len(self._colors) == 1:
-            Drawing.fill(surface, self._colors[0])
+            drawing.fill(surface, self._colors[0])
             return surface
 
+        # Trace one 1-px line per device row/column (raw records), so a
+        # scaled surface gets a gradient as fine as its real resolution.
+        # At scale 1.0 this is the historic behavior.
+        p_width, p_height = surface.device_width, surface.device_height
         if self._vertical:
             # Vertical gradient
-            for i in range(height):
+            for i in range(p_height):
                 # Calculate relative position (0.0 to 1.0)
-                pos = i / (height - 1) if height > 1 else 0
+                pos = i / (p_height - 1) if p_height > 1 else 0
 
                 # Find the two colors to interpolate between
                 color_index = pos * (len(self._colors) - 1)
@@ -74,12 +79,12 @@ class Gradient:
                 )
 
                 # Draw a horizontal line
-                Drawing.line(surface, color, (0, i), (width - 1, i))
+                surface.line(color, Position(0, i), Position(p_width - 1, i))
         else:
             # Horizontal gradient
-            for i in range(width):
+            for i in range(p_width):
                 # Calculate relative position (0.0 to 1.0)
-                pos = i / (width - 1) if width > 1 else 0
+                pos = i / (p_width - 1) if p_width > 1 else 0
 
                 # Find the two colors to interpolate between
                 color_index = pos * (len(self._colors) - 1)
@@ -95,7 +100,7 @@ class Gradient:
                 )
 
                 # Draw a vertical line
-                Drawing.line(surface, color, (i, 0), (i, height - 1))
+                surface.line(color, Position(i, 0), Position(i, p_height - 1))
 
         return surface
 

@@ -1,6 +1,7 @@
 import io
 import pathlib
 
+import PIL.Image
 import pytest
 
 from videre import Picture
@@ -38,4 +39,34 @@ def test_image(src, fake_win):
 @pytest.mark.parametrize("alt", [None, "Bad image!"])
 def test_bad_image(alt, fake_win):
     fake_win.controls = [Picture("", alt=alt)]
+    fake_win.check()
+
+
+def test_image_resized(fake_win):
+    fake_win.controls = [Picture(IMAGE_EXAMPLE, width=100, height=60)]
+    fake_win.check()
+
+
+def test_image_resized_keeps_ratio(fake_win):
+    # A single dimension scales the other one like an HTML <img>.
+    picture = Picture(IMAGE_EXAMPLE, width=100)
+    fake_win.controls = [picture]
+    fake_win.render()
+    assert picture.rendered_width == 100
+    with PIL.Image.open(IMAGE_EXAMPLE) as image:
+        expected = round(image.height * 100 / image.width)
+    assert picture.rendered_height == expected
+    fake_win.check()
+
+
+def test_image_contained_in_box(fake_win):
+    # keep_ratio + both dimensions: fit inside the box (object-fit: contain).
+    picture = Picture(IMAGE_EXAMPLE, width=100, height=100, keep_ratio=True)
+    fake_win.controls = [picture]
+    fake_win.render()
+    with PIL.Image.open(IMAGE_EXAMPLE) as image:
+        ratio = min(100 / image.width, 100 / image.height)
+        expected = (round(image.width * ratio), round(image.height * ratio))
+    assert (picture.rendered_width, picture.rendered_height) == expected
+    assert picture.rendered_width == 100 or picture.rendered_height == 100
     fake_win.check()

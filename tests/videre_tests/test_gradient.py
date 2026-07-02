@@ -2,6 +2,7 @@ import pytest
 
 from videre.colors import Color, Colors
 from videre.core.abstract_backend import AbstractRenderer
+from videre.core.drawing import Drawing
 from videre.core.rendering_result import Rendering
 from videre.gradient import Gradient
 
@@ -9,7 +10,7 @@ from videre.gradient import Gradient
 def _render_gradient(
     renderer: AbstractRenderer, gradient: Gradient, width: int, height: int
 ) -> Rendering:
-    return renderer.materialize(gradient.generate(width, height))
+    return renderer.materialize(gradient.generate(Drawing(), width, height))
 
 
 def test_gradient_single_color(fake_win):
@@ -128,10 +129,10 @@ def test_gradient_error_cases(fake_win):
 
     # Test with negative dimensions
     with pytest.raises(ValueError, match="width cannot be negative"):
-        gradient.generate(-1, 100)
+        gradient.generate(Drawing(), -1, 100)
 
     with pytest.raises(ValueError, match="height cannot be negative"):
-        gradient.generate(100, -1)
+        gradient.generate(Drawing(), 100, -1)
 
     # zero-dimensions are supported
     surface = _render_gradient(fake_win.renderer, gradient, 0, 100)

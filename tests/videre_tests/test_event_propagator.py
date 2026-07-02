@@ -18,7 +18,7 @@ class MockWidget(Widget):
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Drawer:
-        return Drawer()
+        return window.drawing.new_surface(0, 0)
 
     def _log_event(self, event_name, *args, **kwargs):
         self.events_received.append((event_name, args, kwargs))

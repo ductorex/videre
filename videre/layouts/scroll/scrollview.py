@@ -1,6 +1,7 @@
 import logging
 
-from videre.core.drawer import Drawer, Drawing, crop_drawer
+from videre.core.drawer import Drawer
+from videre.core.drawer_crop import crop_drawer
 from videre.core.rectangle import Rectangle
 from videre.layouts.abstractlayout import AbstractLayout, get_top_mouse_wheel_owner
 from videre.layouts.scroll._h_scroll_bar import _HScrollBar
@@ -252,27 +253,28 @@ class ScrollView(AbstractLayout):
                 # set content_y to bottom
                 self._content_y = end_pos
 
-        view = Drawer(width, height)
+        drawing = window.drawing
+        view = drawing.new_surface(width, height)
         # Paint only the visible slice: cropping drops the off-screen children so
         # `materialize` allocates a viewport-sized surface and composes a handful
         # of children instead of the whole (possibly huge) content. Pixel-identical
         # to blitting `content` at the offset; far cheaper for long lists.
         visible = Rectangle(-self._content_x, -self._content_y, width, height)
-        Drawing.blit(view, crop_drawer(content, visible), (0, 0))
+        drawing.blit(view, crop_drawer(content, visible), (0, 0))
 
         both = has_h_scroll and has_v_scroll
         if has_h_scroll:
             self._hscrollbar.configure(content_w, self._content_x, both, thickness)
             bg = self._hscrollbar.background.render(window, width, height)
-            Drawing.blit(view, bg, self._hscrollbar.background.pos)
+            drawing.blit(view, bg, self._hscrollbar.background.pos)
             h_scroll = self._hscrollbar.render(window, width, height)
-            Drawing.blit(view, h_scroll, (self._hscrollbar.x, self._hscrollbar.y))
+            drawing.blit(view, h_scroll, (self._hscrollbar.x, self._hscrollbar.y))
         if has_v_scroll:
             self._vscrollbar.configure(content_h, self._content_y, both, thickness)
             bg = self._vscrollbar.background.render(window, width, height)
-            Drawing.blit(view, bg, self._vscrollbar.background.pos)
+            drawing.blit(view, bg, self._vscrollbar.background.pos)
             v_scroll = self._vscrollbar.render(window, width, height)
-            Drawing.blit(view, v_scroll, (self._vscrollbar.x, self._vscrollbar.y))
+            drawing.blit(view, v_scroll, (self._vscrollbar.x, self._vscrollbar.y))
 
         logging.debug(
             f"{(width, height)} {(self._content_x, self._content_y)} "

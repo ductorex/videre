@@ -2,7 +2,7 @@ from typing import Sequence
 
 from videre.colors import Color, Colors
 from videre.core.constants import Alignment
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.rectangle import Rectangle
 from videre.layouts.abstractlayout import AbstractLayout
 from videre.layouts.column import Column
@@ -78,13 +78,14 @@ class Fancybox(AbstractLayout):
         dialog_surface = dialog.render(window, dialog_width, dialog_height)
         dialog_x = (width - dialog_width) // 2
         dialog_y = (height - dialog_height) // 2
-        surface = Drawer(width, height)
-        Drawing.fill(surface, Color(0, 0, 0, 64))
-        Drawing.fill(
+        drawing = window.drawing
+        surface = drawing.new_surface(width, height)
+        drawing.fill(surface, Color(0, 0, 0, 64))
+        drawing.fill(
             surface,
             Colors.white,
             Rectangle(dialog_x, dialog_y, dialog_width, dialog_height),
         )
-        Drawing.blit(surface, dialog_surface, (dialog_x, dialog_y))
+        drawing.blit(surface, dialog_surface, (dialog_x, dialog_y))
         self._set_child_position(dialog, dialog_x, dialog_y)
         return surface

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from videre.core.constants import Alignment
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 
@@ -121,7 +121,7 @@ class Column(AbstractControlsLayout):
             height = total_height + total_space
         else:
             height = min(height, total_height + space * max(0, nb_rendered - 1))
-        column = Drawer(width, height)
+        column = window.drawing.new_surface(width, height)
         y = 0
         for i, render in enumerate(rendered):
             if render:
@@ -129,7 +129,7 @@ class Column(AbstractControlsLayout):
                 size_i = sizes[i]
                 assert size_i is not None
                 x = self._align_dim(width, surface.get_width(), alignment)
-                Drawing.blit(column, surface, (x, y))
+                window.drawing.blit(column, surface, (x, y))
                 self._set_child_position(ctrl, x, y)
                 y += size_i + space
             else:

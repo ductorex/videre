@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Callable
 
 from videre.core.constants import WINDOW_FPS
+from videre.core.dpi import DevicePx, LogicalPx, to_device
 from videre.core.drawer import Drawer
 from videre.core.events import VidereEvent
 from videre.core.rendering_result import Rendering
@@ -17,6 +18,11 @@ class AbstractRenderer(ABC):
     `render_drawer` (paint a drawer onto a surface) and `materialize` (turn a
     drawer into its own surface). Instantiable on its own (no windowing), so
     the rasterization can be benchmarked in isolation.
+
+    DPI is not the renderer's concern: Drawer commands are already in
+    device pixels (the scale is applied at record time — see
+    videre/core/drawing.py), so a renderer allocates each drawer's
+    `device_width` × `device_height` and replays commands 1:1.
     """
 
     __slots__ = ()
@@ -68,6 +74,10 @@ class AbstractWindowing(ABC):
         "_task_manager",
         "_cursor_is_default",
         "_running",
+        "_dpi_aware",
+        "_scale_factor",
+        "_device_width",
+        "_device_height",
     )
 
     def __init__(
@@ -80,6 +90,7 @@ class AbstractWindowing(ABC):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> None:
         self._width = width
         self._height = height
@@ -91,6 +102,16 @@ class AbstractWindowing(ABC):
         self._render_manager = render_manager
         self._task_manager = task_manager
         self._running: bool = True
+        # DPI opt-in: when True, the windowing declares OS DPI awareness,
+        # opens the window at device size, reports the scale through
+        # `scale_factor` and converts pointer coordinates back to logical.
+        # Everything else stays logical (the scale is applied at record
+        # time — see videre/core/drawing.py).
+        self._dpi_aware = dpi_aware
+        self._scale_factor: float = 1.0
+        # Real OS buffer size (`_set_device_size`); -1 = window not open yet.
+        self._device_width: int = -1
+        self._device_height: int = -1
 
         self._cursor_is_default = True
 
@@ -107,16 +128,50 @@ class AbstractWindowing(ABC):
         return self._nb_frames
 
     @property
-    def width(self) -> int:
+    def width(self) -> LogicalPx:
         return self._width
 
     @property
-    def height(self) -> int:
+    def height(self) -> LogicalPx:
         return self._height
 
     @property
     def title(self) -> str:
         return self._title
+
+    @property
+    def scale_factor(self) -> float:
+        """Device-pixel ratio of the window (1.0 = 100%, 1.5 = 150%).
+
+        Whatever the platform mechanism, a windowing reduces it to this one
+        multiplier. Stays 1.0 unless the windowing was created with
+        `dpi_aware=True` *and* the platform reports a scale."""
+        return self._scale_factor
+
+    @property
+    def device_width(self) -> DevicePx:
+        """Width of the OS screen buffer, in device pixels.
+
+        Stored, not derived: after an OS resize the buffer has whatever
+        size the OS chose, which can differ by one pixel from
+        ceil(logical width × scale). E.g. at 150%: buffer 484 → logical
+        floor(484/1.5) = 322 → re-derived ceil(322 × 1.5) = 483 ≠ 484.
+        Before the window opens, returns the expected size instead."""
+        if self._device_width < 0:
+            return to_device(self._width, self._scale_factor)
+        return self._device_width
+
+    @property
+    def device_height(self) -> DevicePx:
+        """Height of the OS screen buffer, in device pixels (see
+        `device_width`)."""
+        if self._device_height < 0:
+            return to_device(self._height, self._scale_factor)
+        return self._device_height
+
+    def _set_device_size(self, width: DevicePx, height: DevicePx) -> None:
+        """Record the real buffer size, on every screen (re)allocation."""
+        self._device_width, self._device_height = width, height
 
     @abstractmethod
     def _set_text_cursor(self) -> None: ...
@@ -191,7 +246,10 @@ class AbstractBackend(ABC):
     __slots__ = ()
 
     @abstractmethod
-    def create_renderer(self) -> AbstractRenderer: ...
+    def create_renderer(self) -> AbstractRenderer:
+        """Create the rendering half. Scale-free: Drawer commands reach
+        the renderer already in device pixels."""
+        ...
 
     @abstractmethod
     def create_windowing(
@@ -205,4 +263,5 @@ class AbstractBackend(ABC):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> AbstractWindowing: ...

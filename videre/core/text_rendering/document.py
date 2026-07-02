@@ -3,11 +3,21 @@
 Holds the partition + shaped lines + edit units, computed once. `render(width)`
 replays only the width-dependent half (collapse + wrap + reorder + paint), so a
 resize never re-shapes. See docs/text-document-and-contract.md.
+
+Two units, like `Drawer`: everything inside is device pixels (`size`
+arrives already scaled); the widget-facing boundary is logical — wrap
+widths convert on the way in (floor, so wrapped content fits back in the
+logical box), results carry their logical view on the way out. At scale
+1.0 all of this is the identity.
 """
+
+from dataclasses import replace
 
 from videre.colors import Color
 from videre.core.constants import TextAlign, TextSpacePolicy
+from videre.core.dpi import DevicePx, LogicalPx, to_device_floor
 from videre.core.drawer import Drawer
+from videre.core.drawing import logical_view
 from videre.core.rendering_result import AbstractTextDocument
 from videre.core.text_editing import EditUnit
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
@@ -33,6 +43,7 @@ class TextDocument(AbstractTextDocument):
         "_height_delta",
         "_compact",
         "_subpixel",
+        "_scale",
         "_assembled",
         "_assembled_key",
     )
@@ -49,9 +60,10 @@ class TextDocument(AbstractTextDocument):
         height_delta: int = 2,
         compact: bool = True,
         subpixel: bool = False,
+        scale: float = 1.0,
     ) -> None:
         # Text-only work, done once: partition (+ edit-unit segmentation) and
-        # HarfBuzz shaping per logical line. italic is baked into the glyphs.
+        # HarfBuzz shaping per source line. italic is baked into the glyphs.
         partition = partition_text(text)
         self._text = text
         self._edit_units = partition.edit_units
@@ -65,6 +77,7 @@ class TextDocument(AbstractTextDocument):
         self._height_delta = height_delta
         self._compact = compact
         self._subpixel = subpixel
+        self._scale = float(scale)
         # Shared width-dependent layout cache (single entry), filled by `_lay_out`
         # and read by both `layout` and `render`. The document is immutable per
         # (text, size, …), so it never needs explicit invalidation.
@@ -101,7 +114,7 @@ class TextDocument(AbstractTextDocument):
                 wrap_words=wrap_words,
                 space_policy=space_policy,
             )
-            self._assembled = assemble_glyph_lines(
+            assembled = assemble_glyph_lines(
                 lines,
                 size=self._size,
                 width=width,
@@ -110,8 +123,22 @@ class TextDocument(AbstractTextDocument):
                 compact=self._compact,
                 edit_units=self._edit_units,
             )
+            if self._scale != 1.0:
+                # The pipeline is scale-free; the document owns the scale
+                # and tags the result (`RenderedText.scale` drives its
+                # logical conversions).
+                assembled = replace(
+                    assembled, rendered=replace(assembled.rendered, scale=self._scale)
+                )
+            self._assembled = assembled
             self._assembled_key = key
         return self._assembled
+
+    def _device_width(self, width: LogicalPx | None) -> DevicePx | None:
+        """An incoming logical wrap width in device pixels (floor)."""
+        if width is None or self._scale == 1.0:
+            return width
+        return to_device_floor(width, self._scale)
 
     def layout(
         self,
@@ -123,7 +150,9 @@ class TextDocument(AbstractTextDocument):
     ) -> RenderedText:
         """Width-dependent layout WITHOUT painting — just the caret / hit-test
         `RenderedText`, from the same cache `render` paints from. For navigation /
-        measurement that must not force a repaint (see the contract doc)."""
+        measurement that must not force a repaint (see the contract doc).
+        `width` is logical, like all widget-facing measures."""
+        width = self._device_width(width)
         return self._lay_out(width, wrap_words, space_policy, align).rendered
 
     def render(
@@ -137,6 +166,7 @@ class TextDocument(AbstractTextDocument):
         underline: bool = False,
         selection: tuple[int, int] | None = None,
     ) -> tuple[RenderedText, Drawer]:
+        width = self._device_width(width)
         assembled = self._lay_out(width, wrap_words, space_policy, align)
         out = paint_assembled(
             assembled,
@@ -148,4 +178,6 @@ class TextDocument(AbstractTextDocument):
             subpixel=self._subpixel,
             selection=selection,
         )
+        if self._scale != 1.0:
+            logical_view(out, self._scale)
         return assembled.rendered, out

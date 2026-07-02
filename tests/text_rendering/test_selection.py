@@ -16,6 +16,7 @@ from tests.common import pixels_alpha, pixels_blue, pixels_green, pixels_red, ra
 from videre.colors import Color
 from videre.core.rendering_result import Rendering
 from videre.core.text_rendering import TextRendering
+from videre.core.text_rendering.rendering.layout import RenderedText
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -201,6 +202,7 @@ def test_selection_across_wrapped_lines(fake_win) -> None:
     # gap between the two lines' bands — the bands are contiguous when
     # `ascender + descender == line_spacing` (the Noto Sans case), and
     # demanding a gap would entangle this test with font metrics.
+    assert isinstance(rendered, RenderedText)  # scale 1.0: the concrete result
     line_spacing = rendered.font_metrics.line_spacing
     assert nz_rows.size > line_spacing, (
         f"selection span too short ({nz_rows.size} rows) to cover two "
@@ -226,6 +228,7 @@ def test_selection_across_paragraph_break(fake_win) -> None:
     nz_rows = np.flatnonzero(rows)
     # Same intent as test_selection_across_wrapped_lines: span exceeds
     # one line's worth of rows ⇒ two lines are highlighted.
+    assert isinstance(rendered, RenderedText)  # scale 1.0: the concrete result
     line_spacing = rendered.font_metrics.line_spacing
     assert nz_rows.size > line_spacing, (
         f"selection span too short ({nz_rows.size} rows) to cover two "

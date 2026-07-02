@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from videre.colors import Color, Colors
 from videre.core.constants import TextAlign, TextSpacePolicy
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer, Position
 from videre.core.rectangle import Rectangle
 from videre.core.text_editing import EditUnit, segment_edit_units
 from videre.core.text_rendering.glyph_partition import (
@@ -270,9 +270,11 @@ def paint_assembled(
     out = Drawer(assembled.surface_w, assembled.surface_h)
     sprite_cache: dict[int, Drawer] = {}
     # Selection background first, so glyphs sit on top of it.
+    # Raw records on the Drawer: the whole text pipeline works in device
+    # pixels (the font size is scaled upstream), never through a Drawing.
     if selection is not None and selection[0] < selection[1]:
         for rect in assembled.rendered._selection_rects(*selection):
-            Drawing.box(out, rect, _SELECTION_RGBA)
+            out.box(rect, _SELECTION_RGBA)
     for glyphs, x_offset, baseline, track in assembled.paint:
         _paint_line(
             out,
@@ -478,8 +480,8 @@ def _paint_line(
             if not sprite.empty():
                 blit_x = int_x + sprite.bitmap_left
                 blit_y = baseline + int(round(-g.y_offset)) - sprite.bitmap_top
-                Drawing.blit(
-                    out, _sprite_surface(sprite, sprite_cache), (blit_x, blit_y)
+                out.blit(
+                    _sprite_surface(sprite, sprite_cache), Position(blit_x, blit_y)
                 )
 
     if underline:
@@ -490,8 +492,7 @@ def _paint_line(
             ul_thickness += int(round(2 * SYNTHETIC_BOLD_STRENGTH * size))
         # `box` (filled), not `rectangle` (1px outline): a thickness >= 3px
         # underline drawn as an outline renders hollow ("rectangle" look).
-        Drawing.box(
-            out,
+        out.box(
             Rectangle(
                 int(line_start),
                 baseline + ul_offset,
@@ -573,10 +574,10 @@ def _align_offset(
 def _sprite_surface(glyph: Glyph, cache: dict[int, Drawer] | None = None) -> Drawer:
     assert glyph.rgba_bytes is not None
     if cache is None:
-        return Drawing.image_from_bytes(glyph.rgba_bytes, (glyph.width, glyph.height))
+        return Drawer.image_from_bytes(glyph.rgba_bytes, glyph.width, glyph.height)
     key = id(glyph)
     drawer = cache.get(key)
     if drawer is None:
-        drawer = Drawing.image_from_bytes(glyph.rgba_bytes, (glyph.width, glyph.height))
+        drawer = Drawer.image_from_bytes(glyph.rgba_bytes, glyph.width, glyph.height)
         cache[key] = drawer
     return drawer

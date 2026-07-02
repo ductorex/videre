@@ -25,6 +25,14 @@ from typing import cast
 from cursword import get_next_word_end_position, get_previous_word_start_position
 
 from videre.core.caret_position import CaretPosition
+from videre.core.dpi import (
+    DevicePx,
+    LogicalPx,
+    to_device,
+    to_logical,
+    to_logical_ceil,
+    to_logical_floor,
+)
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, TextRenderingResult
 from videre.core.text_editing import EditUnit
@@ -85,18 +93,28 @@ class _CursorState(CursorState):
 
 @dataclass(slots=True, frozen=True)
 class RenderedText(TextRenderingResult):
+    """Two units, like `Drawer`: stored geometry (`width`, `height`, line
+    layouts) is in device pixels; the public contract (`get_width`,
+    `get_height`, `visual_state_at_pixel` inputs, the `CursorState.pixel`
+    carets) is logical, converted through `scale`. Identity at 1.0."""
+
     font_metrics: FontMetrics
     line_layouts: tuple[_LineLayout, ...]
-    width: int = 0
-    height: int = 0
+    width: DevicePx = 0
+    height: DevicePx = 0
+    scale: float = 1.0
 
-    # -- size contract -------------------------------------------------------
+    # -- size contract (logical) ----------------------------------------------
 
-    def get_width(self) -> int:
-        return self.width
+    def get_width(self) -> LogicalPx:
+        if self.scale == 1.0:
+            return self.width
+        return to_logical_ceil(self.width, self.scale)
 
-    def get_height(self) -> int:
-        return self.height
+    def get_height(self) -> LogicalPx:
+        if self.scale == 1.0:
+            return self.height
+        return to_logical_ceil(self.height, self.scale)
 
     # -- state builders (contract) ------------------------------------------
 
@@ -118,7 +136,12 @@ class RenderedText(TextRenderingResult):
         last = len(self.line_layouts) - 1
         return self._make_state(GlyphCursor(last, len(self.line_layouts[-1].items)))
 
-    def visual_state_at_pixel(self, x: int, y: int) -> CursorState:
+    def visual_state_at_pixel(self, x: LogicalPx, y: LogicalPx) -> CursorState:
+        """`x`/`y` are logical pixels (like all widget-facing coordinates);
+        the hit-test itself runs on the device line geometry."""
+        if self.scale != 1.0:
+            x = to_device(x, self.scale)
+            y = to_device(y, self.scale)
         return self._make_state(self._pixel_to_glyph(x, y))
 
     # -- navigation (contract) ----------------------------------------------
@@ -214,11 +237,21 @@ class RenderedText(TextRenderingResult):
             sum(len(ln.items) for ln in self.line_layouts[: glyph.line_index])
             + glyph.glyph_index
         )
+        pixel = self._glyph_caret_pixel(glyph)  # device, like the line geometry
+        if self.scale != 1.0:
+            # Widgets paint the caret, so store it logical: x nearest,
+            # y_top floor / y_bottom ceil (the logical segment covers the
+            # device one).
+            pixel = CaretPosition(
+                x=to_logical(pixel.x, self.scale),
+                y_top=to_logical_floor(pixel.y_top, self.scale),
+                y_bottom=to_logical_ceil(pixel.y_bottom, self.scale),
+            )
         return _CursorState(
             glyph=glyph,
             pos=self._glyph_to_source(glyph),
             visual_pos=visual_pos,
-            pixel=self._glyph_caret_pixel(glyph),
+            pixel=pixel,
         )
 
     def _glyph_caret_pixel(self, cursor: GlyphCursor) -> CaretPosition:
@@ -397,7 +430,9 @@ class RawLine:
 def build_rendered_text(
     raw_lines: list[RawLine], font_metrics: FontMetrics, width: int, height: int
 ) -> RenderedText:
-    """Assemble a `RenderedText` from explicit source ranges."""
+    """Assemble a `RenderedText` from explicit source ranges. Scale-free:
+    geometry stays in the pipeline's device pixels; `TextDocument` tags the
+    result with its scale."""
     line_layouts: list[_LineLayout] = []
     for rl in raw_lines:
         items = tuple(

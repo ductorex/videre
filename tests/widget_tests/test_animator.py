@@ -4,7 +4,7 @@ from typing import cast
 
 import videre
 from videre.colors import Color
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.framing import FPR, FPS
 from videre.widgets.abstractanimation import AbstractAnimation
 
@@ -215,8 +215,8 @@ class TestAbstractAnimation:
             ) -> Drawer:
                 # Simple implementation for testing
 
-                surface = Drawer(100, 50)
-                Drawing.fill(surface, Color(255, 255, 255))
+                surface = window.drawing.new_surface(100, 50)
+                window.drawing.fill(surface, Color(255, 255, 255))
                 return surface
 
         animation = TestAnimation(framing=FPS(30))  # 30 FPS
@@ -247,7 +247,7 @@ class TestAbstractAnimation:
                 pass
 
             def draw(self, window, width=None, height=None) -> Drawer:
-                return Drawer(50, 50)
+                return window.drawing.new_surface(50, 50)
 
         # No framing specified should use default FPS
         animation = TestAnimation()
@@ -268,7 +268,7 @@ class TestAbstractAnimation:
                 self.frame_calls += 1
 
             def draw(self, window, width=None, height=None) -> Drawer:
-                return Drawer(50, 50)
+                return window.drawing.new_surface(50, 50)
 
         # Use FPR framing - every 2 window frames
         animation = TestAnimation(framing=FPR(2))

@@ -3,7 +3,7 @@ import pytest
 
 from videre.colors import Color, ColorDef
 from videre.core.abstract_backend import AbstractRenderer
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.events import KeyboardEntry
 from videre.core.rendering_result import Rendering
 from videre.testing.utils import HD, SD
@@ -44,8 +44,8 @@ class TrackerWidget(Widget):
         self.events = []
 
     def draw(self, window, width=None, height=None) -> Drawer:
-        surface = Drawer(width or 50, height or 50)
-        Drawing.fill(surface, Color(200, 200, 200))
+        surface = window.drawing.new_surface(width or 50, height or 50)
+        window.drawing.fill(surface, Color(200, 200, 200))
         return surface
 
     def handle_mouse_wheel(self, x, y, shift):

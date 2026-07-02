@@ -39,13 +39,13 @@ mapping. "(n)" = the gap's n spaces kept verbatim.
   > 0     word        preserve      kept[b]   kept(n)   kept[c]
 
 `width` absent => no wrap => `wrap_words` is irrelevant (the char / word rows
-coincide). start / end = edges of the logical line when `width` is absent, of
+coincide). start / end = edges of the source line when `width` is absent, of
 the wrapped sub-line when `width > 0`.
   [a] char + preserve: a gap straddling the break is split character by
       character (part ends one line, part starts the next); total space count
       preserved. e.g. "a      b" wraps to "a   " / "   b".
   [b] word + preserve, start: a gap appears at the start only when it is the
-      logical line's leading whitespace; an inter-word break gap never moves
+      source line's leading whitespace; an inter-word break gap never moves
       to the head of the next line.
   [c] word + preserve, end: the break gap is KEPT ("hangs") at the line end
       instead of dropped; a gap wider than `width` ends the line whole

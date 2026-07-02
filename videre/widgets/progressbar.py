@@ -1,5 +1,5 @@
 from videre.colors import Colors
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.rectangle import Rectangle
 from videre.widgets.widget import Widget
 
@@ -27,8 +27,8 @@ class ProgressBar(Widget):
         bg_h = window.font_height
         inner_w = int((bg_w - 2) * self.value)
         inner_h = bg_h - 2
-        bg = Drawer(bg_w, bg_h)
-        Drawing.rectangle(bg, Rectangle(0, 0, bg_w, bg_h), Colors.black)
+        bg = window.drawing.new_surface(bg_w, bg_h)
+        window.drawing.rectangle(bg, Rectangle(0, 0, bg_w, bg_h), Colors.black)
         if inner_w:
-            Drawing.box(bg, Rectangle(1, 1, inner_w, inner_h), Colors.black)
+            window.drawing.box(bg, Rectangle(1, 1, inner_w, inner_h), Colors.black)
         return bg

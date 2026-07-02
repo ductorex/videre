@@ -4,16 +4,24 @@ Implements `AbstractTextRendering` (`render_char` + `render_text`) by holding
 the per-style config plus a shared `Shaper` / `GlyphRasterizer`, and delegating
 to `render`. Holds no backend reference — `render_char`/`render_text` emit a
 `Drawer` command IR, rasterized later by the backend.
+
+The display scale enters here — the text counterpart of `Drawing`: the
+font size is scaled once at the source, so the whole pipeline below works
+in device pixels and glyphs rasterize pixel-native, never resampled. There
+is no adapter layer: the result types carry both units themselves
+(`TextDocument` converts wrap widths in, `RenderedText` converts its
+widget-facing metrics out). At scale 1.0 everything is the identity.
 """
 
 from videre.colors import Color
 from videre.core.constants import TextAlign, TextSpacePolicy
+from videre.core.dpi import to_device
 from videre.core.drawer import Drawer
-from videre.core.rendering_result import AbstractTextRendering
+from videre.core.drawing import logical_view
+from videre.core.rendering_result import AbstractTextRendering, TextRenderingResult
 from videre.core.text_rendering.document import TextDocument
 from videre.core.text_rendering.rasterizer import GlyphRasterizer
 from videre.core.text_rendering.render import render_char
-from videre.core.text_rendering.rendering.layout import RenderedText
 from videre.core.text_rendering.shaper import Shaper
 
 
@@ -25,6 +33,7 @@ class TextRendering(AbstractTextRendering):
         "_height_delta",
         "_compact",
         "_subpixel",
+        "_scale",
         "_shaper",
         "_rasterizer",
     )
@@ -37,14 +46,22 @@ class TextRendering(AbstractTextRendering):
         height_delta: int = 2,
         compact: bool = True,
         subpixel: bool = False,
+        scale: float = 1.0,
         *,
         shaper: Shaper | None = None,
         rasterizer: GlyphRasterizer | None = None,
     ) -> None:
-        self._size = size
+        # `size` and `height_delta` are logical; the scale is applied here,
+        # once, so everything downstream is device (see module docstring).
+        self._scale = float(scale)
+        if self._scale == 1.0:
+            self._size = size
+            self._height_delta = height_delta
+        else:
+            self._size = to_device(size, self._scale)
+            self._height_delta = to_device(height_delta, self._scale)
         self._bold = bold
         self._italic = italic
-        self._height_delta = height_delta
         self._compact = compact
         # Sub-pixel glyph positioning. `render_text` threads it down to `_paint_line`.
         self._subpixel = bool(subpixel)
@@ -52,7 +69,7 @@ class TextRendering(AbstractTextRendering):
         self._rasterizer = rasterizer or GlyphRasterizer()
 
     def render_char(self, c: str, color: Color | None = None) -> Drawer:
-        return render_char(
+        drawer = render_char(
             c,
             rasterizer=self._rasterizer,
             shaper=self._shaper,
@@ -61,6 +78,9 @@ class TextRendering(AbstractTextRendering):
             bold=self._bold,
             italic=self._italic,
         )
+        if self._scale != 1.0:
+            logical_view(drawer, self._scale)
+        return drawer
 
     def render_text(
         self,
@@ -73,7 +93,7 @@ class TextRendering(AbstractTextRendering):
         space_policy: TextSpacePolicy = TextSpacePolicy.AUTO,
         underline: bool = False,
         selection: tuple[int, int] | None = None,
-    ) -> tuple[RenderedText, Drawer]:
+    ) -> tuple[TextRenderingResult, Drawer]:
         # The document is the single rendering route; this is a one-shot wrapper
         # over it (re-shapes per call, no caching at this level). The module-level
         # `render.render_text` stays as the document's independent reference
@@ -102,4 +122,5 @@ class TextRendering(AbstractTextRendering):
             height_delta=self._height_delta,
             compact=self._compact,
             subpixel=self._subpixel,
+            scale=self._scale,
         )

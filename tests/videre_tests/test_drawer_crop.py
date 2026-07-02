@@ -9,7 +9,8 @@ identity / recursion / generative wrap) and prove pixel equivalence with the old
 
 from tests.common import rasterize
 from videre.colors import Colors
-from videre.core.drawer import BlitArgs, Drawer, FillArgs, Position, crop_drawer
+from videre.core.drawer import BlitArgs, Drawer, FillArgs, Position
+from videre.core.drawer_crop import crop_drawer
 from videre.core.rectangle import Rectangle
 
 

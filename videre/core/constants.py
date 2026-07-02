@@ -13,7 +13,7 @@ class TextSpacePolicy(Enum):
     """How runs of whitespace (gaps) are kept or collapsed when laying out text.
 
     Mirrors CSS `white-space-collapse` (combined with the wrap mode and
-    `word-break`). videre always keeps newlines as hard breaks (logical lines
+    `word-break`). videre always keeps newlines as hard breaks (source lines
     are split upstream in the partitioner), so `COLLAPSE` matches CSS
     `pre-line` rather than `normal` / `nowrap` (which also collapse newlines).
 

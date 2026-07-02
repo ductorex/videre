@@ -1,4 +1,5 @@
 from videre.colors import Color, ColorDef, parse_color, stringify_color
+from videre.core.dpi import to_device
 from videre.core.sides.abstract_sides import AbstractSides
 from videre.core.sides.margin import Margin
 
@@ -68,12 +69,30 @@ class Border(AbstractSides[BorderType, BorderSide]):
         side = BorderSide(width, color)
         return cls(side, side, side, side)
 
+    def __bool__(self) -> bool:
+        """True if any side has a visible (non-zero) width."""
+        return bool(
+            self.top.width or self.right.width or self.bottom.width or self.left.width
+        )
+
     def margin(self):
         return Margin(
             top=self.top.width,
             right=self.right.width,
             bottom=self.bottom.width,
             left=self.left.width,
+        )
+
+    def scaled(self, factor: float) -> "Border":
+        """This border with each side width in device pixels (half-up; a 0
+        side stays 0)."""
+        if factor == 1.0:
+            return self
+        return Border(
+            top=BorderSide(to_device(self.top.width, factor), self.top.color),
+            right=BorderSide(to_device(self.right.width, factor), self.right.color),
+            bottom=BorderSide(to_device(self.bottom.width, factor), self.bottom.color),
+            left=BorderSide(to_device(self.left.width, factor), self.left.color),
         )
 
     def get_top_points(self, width: int, height: int) -> list[tuple[int, int]]:

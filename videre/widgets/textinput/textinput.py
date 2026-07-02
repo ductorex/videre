@@ -6,7 +6,7 @@ from videre.colors import Colors
 from videre.core.caret_position import CaretPosition
 from videre.core.clipboard import Clipboard
 from videre.core.constants import TextWrap
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.events import KeyboardEntry, MouseEvent
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import CursorState, TextRenderingResult
@@ -400,7 +400,7 @@ class TextInput(AbstractLayout):
         self, window, width: int | None = None, height: int | None = None
     ) -> Drawer:
         text_surface = self._control.render(window, width, height)
-        surface = Drawing.copy(text_surface)
+        surface = window.drawing.copy(text_surface)
 
         # Draw cursor if focused. Read the pixel caret from the
         # navigation state so it's unambiguous at LTR/RTL boundaries
@@ -410,6 +410,6 @@ class TextInput(AbstractLayout):
         if self._has_focus():
             caret = self._ensure_state(window).pixel
             cursor_rect = self._get_cursor_rect(caret)
-            Drawing.box(surface, cursor_rect, Colors.black)
+            window.drawing.box(surface, cursor_rect, Colors.black)
 
         return surface

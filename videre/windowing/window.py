@@ -9,7 +9,9 @@ from videre.core.abstract_backend import (
     AbstractWindowing,
 )
 from videre.core.constants import WINDOW_FPS, Alignment
+from videre.core.dpi import to_device, to_logical_ceil
 from videre.core.drawer import Drawer
+from videre.core.drawing import Drawing
 from videre.core.pygame_backend.backend import PygameBackend
 from videre.core.rendering_result import AbstractTextRendering, Rendering
 from videre.core.tasks import (
@@ -53,6 +55,7 @@ class Window:
         "_task_manager",
         "_renderer",
         "_windowing",
+        "_drawing",
         "_font_size_pts",
         "_font_height",
         "_last_screen",
@@ -71,12 +74,16 @@ class Window:
         handle_text_sub_pixels: bool | None = None,
         fps: int = WINDOW_FPS,
         backend: AbstractBackend | None = None,
+        dpi_aware: bool = False,
     ):
         self._layout = WindowLayout(parse_color(background or Colors.white))
         self._event_manager = WindowEventManager(self._layout)
         self._task_manager = TaskManager(self._manage_task)
         backend = backend or PygameBackend()
-        self._renderer = backend.create_renderer()
+        # dpi_aware (opt-in): the windowing opens the OS window at device
+        # size and reports `scale_factor`. Everything else stays logical —
+        # the scale is applied at record time by `window.drawing` (created
+        # below) and by the text funnel (see videre/core/drawing.py).
         self._windowing = backend.create_windowing(
             width=width,
             height=height,
@@ -86,7 +93,10 @@ class Window:
             render_manager=self._refresh,
             task_manager=self._task_manager,
             fps=fps,
+            dpi_aware=dpi_aware,
         )
+        self._drawing = Drawing.create(self._windowing.scale_factor)
+        self._renderer = backend.create_renderer()
         self._font_size_pts = font_size
         self._font_height: int | None = None
 
@@ -126,6 +136,12 @@ class Window:
         return self._windowing
 
     @property
+    def drawing(self) -> Drawing:
+        """The drawing API widget `draw()` code records through (see
+        videre/core/drawing.py)."""
+        return self._drawing
+
+    @property
     def background(self) -> Color:
         return self._layout.background
 
@@ -138,14 +154,34 @@ class Window:
         return self._windowing.nb_frames
 
     @property
+    def scale_factor(self) -> float:
+        """Device-pixel ratio reported by the windowing (1.0 unless the window
+        was created with `dpi_aware=True` on a scaled display)."""
+        return self._windowing.scale_factor
+
+    @property
     def symbol_size(self) -> int:
+        # Logical, like every widget-facing metric: it is fed back into
+        # `text_rendering(size=...)`, which applies the display scale itself.
         return int(round(self._font_size_pts * 1.625))
 
     @property
     def font_height(self) -> int:
+        # Logical, for reserving layout space. Measured on the device font
+        # size then ceil'd back, because font metrics are not linear in
+        # size: sized_height is 19 at 14pt but 29 at 21pt — i.e. 20 logical
+        # at 150%, one more than a logical-size measure would reserve.
         if self._font_height is None:
             _, path = FontProvider().get_font_info(" ")
-            self._font_height = FontUtils(path, self._font_size_pts).sized_height
+            scale = self.scale_factor
+            if scale == 1.0:
+                self._font_height = FontUtils(path, self._font_size_pts).sized_height
+            else:
+                device = FontUtils(
+                    path, to_device(self._font_size_pts, scale)
+                ).sized_height
+                assert device is not None  # size_points was given
+                self._font_height = to_logical_ceil(device, scale)
         assert self._font_height is not None
         return self._font_height
 
@@ -177,6 +213,8 @@ class Window:
         height_delta: int = 2,
         compact: bool = True,
     ) -> AbstractTextRendering:
+        # `TextRendering` applies the display scale itself — the text
+        # counterpart of `window.drawing` (see its module docstring).
         return TextRendering(
             size=size or self._font_size_pts,
             bold=strong,
@@ -184,6 +222,7 @@ class Window:
             height_delta=height_delta,
             compact=compact,
             subpixel=self._subpixel,
+            scale=self.scale_factor,
             shaper=self._text_shaper,
             rasterizer=self._text_glyph_rasterizer,
         )
@@ -199,7 +238,6 @@ class Window:
         return self._exit_code
 
     def _refresh(self, screen: Rendering) -> None:
-        self._layout.screen = screen
         screen_drawer = self._layout.render(self)
         # The screen is a persistent buffer: `flip()` re-presents it unchanged,
         # so when neither the buffer nor the drawer changed (the whole widget

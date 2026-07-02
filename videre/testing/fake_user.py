@@ -1,6 +1,7 @@
 from typing import Sequence
 
 from videre.core.abstract_backend import AbstractWindowing
+from videre.core.dpi import DevicePx, LogicalPx, to_device
 from videre.core.events import (
     ExitEvent,
     Key,
@@ -25,6 +26,12 @@ class FakeUser:
     def __init__(self, windowing: AbstractWindowing):
         self._windowing = windowing
 
+    def _to_device(self, value: LogicalPx) -> DevicePx:
+        # FakeUser speaks logical (widget positions); posted events mimic
+        # the OS, which delivers device pixels. Identity at scale 1.0.
+        scale = self._windowing.scale_factor
+        return value if scale == 1.0 else to_device(value, scale)
+
     def click(self, button: Widget):
         x = button.global_x + button.rendered_width // 2
         y = button.global_y + button.rendered_height // 2
@@ -32,6 +39,7 @@ class FakeUser:
 
     def click_at(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Click at specific coordinates"""
+        x, y = self._to_device(x), self._to_device(y)
         self._windowing.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
         self._windowing.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
@@ -40,8 +48,8 @@ class FakeUser:
     ):
         self._windowing.post_event(
             MouseMotionEvent(
-                x=x,
-                y=y,
+                x=self._to_device(x),
+                y=self._to_device(y),
                 buttons=pygame_to_mouse_buttons(
                     (button_left, button_middle, button_right)
                 ),
@@ -56,10 +64,12 @@ class FakeUser:
 
     def mouse_down(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Simulate mouse down at specific coordinates"""
+        x, y = self._to_device(x), self._to_device(y)
         self._windowing.post_event(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
 
     def mouse_up(self, x: int, y: int, button: MouseButton = MouseButton.BUTTON_LEFT):
         """Simulate mouse up at specific coordinates"""
+        x, y = self._to_device(x), self._to_device(y)
         self._windowing.post_event(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
 
     def mouse_wheel(
@@ -67,7 +77,11 @@ class FakeUser:
     ):
         self._windowing.post_event(
             MouseWheelEvent(
-                wheel_dx=x, wheel_dy=y, mouse_x=mouse_x, mouse_y=mouse_y, shift=shift
+                wheel_dx=x,
+                wheel_dy=y,
+                mouse_x=self._to_device(mouse_x),
+                mouse_y=self._to_device(mouse_y),
+                shift=shift,
             )
         )
 

@@ -1,5 +1,5 @@
 from videre.colors import Colors
-from videre.core.drawer import Drawer, Drawing
+from videre.core.drawer import Drawer
 from videre.core.framing import FPS, AbstractFraming
 from videre.core.rectangle import Rectangle
 from videre.widgets.abstractanimation import AbstractAnimation
@@ -33,8 +33,10 @@ class Progressing(AbstractAnimation):
         inner_max_x = bg_w - 2 - inner_w
         inner_x = int(self._get_wprop("_cursor") * inner_max_x / self._max_cursor)
 
-        bg = Drawer(bg_w, bg_h)
-        Drawing.rectangle(bg, Rectangle(0, 0, bg_w, bg_h), Colors.black)
+        bg = window.drawing.new_surface(bg_w, bg_h)
+        window.drawing.rectangle(bg, Rectangle(0, 0, bg_w, bg_h), Colors.black)
         if inner_w:
-            Drawing.box(bg, Rectangle(inner_x + 1, 1, inner_w, inner_h), Colors.black)
+            window.drawing.box(
+                bg, Rectangle(inner_x + 1, 1, inner_w, inner_h), Colors.black
+            )
         return bg
