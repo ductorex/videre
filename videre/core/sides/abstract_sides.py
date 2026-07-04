@@ -42,7 +42,7 @@ class AbstractSides[T, S]:
         return type(self) is type(other) and (
             self.top == other.top
             and self.right == other.right
-            and self.bottom == self.bottom
+            and self.bottom == other.bottom
             and self.left == other.left
         )
 
