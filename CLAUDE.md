@@ -94,7 +94,7 @@ All UI elements inherit from `Widget` (widget.py):
 
 - **Widget `draw()` code never constructs a bare `Drawer(...)`** — always `window.drawing.new_surface(...)`. A bare drawer is correct at 1.0 and silently wrong on a scaled display (only the device-native text pipeline records raw).
 - Never pre-resize a bitmap to its display size — `Picture` always displays through `drawing.smoothscale` (a no-op when sizes match).
-- `FakeUser` posts device pixels, like the OS. DPI snapshots cover ×2 **and** ×1.5 (`tests/widget_tests/test_dpi_text.py`): fractional scales are where rounding bugs live — ×2 cannot see them (half-up == ceil there).
+- `FakeUser` posts device pixels, like the OS. DPI snapshots cover ×2 **and** ×1.5 (`tests/widget_tests/test_dpi_text.py`) — but on integer sizes neither separates half-up from ceil (fracs 0/.5 round the same way). The scales that do (frac .25: ×1.25, ×1.75, 170/96) are pinned by self-comparing tests, not snapshots: the crop-vs-blit matrix (`test_drawer_crop.py`) and the window-size + round-trip tests (`test_dpi.py`).
 - Remaining: per-monitor dynamic scale (the *system* scale is read once; SDL3's `GetWindowDisplayScale` will fix), the OS awareness declaration is per-*process* while the opt-in is per-`Window`, sub-pixel AA (ClearType).
 
 ### Text rendering (`videre/core/text_rendering/`)

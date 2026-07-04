@@ -6,8 +6,13 @@ backgrounds — is scaled by the renderer at paint time. Widget code and wprops
 stay logical: these scenes are written exactly like 100% ones.
 
 Two scales on purpose: ×2 (every logical pixel maps to a whole device pixel)
-and ×1.5 (fractional — the interesting case: half-up vs ceil diverge, edge
-scaling, flush anchoring and stroke thickening all actually round something).
+and ×1.5 (fractional: edge scaling, flush anchoring and stroke thickening all
+actually round something). Note ×1.5 does NOT separate half-up from ceil — on
+integer sizes their fracs are 0 or .5, where both round up. The scales that
+do (frac .25: ×1.25, ×1.75) are covered by the crop/blit matrix
+(test_drawer_crop) and the window-size test (test_dpi), which compare
+renders to each other instead of to a stored snapshot — a snapshot per
+exotic scale would be maintenance without extra detection power.
 """
 
 import pytest

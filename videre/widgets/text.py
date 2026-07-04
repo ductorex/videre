@@ -32,7 +32,7 @@ class Text(Widget):
         "underline",
         "selection",
     }
-    __slots__ = ("_rendered", "_document")
+    __slots__ = ("_rendered", "_document", "_document_scale")
 
     # Properties that change the shape itself (not just the layout): changing one
     # invalidates the cached `TextDocument`. Width / wrap / align only re-lay
@@ -56,6 +56,7 @@ class Text(Widget):
         super().__init__(**kwargs)
         self._rendered: TextRenderingResult | None = None
         self._document: AbstractTextDocument | None = None
+        self._document_scale: float | None = None
         self._set_wprops(size=size, height_delta=height_delta)
         self.text = text
         self.wrap = wrap
@@ -170,10 +171,15 @@ class Text(Widget):
 
     def get_document(self, window: "Window") -> AbstractTextDocument:
         """Cache the shaped document (text-only shape) across frames; a resize
-        keeps it and only `render(width)` is replayed."""
-        if self._document is None:
+        keeps it and only `render(width)` is replayed.
+
+        The document bakes the display scale in (glyphs are rasterized at
+        device size), so it also follows `window.scale_factor`: a widget
+        re-rendered at another scale re-shapes instead of keeping the first
+        window's glyph density."""
+        if self._document is None or self._document_scale != window.scale_factor:
             self._document = self._text_rendering(window).document(self.text)
-        assert self._document is not None
+            self._document_scale = window.scale_factor
         return self._document
 
     def draw(

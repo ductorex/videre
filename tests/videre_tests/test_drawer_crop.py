@@ -7,10 +7,16 @@ identity / recursion / generative wrap) and prove pixel equivalence with the old
 "blit the whole content at the offset" approach.
 """
 
+import pygame
+import pytest
+
 from tests.common import rasterize
 from videre.colors import Colors
 from videre.core.drawer import BlitArgs, Drawer, FillArgs, Position
 from videre.core.drawer_crop import crop_drawer
+from videre.core.drawing import Drawing, ScaledDrawing
+from videre.core.pygame_backend.backend import PygameRenderer
+from videre.core.pygame_backend.definitions import PygameRendering
 from videre.core.rectangle import Rectangle
 
 
@@ -124,3 +130,111 @@ def test_crop_pixels_match_offset_blit(fake_win):
     for x in range(width):
         for y in range(height):
             assert s_full.get_at((x, y)) == s_crop.get_at((x, y)), (x, y)
+
+
+# Fractional display scales for the pixel-equivalence matrix. 1.25 and 1.75
+# are the common Windows scales where half-up and ceil diverge on integer
+# sizes (frac .25 rounds down vs up); 1.5 and 2.0 are the scales where they
+# never do (frac is 0 or .5 — the blind spot of the existing DPI snapshots);
+# 170/96 is a real custom-DPI ratio (Windows quantizes to integer DPIs) that
+# is inexact in binary AND decimal, stressing the float guard.
+SCALED_CROP_SCALES = [1.25, 1.5, 1.75, 2.0, 170 / 96]
+
+
+def _scaled_content(drawing: Drawing, w: int, h: int) -> Drawer:
+    """Content sensitive to every crop defect: a global fill (kept whole by
+    the crop), a full-size child blit (the ScrollView shape, where a missing
+    device column shows) and a smaller child at a non-zero anchor (internal
+    seams)."""
+    content = drawing.new_surface(w, h)
+    drawing.fill(content, Colors.yellow)
+    full_child = drawing.new_surface(w, h)
+    drawing.fill(full_child, Colors.red)
+    drawing.blit(content, full_child, (0, 0))
+    if w > 2 and h > 1:
+        small = drawing.new_surface(w - 2, h - 1)
+        drawing.fill(small, Colors.blue)
+        drawing.blit(content, small, (1, 1))
+    return content
+
+
+def _crop_matches_blit(drawing, renderer, content, view_w, view_h, left, top) -> bool:
+    """True when cropping at (left, top) then blitting at (0, 0) — the
+    ScrollView path — gives the exact pixels of blitting the whole content
+    at the offset (the reference, through the same `drawing` policy)."""
+    full = drawing.new_surface(view_w, view_h)
+    drawing.blit(full, content, (-left, -top))
+    crop = drawing.new_surface(view_w, view_h)
+    drawing.blit(
+        crop, crop_drawer(content, Rectangle(left, top, view_w, view_h)), (0, 0)
+    )
+    s_full = rasterize(renderer, full)
+    s_crop = rasterize(renderer, crop)
+    assert isinstance(s_full, PygameRendering)
+    assert isinstance(s_crop, PygameRendering)
+    assert (s_full.get_width(), s_full.get_height()) == (
+        s_crop.get_width(),
+        s_crop.get_height(),
+    )
+    return pygame.image.tobytes(s_full.surface, "RGBA") == pygame.image.tobytes(
+        s_crop.surface, "RGBA"
+    )
+
+
+@pytest.mark.parametrize("scale", SCALED_CROP_SCALES)
+def test_crop_pixels_match_offset_blit_scaled(scale):
+    # The same guarantee as test_crop_pixels_match_offset_blit, at fractional
+    # display scales, over the whole domain ScrollView exercises: view sizes
+    # up to the content size, offsets over the clamped scroll range
+    # [0, content - view] (ScrollView never overscrolls). Small-exhaustive
+    # because rounding bugs live on specific residues — e.g. at 1.25 only
+    # logical widths = 1 mod 4 lose a device column.
+    drawing = ScaledDrawing(scale)
+    renderer = PygameRenderer()
+    failures = []
+    checked = 0
+    for content_w in range(1, 8):
+        for content_h in (1, 3):
+            content = _scaled_content(drawing, content_w, content_h)
+            for view_w in range(1, content_w + 1):
+                for view_h in sorted({1, content_h}):
+                    for left in range(0, content_w - view_w + 1):
+                        for top in sorted({0, content_h - view_h}):
+                            checked += 1
+                            if not _crop_matches_blit(
+                                drawing, renderer, content, view_w, view_h, left, top
+                            ):
+                                failures.append(
+                                    dict(
+                                        content=(content_w, content_h),
+                                        view=(view_w, view_h),
+                                        offset=(left, top),
+                                    )
+                                )
+    assert not failures, (
+        f"{len(failures)}/{checked} crop/blit mismatches at x{scale}: {failures[:12]}"
+    )
+
+
+@pytest.mark.parametrize("scale", [1.0, *SCALED_CROP_SCALES])
+def test_crop_clips_global_fill_to_content_bounds(scale):
+    # A view larger than the content (a ScrollView showing a small child:
+    # offset clamps to 0). In the reference, the content's global fill stops
+    # at the content's edge — it fills the content's own surface, and the
+    # blit deposits only that. The crop must not let it flood the whole
+    # (larger) output surface. Scale-independent: broken at 1.0 too.
+    drawing = Drawing.create(scale)
+    renderer = PygameRenderer()
+    failures = []
+    for content_w, content_h, view_w, view_h in (
+        (1, 1, 2, 1),
+        (3, 3, 5, 3),
+        (3, 3, 3, 7),
+        (5, 1, 9, 4),
+    ):
+        content = _scaled_content(drawing, content_w, content_h)
+        if not _crop_matches_blit(drawing, renderer, content, view_w, view_h, 0, 0):
+            failures.append(dict(content=(content_w, content_h), view=(view_w, view_h)))
+    assert not failures, (
+        f"global fill floods past content bounds at x{scale}: {failures}"
+    )

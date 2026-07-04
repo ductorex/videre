@@ -19,7 +19,7 @@ from videre.core.dpi import (
     LogicalPx,
     declare_dpi_awareness,
     system_scale_factor,
-    to_device,
+    to_device_ceil,
     to_logical_floor,
     to_logical_slot,
 )
@@ -349,10 +349,19 @@ class PygameWindowing(AbstractWindowing):
         self._screen_rendering: PygameRendering | None = None
         self._clock: pygame.time.Clock | None = None
 
-    def _to_device(self, value: LogicalPx) -> DevicePx:
-        """Logical length → device pixels (half-up; identity at scale 1.0)."""
+    def _size_to_device(self, value: LogicalPx) -> DevicePx:
+        """Logical window size → device buffer size (ceil, like every content
+        surface; identity at scale 1.0).
+
+        Ceil, because a full-window child allocates ceil(logical × scale)
+        (`Drawer.at_scale`): a half-up buffer can be one device pixel short,
+        which pushes the flush anchor negative and clips the child's left/top
+        edge (101 @ 125%: buffer 126, child 127, blitted at x = -1). Ceil is
+        also the only opening rounding the resize path inverts exactly:
+        floor(ceil(w × s) / s) == w, so the logical size a user asked for
+        survives the first OS resize event."""
         scale = self._scale_factor
-        return value if scale == 1.0 else to_device(value, scale)
+        return value if scale == 1.0 else to_device_ceil(value, scale)
 
     def _to_logical(self, value: DevicePx) -> LogicalPx:
         """Device pointer coordinate → the logical pixel whose rendered slot
@@ -389,7 +398,8 @@ class PygameWindowing(AbstractWindowing):
         if self._hide:
             flags |= pygame.HIDDEN
         self._screen = pygame.display.set_mode(
-            (self._to_device(self._width), self._to_device(self._height)), flags=flags
+            (self._size_to_device(self._width), self._size_to_device(self._height)),
+            flags=flags,
         )
         self._screen_rendering = PygameRendering(self._screen)
         # The buffer the OS actually granted — the root drawer is sized on it.
@@ -415,7 +425,7 @@ class PygameWindowing(AbstractWindowing):
         flags = pygame.RESIZABLE
         if self._hide:
             flags |= pygame.HIDDEN
-        device_w, device_h = self._to_device(width), self._to_device(height)
+        device_w, device_h = self._size_to_device(width), self._size_to_device(height)
         self._screen = pygame.display.set_mode((device_w, device_h), flags=flags)
         self._screen_rendering = PygameRendering(self._screen)
         self._set_device_size(self._screen.get_width(), self._screen.get_height())

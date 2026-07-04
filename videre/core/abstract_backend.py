@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Callable
 
 from videre.core.constants import WINDOW_FPS
-from videre.core.dpi import DevicePx, LogicalPx, to_device
+from videre.core.dpi import DevicePx, LogicalPx, to_device_ceil
 from videre.core.drawer import Drawer
 from videre.core.events import VidereEvent
 from videre.core.rendering_result import Rendering
@@ -156,9 +156,10 @@ class AbstractWindowing(ABC):
         size the OS chose, which can differ by one pixel from
         ceil(logical width × scale). E.g. at 150%: buffer 484 → logical
         floor(484/1.5) = 322 → re-derived ceil(322 × 1.5) = 483 ≠ 484.
-        Before the window opens, returns the expected size instead."""
+        Before the window opens, returns the size the windowing will ask
+        for (ceil — the same rounding `start()` uses)."""
         if self._device_width < 0:
-            return to_device(self._width, self._scale_factor)
+            return to_device_ceil(self._width, self._scale_factor)
         return self._device_width
 
     @property
@@ -166,7 +167,7 @@ class AbstractWindowing(ABC):
         """Height of the OS screen buffer, in device pixels (see
         `device_width`)."""
         if self._device_height < 0:
-            return to_device(self._height, self._scale_factor)
+            return to_device_ceil(self._height, self._scale_factor)
         return self._device_height
 
     def _set_device_size(self, width: DevicePx, height: DevicePx) -> None:

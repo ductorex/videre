@@ -92,6 +92,23 @@ def test_rounding_vocabulary_float_guard():
     assert to_device_floor(5, 1.4) == 7  # 5*1.4 == 6.999999999999999
 
 
+def test_size_roundtrip_survives_ceil_then_floor():
+    # A window size travels logical -> device buffer (opening) -> logical
+    # again (a resize event, floored). Ceil is the only opening rounding for
+    # which the requested size survives the trip: floor(ceil(w x s) / s) == w
+    # for every s >= 1. Half-up loses a pixel whenever frac(w x s) lands in
+    # (0, 0.5) — e.g. 101 @ 125% opens 126 and comes back as 100.
+    assert to_logical_floor(to_device(101, 1.25), 1.25) == 100  # half-up trip
+    for k in range(97, 385):  # every integer-DPI Windows scale in (100%, 400%]
+        scale = k / 96
+        for w in (0, 1, 2, 3, 5, 10, 101, 199, 240):
+            assert to_logical_floor(to_device_ceil(w, scale), scale) == w, (w, scale)
+    for k in range(121, 481, 7):  # a spread of Wayland 1/120 fractional scales
+        scale = k / 120
+        for w in (1, 3, 101):
+            assert to_logical_floor(to_device_ceil(w, scale), scale) == w, (w, scale)
+
+
 def test_pointer_slot_inverse():
     # Rendering puts logical pixel l on the device slot
     # [to_device(l), to_device(l + 1)); to_logical_slot is its exact
@@ -263,6 +280,63 @@ def test_os_resize_covers_arbitrary_device_size(monkeypatch):
             assert rgb.getpixel((482, 100)) == (255, 0, 0)  # content covers ceil
             assert rgb.getpixel((483, 100)) == (255, 255, 255)  # background
             assert rgb.getpixel((200, 362)) == (255, 0, 0)  # height is exact
+
+
+def test_window_opens_ceil_device_size_at_125_percent(monkeypatch):
+    # Content surfaces allocate ceil(logical x scale) (Drawer.at_scale), so
+    # the OS window must too. Opened half-up (126 x 26 for 101 x 21 @ 1.25),
+    # the full-window child (ceil: 127 x 27) overshoots the root and the
+    # flush anchor blits it at (-1, -1): the left and top borders vanish.
+    # Odd sizes on purpose: frac .25 is where half-up and ceil diverge —
+    # x1.5 and x2 cannot see it (their fracs are 0 or .5).
+    monkeypatch.setattr(pygame_backend, "declare_dpi_awareness", lambda: True)
+    monkeypatch.setattr(pygame_backend, "system_scale_factor", lambda: 1.25)
+    with StepWindow(width=101, height=21, dpi_aware=True) as win:
+        win.controls = [
+            videre.Container(
+                videre.Text(""),
+                border=videre.Border.all(1, videre.Colors.black),
+                background_color=videre.Colors.red,
+            )
+        ]
+        win.render()
+        with PIL.Image.open(win.screenshot()) as screen:
+            assert screen.size == (127, 27)  # ceil, not half-up (126, 26)
+            rgb = screen.convert("RGB")
+            black, red = (0, 0, 0), (255, 0, 0)
+            assert rgb.getpixel((0, 13)) == black  # left border
+            assert rgb.getpixel((126, 13)) == black  # right border
+            assert rgb.getpixel((63, 0)) == black  # top border
+            assert rgb.getpixel((63, 26)) == black  # bottom border
+            assert rgb.getpixel((63, 13)) == red
+        # Round-trip: an OS resize event at the very size the window was
+        # opened with must give back the logical size the user asked for
+        # (floor is the way back; see test_size_roundtrip_survives_ceil_...).
+        win._windowing._resize_window(
+            pygame.event.Event(pygame.WINDOWRESIZED, x=127, y=27)
+        )
+        assert (win.width, win.height) == (101, 21)
+
+
+def test_text_document_rescales_across_windows(monkeypatch):
+    # A widget can be re-rendered in another window (Widget.render keys its
+    # cache on the window); the cached TextDocument must follow the render
+    # context too, else its glyphs keep the first window's density — sharp
+    # but half-size on a x2 display.
+    text = videre.Text("Scale")
+    with StepWindow() as win1:
+        win1.controls = [text]
+        win1.render()
+        assert text._surface is not None and text._surface.scale == 1.0
+        width_1x = text._surface.device_width
+    monkeypatch.setattr(pygame_backend, "declare_dpi_awareness", lambda: True)
+    monkeypatch.setattr(pygame_backend, "system_scale_factor", lambda: 2.0)
+    with StepWindow(dpi_aware=True) as win2:
+        win2.controls = [text]
+        win2.render()
+        assert text._surface is not None
+        assert text._surface.scale == 2.0  # stale document keeps 1.0
+        assert text._surface.device_width > width_1x  # x2 glyph density
 
 
 def test_font_height_covers_scaled_text():

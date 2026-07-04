@@ -8,7 +8,7 @@ surface and composes the few visible children instead of the whole (possibly
 huge) content. It virtualizes *rasterization*, not *construction*.
 """
 
-from videre.core.dpi import to_logical_ceil
+from videre.core.dpi import to_device, to_logical_ceil
 from videre.core.drawer import (
     BlitArgs,
     BoxArgs,
@@ -23,7 +23,6 @@ from videre.core.drawer import (
     RectangleArgs,
     SmoothScaleArgs,
 )
-from videre.core.drawing import _scale_rect
 from videre.core.rectangle import Rectangle
 
 _UNCROPPABLE = (ImageArgs, ImageFromBytesArgs, SmoothScaleArgs, CopyArgs)
@@ -52,16 +51,36 @@ def crop_drawer(drawer: Drawer, rect: Rectangle) -> Drawer:
     """A viewport drawer: the commands of `drawer` intersecting `rect`
     (logical coords), translated so `rect`'s top-left becomes (0, 0).
 
-    Rules, in device pixels (`rect` is edge-scaled once): a command fully
-    outside is dropped. A kept child keeps its identity (same `Drawer`
-    object — it still hits the `materialize` cache). A straddling child
-    larger than the view is recursively cropped, else its oversized surface
-    would come back. An uncroppable drawer (image/scale/copy: pixels from a
-    base surface) is kept whole, re-anchored at the negative offset.
-    Anything overflowing the cropped bounds is clipped by the renderer."""
+    The contract is the reference blit's pixels: blitting the result at
+    (0, 0) shows exactly what blitting the whole `drawer` at
+    ``(-rect.left, -rect.top)`` through the same `Drawing` would show. So
+    the device window is derived the way that blit derives it — half-up
+    anchor, flush-adjusted when `rect` reaches the drawer's logical edge —
+    and its size is the output surface's own (ceil) device size: an
+    edge-scaled rect can be one device pixel short of the surface it must
+    fill (e.g. at 125%, to_device(5) - to_device(1) = 5 < ceil(4 × 1.25)).
+
+    Rules, in device pixels: a command fully outside is dropped. A kept
+    child keeps its identity (same `Drawer` object — it still hits the
+    `materialize` cache). A straddling child larger than the view is
+    recursively cropped, else its oversized surface would come back. An
+    uncroppable drawer (image/scale/copy: pixels from a base surface) is
+    kept whole, re-anchored at the negative offset. Anything overflowing
+    the cropped bounds is clipped by the renderer."""
     scale = drawer.scale
-    prect = rect if scale == 1.0 else _scale_rect(rect, scale)
     out = Drawer.at_scale(rect.width, rect.height, scale)
+    if scale == 1.0:
+        prect = rect
+    else:
+        # Same anchor policy as ScaledDrawing.blit for the reference blit
+        # at (-rect.left, -rect.top): half-up, snapped to the device edge
+        # when the drawer ends flush with the viewport's logical edge.
+        ax, ay = to_device(-rect.left, scale), to_device(-rect.top, scale)
+        if -rect.left + drawer.get_width() == rect.width:
+            ax = min(ax, out.device_width - drawer.device_width)
+        if -rect.top + drawer.get_height() == rect.height:
+            ay = min(ay, out.device_height - drawer.device_height)
+        prect = Rectangle(-ax, -ay, out.device_width, out.device_height)
     _crop_into(out, drawer, prect)
     return out
 
@@ -91,7 +110,19 @@ def _crop_into(out: Drawer, drawer: Drawer, rect: Rectangle) -> None:
     for cmd in drawer:
         match cmd:
             case FillArgs(color=color, rectangle=None):
-                out.fill(color)
+                # A global fill stops at the drawer's own surface in the
+                # reference (materialize clips it, the blit deposits only
+                # that), so emit its footprint ∩ rect — global again when
+                # that covers the whole output (a view inside the content).
+                il, it = max(0, rl), max(0, rt)
+                ir = min(drawer.device_width, rl + rw)
+                ib = min(drawer.device_height, rt + rh)
+                if il < ir and it < ib:
+                    clipped = Rectangle(il + dx, it + dy, ir - il, ib - it)
+                    if clipped == Rectangle(0, 0, out.device_width, out.device_height):
+                        out.fill(color)
+                    else:
+                        out.fill(color, clipped)
             case FillArgs(color=color, rectangle=r):
                 if _overlaps(r.left, r.top, r.width, r.height, rect):
                     out.fill(
