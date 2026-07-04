@@ -569,7 +569,9 @@ class PygameBackend(AbstractBackend):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> AbstractWindowing:
+        # TODO Handle dpi_aware.
         return PygameWindowing(
             width=width,
             height=height,

@@ -71,6 +71,7 @@ class Window:
         handle_text_sub_pixels: bool | None = None,
         fps: int = WINDOW_FPS,
         backend: AbstractBackend | None = None,
+        dpi_aware: bool = False,
     ):
         self._layout = WindowLayout(parse_color(background or Colors.white))
         self._event_manager = WindowEventManager(self._layout)
@@ -86,6 +87,7 @@ class Window:
             render_manager=self._refresh,
             task_manager=self._task_manager,
             fps=fps,
+            dpi_aware=dpi_aware,
         )
         self._font_size_pts = font_size
         self._font_height: int | None = None

@@ -205,4 +205,5 @@ class AbstractBackend(ABC):
         task_manager: TaskManager,
         hide: bool = False,
         fps: int = WINDOW_FPS,
+        dpi_aware: bool = False,
     ) -> AbstractWindowing: ...
