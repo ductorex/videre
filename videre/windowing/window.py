@@ -9,9 +9,9 @@ from videre.core.abstract_backend import (
     AbstractWindowing,
 )
 from videre.core.constants import WINDOW_FPS, Alignment
-from videre.core.drawer import Drawer
+from videre.core.events import ExitEvent, VidereEvent, WindowResizeEvent
 from videre.core.pygame_backend.backend import PygameBackend
-from videre.core.rendering_result import AbstractTextRendering, Rendering
+from videre.core.rendering_result import AbstractTextRendering
 from videre.core.tasks import (
     CallbackTask,
     ExitTask,
@@ -55,8 +55,9 @@ class Window:
         "_windowing",
         "_font_size_pts",
         "_font_height",
-        "_last_screen",
-        "_last_drawer",
+        "_fps",
+        "_running",
+        "_nb_frames",
     )
 
     def __init__(
@@ -83,19 +84,13 @@ class Window:
             height=height,
             title=str(title) or "Window",
             hide=bool(hide),
-            event_manager=self._event_manager.manage,
-            render_manager=self._refresh,
-            task_manager=self._task_manager,
-            fps=fps,
             dpi_aware=dpi_aware,
         )
+        self._fps = fps
+        self._running = True
+        self._nb_frames = 0
         self._font_size_pts = font_size
         self._font_height: int | None = None
-
-        # Last (screen, drawer) actually painted, kept by identity to skip
-        # repainting an unchanged frame (see `_refresh`).
-        self._last_screen: Rendering | None = None
-        self._last_drawer: Drawer | None = None
 
         self._exit_code = 0
         self._exit_exception: Exception | None = None
@@ -111,10 +106,10 @@ class Window:
         self.data = None
 
     def _is_running(self) -> bool:
-        return self._windowing.running
+        return self.running
 
     def _stop_running(self):
-        self._windowing.running = False
+        self.stop()
 
     def __repr__(self):
         return f"[{type(self).__name__}][{id(self)}]"
@@ -137,7 +132,13 @@ class Window:
 
     @property
     def nb_frames(self) -> int:
-        return self._windowing.nb_frames
+        return self._nb_frames
+
+    @property
+    def running(self) -> bool:
+        """Whether the event loop is active: `run()` loops while this holds and
+        `stop()` clears it."""
+        return self._running
 
     @property
     def symbol_size(self) -> int:
@@ -191,29 +192,61 @@ class Window:
         )
 
     def run(self) -> int:
-        if not self._is_running():
+        if not self._running:
             raise RuntimeError("Window has already run. Cannot run again.")
 
-        self._windowing.run()
+        self._windowing.start()
+        try:
+            while self._running:
+                self._step()
+        finally:
+            self._windowing.stop()
 
         if self._exit_exception:
             raise self._exit_exception
         return self._exit_code
 
-    def _refresh(self, screen: Rendering) -> None:
-        self._layout.screen = screen
-        screen_drawer = self._layout.render(self)
-        # The screen is a persistent buffer: `flip()` re-presents it unchanged,
-        # so when neither the buffer nor the drawer changed (the whole widget
-        # tree is clean -> `render` returns the very same cached Drawer), there
-        # is nothing to repaint. Comparing the screen too catches a buffer swap
-        # at unchanged size (e.g. a same-size resize), which the drawer identity
-        # alone would miss.
-        if screen is self._last_screen and screen_drawer is self._last_drawer:
+    def stop(self) -> None:
+        """Request the event loop to exit after the current frame. `run()`'s
+        `finally` then tears the window down once (via the windowing's `stop`),
+        so callers must not stop the windowing themselves mid-frame."""
+        self._running = False
+
+    def _step(self, fps: int | None = None) -> None:
+        """One loop iteration: dispatch pending OS events, paint, present, run
+        scheduled tasks, then pace the frame. `fps=0` skips the wait (tests)."""
+        for event in self._windowing.poll_events():
+            self._dispatch_event(event)
+        self._refresh()
+        self._windowing.present()
+        self._task_manager.manage_tasks()
+        self._nb_frames += 1
+        self._windowing.tick(self._fps if fps is None else fps)
+
+    def _dispatch_event(self, event: VidereEvent) -> None:
+        # Window-level events are handled here; everything else goes to the
+        # widget tree via the event manager.
+        if isinstance(event, ExitEvent):
+            self.stop()
             return
-        self._renderer.render_drawer(screen_drawer, dst=screen)
-        self._last_screen = screen
-        self._last_drawer = screen_drawer
+        if isinstance(event, WindowResizeEvent):
+            # A resize is window-global (no target widget): force a relayout and
+            # repaint. `_refresh` reads the new size from `window.width/height`;
+            # the repaint is needed because a resize clears the buffer even at
+            # unchanged size. Not forwarded to widgets (no per-widget resize hook
+            # yet).
+            self._layout.update()
+            return
+        task = self._event_manager.manage(event)
+        if task is not None:
+            self._task_manager.one_shot(task)
+
+    def _refresh(self) -> None:
+        # Build the root drawer at the current window size and hand it to the
+        # renderer (which owns the paint target and the frame-to-frame skip). A
+        # resize forces a repaint via `_dispatch_event` (a resize clears the
+        # buffer even at unchanged size).
+        self._renderer.render_drawer(self._layout.render(self, self.width, self.height))
 
     def notify(self, notification: Any):
         self._post_event(NotificationTask(notification))

@@ -8,17 +8,19 @@ from videre.testing.step_window import StepWindow
 
 @contextlib.contextmanager
 def _count_screen_paints():
-    """Count how many times the *screen* (root) is painted.
+    """Count how many times the *screen* (root) is actually repainted.
 
-    `render_drawer` is the once-per-frame root paint that `Window._refresh`
-    triggers; sub-drawers go through `materialize` and are not counted.
+    `render_drawer` owns the frame skip: it is called every frame but
+    early-returns when the root drawer is unchanged (same identity). We count
+    only the calls that get past that skip — the frames that truly repaint.
     """
     real = PygameRenderer.render_drawer
     counter = {"screen": 0}
 
-    def counting(self, drawer, dst):
-        counter["screen"] += 1
-        return real(self, drawer, dst)
+    def counting(self, drawer):
+        if drawer is not self._last_drawer:  # not skipped -> a real repaint
+            counter["screen"] += 1
+        return real(self, drawer)
 
     with patch.object(PygameRenderer, "render_drawer", counting):
         yield counter
@@ -70,3 +72,18 @@ def test_same_size_buffer_swap_repaints_screen():
         win.user.resize(win.width, win.height)
         win.render()
         assert paints["screen"] == 2
+
+
+def test_resize_reflows_to_new_window_size():
+    with StepWindow(width=640, height=480) as win:
+        win.controls = [videre.Text("hello")]
+        win.render()
+        assert win._layout.render(win, win.width, win.height).get_width() == 640
+
+        # A different-size resize must rebuild the root drawer at the new size,
+        # so the content reflows to fill the window (regression guard: passing no
+        # size to `render` once froze this at the initial size).
+        win.user.resize(800, 600)
+        win.render()
+        root = win._layout.render(win, win.width, win.height)
+        assert (root.get_width(), root.get_height()) == (800, 600)

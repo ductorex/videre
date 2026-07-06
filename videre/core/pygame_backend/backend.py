@@ -1,7 +1,6 @@
 import io
 import logging
-from collections.abc import Callable
-from typing import Sequence
+from typing import Iterator, Sequence
 
 import pygame
 import pygame.gfxdraw
@@ -13,7 +12,6 @@ from videre.core.abstract_backend import (
     AbstractRenderer,
     AbstractWindowing,
 )
-from videre.core.constants import WINDOW_FPS
 from videre.core.drawer import (
     Args,
     BlitArgs,
@@ -39,6 +37,7 @@ from videre.core.events import (
     TextInputEvent,
     VidereEvent,
     WindowLeaveEvent,
+    WindowResizeEvent,
 )
 from videre.core.pygame_backend.definitions import (
     Event,
@@ -56,7 +55,6 @@ from videre.core.pygame_backend.mapping import (
 )
 from videre.core.rectangle import Rectangle
 from videre.core.rendering_result import Rendering
-from videre.core.tasks import TaskManager, VidereTask
 from videre.core.utils import OnEvent
 
 logger = logging.getLogger(__name__)
@@ -70,7 +68,7 @@ class PygameRenderer(AbstractRenderer):
     silent on caching), so a GPU backend can ignore it.
     """
 
-    __slots__ = ("_cache", "_prev_cache")
+    __slots__ = ("_cache", "_prev_cache", "_last_drawer")
 
     def __init__(self) -> None:
         # By-value cache of materialized sub-surfaces, double-buffered per frame.
@@ -83,21 +81,34 @@ class PygameRenderer(AbstractRenderer):
         # only what actually changed instead of the whole visible tree.
         self._cache: dict[Drawer, Rendering] = {}
         self._prev_cache: dict[Drawer, Rendering] = {}
+        # Frame-to-frame skip (moved out of `Window._refresh`): the last root
+        # drawer actually painted, kept by identity.
+        self._last_drawer: Drawer | None = None
 
-    def render_drawer(self, drawer: Drawer, dst: Rendering) -> None:
-        """Paint a Drawer onto `dst` (the screen) — the once-per-frame root paint.
+    def render_drawer(self, drawer: Drawer) -> None:
+        """Paint the root Drawer onto the pygame display surface — the
+        once-per-frame root paint. Owns the frame-to-frame skip that used to live
+        in `Window._refresh`.
 
-        Cycles the two cache generations (this frame becomes the previous one,
-        releasing the surfaces left untouched), then replays the command IR onto
-        `dst`. `dst` covers the drawer and is the root surface only; nested
-        sub-drawers are materialized (cached) via `materialize`. Draws — returns
-        nothing.
+        A clean widget tree hands back the very same cached root Drawer, and the
+        display is a persistent buffer that `flip()` re-presents unchanged, so an
+        unchanged drawer means nothing to repaint. A buffer swap (e.g. a resize —
+        `set_mode` clears the display contents even at unchanged size) is handled
+        upstream: `Window` forces a redraw on a `WindowResizeEvent`, so a fresh
+        Drawer identity always reaches us then, and the skip needs only the drawer
+        identity. Otherwise it cycles the two cache generations (this frame
+        becomes the previous one, releasing untouched surfaces) and replays the
+        command IR onto the screen; nested sub-drawers are materialized (cached)
+        via `materialize`.
         """
+        if drawer is self._last_drawer:
+            return
         # A root paint starts a new frame: keep this frame and the previous one,
         # dropping older surfaces so unused drawers are released.
         self._prev_cache = self._cache
         self._cache = {}
-        self._paint(drawer, dst)
+        self._paint(drawer, PygameRendering(pygame.display.get_surface()))
+        self._last_drawer = drawer
 
     def materialize(self, drawer: Drawer) -> Rendering:
         """Return `drawer` as its own surface, reusing an equal one seen this or
@@ -246,41 +257,18 @@ class PygameRenderer(AbstractRenderer):
 
 
 class PygameWindowing(AbstractWindowing):
-    """Pygame windowing: the display, clock, cursor, and pygame event loop.
+    """Pygame windowing: the display, clock, cursor, and pygame event queue.
 
-    Owns the OS-facing state and drives `_step`. Posts videre events back into
-    pygame's queue (`post_event`) so `FakeUser` drives the real event path.
+    A passive provider driven by `Window`: `poll_events` translates pygame events
+    into videre events, `present` flips the display, `tick` paces the frame. Posts
+    videre events back into pygame's queue (`post_event`) so `FakeUser` drives the
+    real event path.
     """
 
-    __slots__ = (
-        "__default_cursor",
-        "__text_cursor",
-        "_screen",
-        "_screen_rendering",
-        "_clock",
-    )
+    __slots__ = ("__default_cursor", "__text_cursor", "_screen", "_clock")
 
-    def __init__(
-        self,
-        width: int,
-        height: int,
-        title: str,
-        event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[Rendering], None],
-        task_manager: TaskManager,
-        hide: bool = False,
-        fps: int = WINDOW_FPS,
-    ) -> None:
-        super().__init__(
-            width=width,
-            height=height,
-            title=title,
-            event_manager=event_manager,
-            render_manager=render_manager,
-            task_manager=task_manager,
-            hide=hide,
-            fps=fps,
-        )
+    def __init__(self, width: int, height: int, title: str, hide: bool = False) -> None:
+        super().__init__(width=width, height=height, title=title, hide=hide)
 
         # Init pygame here.
         pygame.init()
@@ -288,11 +276,6 @@ class PygameWindowing(AbstractWindowing):
         self.__default_cursor = pygame.mouse.get_cursor()
         self.__text_cursor = pygame.cursors.compile(pygame.cursors.textmarker_strings)
         self._screen: Surface | None = None
-        # Stable wrapper over `_screen`: recreated only when the underlying
-        # buffer is (re)allocated (start / resize_screen), never per-frame. Its
-        # identity lets `Window._refresh` skip repainting an unchanged screen
-        # while still detecting a buffer swap (e.g. a same-size resize).
-        self._screen_rendering: PygameRendering | None = None
         self._clock: pygame.time.Clock | None = None
 
     def _set_text_cursor(self) -> None:
@@ -313,7 +296,6 @@ class PygameWindowing(AbstractWindowing):
         if self._hide:
             flags |= pygame.HIDDEN
         self._screen = pygame.display.set_mode((self._width, self._height), flags=flags)
-        self._screen_rendering = PygameRendering(self._screen)
         pygame.display.set_caption(self._title)
 
         # Initialize keyboard repeat.
@@ -334,16 +316,15 @@ class PygameWindowing(AbstractWindowing):
         if self._hide:
             flags |= pygame.HIDDEN
         self._screen = pygame.display.set_mode((width, height), flags=flags)
-        self._screen_rendering = PygameRendering(self._screen)
         pygame.event.post(Event(pygame.WINDOWRESIZED, x=width, y=height))
 
-    def _step(self, fps: int | None = None) -> None:
-        # Handle interface events.
-        # Also check if we got a mouse motion event.
+    def poll_events(self) -> Iterator[VidereEvent]:
         has_mouse_motion = False
         for event in pygame.event.get():
             has_mouse_motion = has_mouse_motion or event.type == pygame.MOUSEMOTION
-            self.__on_event(event)
+            videre_event = self._translate(event)
+            if videre_event is not None:
+                yield videre_event
 
         # Synthesize a no-op MOUSEMOTION when none arrived this frame and the
         # cursor is over the window. This compensates for two pygame gaps:
@@ -356,37 +337,28 @@ class PygameWindowing(AbstractWindowing):
         #     pygame event, so the widget newly exposed under an immobile
         #     cursor would never receive its hover transition.
         if not has_mouse_motion and pygame.mouse.get_focused():
-            self.__on_event(
-                Event(
-                    pygame.MOUSEMOTION,
-                    pos=pygame.mouse.get_pos(),
-                    rel=(0, 0),
-                    buttons=(0, 0, 0),
-                    touch=False,
-                )
+            synthetic = Event(
+                pygame.MOUSEMOTION,
+                pos=pygame.mouse.get_pos(),
+                rel=(0, 0),
+                buttons=(0, 0, 0),
+                touch=False,
             )
+            videre_event = self._translate(synthetic)
+            if videre_event is not None:
+                yield videre_event
 
-        # Refresh screen.
-        assert self._screen_rendering is not None
-        self._render_manager(self._screen_rendering)
+    def present(self) -> None:
         pygame.display.flip()
 
-        # Process pending tasks.
-        self._task_manager.manage_tasks()
-
-        if fps is None:
-            fps = self._fps
+    def tick(self, fps: int) -> None:
         if fps > 0:
             assert self._clock is not None
             self._clock.tick(fps)
 
-    def __on_event(self, event: Event):
-        """Handle a pygame event."""
-        ret = self._manage_event(event)
-        if ret is not None:
-            self._task_manager.one_shot(ret)
-
-    def _manage_event(self, event: Event) -> VidereTask | None:
+    def _translate(self, event: Event) -> VidereEvent | None:
+        """Translate a pygame event into a videre event, or None for a pygame
+        event type with no registered handler."""
         callback = self._on_event.get(event.type)
         if callback is not None:
             return callback(self, event)
@@ -396,22 +368,24 @@ class PygameWindowing(AbstractWindowing):
     _on_event = OnEvent[int]()
 
     @_on_event(pygame.QUIT)
-    def _quit(self, event: Event) -> None:
-        # This method immediately handles event without dispatching to videre event manager.
+    def _quit(self, event: Event) -> VidereEvent | None:
         logger.warning("Quit Pygame.")
-        self._handle_exit()
+        return ExitEvent()
 
     @_on_event(pygame.WINDOWRESIZED)
-    def _resize_window(self, event: Event) -> None:
-        # This method immediately handles event without dispatching to videre event manager.
+    def _resize_window(self, event: Event) -> VidereEvent | None:
+        # Update the tracked size (the display surface is already resized) and
+        # emit a resize event: `Window` forces a repaint, since `set_mode` clears
+        # the buffer even at unchanged size.
         width, height = event.x, event.y
         if self._screen is not None:
             assert self._screen.get_width() == width
             assert self._screen.get_height() == height
         self._handle_resize(width, height)
+        return WindowResizeEvent(width, height)
 
     @_on_event(pygame.MOUSEWHEEL)
-    def _on_mouse_wheel(self, event: Event) -> VidereTask | None:
+    def _on_mouse_wheel(self, event: Event) -> VidereEvent | None:
         # Real OS wheel events have no position; fall back to pygame.mouse.get_pos().
         # Test-posted events carry mouse_x/mouse_y as custom attributes
         # (see PygameWindowing._post_mouse_wheel) so they can route to a specific widget.
@@ -422,51 +396,47 @@ class PygameWindowing(AbstractWindowing):
         wheel_dx = event.x
         wheel_dy = event.y
         shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
-        return self._event_dispatcher(
-            MouseWheelEvent(
-                mouse_x=mouse_x,
-                mouse_y=mouse_y,
-                wheel_dx=wheel_dx,
-                wheel_dy=wheel_dy,
-                shift=shift,
-            )
+        return MouseWheelEvent(
+            mouse_x=mouse_x,
+            mouse_y=mouse_y,
+            wheel_dx=wheel_dx,
+            wheel_dy=wheel_dy,
+            shift=shift,
         )
 
     @_on_event(pygame.MOUSEBUTTONDOWN)
-    def _on_mouse_button_down(self, event: Event) -> VidereTask | None:
+    def _on_mouse_button_down(self, event: Event) -> VidereEvent | None:
         x, y = event.pos
         button = pygame_to_mouse_button(event.button)
-        return self._event_dispatcher(MouseButtonDownEvent(x=x, y=y, buttons=(button,)))
+        return MouseButtonDownEvent(x=x, y=y, buttons=(button,))
 
     @_on_event(pygame.MOUSEBUTTONUP)
-    def _on_mouse_button_up(self, event: Event) -> VidereTask | None:
+    def _on_mouse_button_up(self, event: Event) -> VidereEvent | None:
         x, y = event.pos
         button = pygame_to_mouse_button(event.button)
-        return self._event_dispatcher(MouseButtonUpEvent(x=x, y=y, buttons=(button,)))
+        return MouseButtonUpEvent(x=x, y=y, buttons=(button,))
 
     @_on_event(pygame.MOUSEMOTION)
-    def _on_mouse_motion(self, event: Event) -> VidereTask | None:
-        return self._event_dispatcher(
-            MouseMotionEvent(
-                x=event.pos[0],
-                y=event.pos[1],
-                dx=event.rel[0],
-                dy=event.rel[1],
-                buttons=pygame_to_mouse_buttons(event.buttons),
-            )
+    def _on_mouse_motion(self, event: Event) -> VidereEvent | None:
+        return MouseMotionEvent(
+            x=event.pos[0],
+            y=event.pos[1],
+            dx=event.rel[0],
+            dy=event.rel[1],
+            buttons=pygame_to_mouse_buttons(event.buttons),
         )
 
     @_on_event(pygame.WINDOWLEAVE)
-    def _on_window_leave(self, event: Event) -> VidereTask | None:
-        return self._event_dispatcher(WindowLeaveEvent())
+    def _on_window_leave(self, event: Event) -> VidereEvent | None:
+        return WindowLeaveEvent()
 
     @_on_event(pygame.TEXTINPUT)
-    def _on_text_input(self, event: Event) -> VidereTask | None:
-        return self._event_dispatcher(TextInputEvent(event.text))
+    def _on_text_input(self, event: Event) -> VidereEvent | None:
+        return TextInputEvent(event.text)
 
     @_on_event(pygame.KEYDOWN)
-    def _on_keydown(self, event: Event) -> VidereTask | None:
-        return self._event_dispatcher(KeyDownEvent(pygame_to_keyboard_entry(event)))
+    def _on_keydown(self, event: Event) -> VidereEvent | None:
+        return KeyDownEvent(pygame_to_keyboard_entry(event))
 
     def post_event(self, event: VidereEvent) -> None:
         event_type = type(event)
@@ -564,24 +534,11 @@ class PygameBackend(AbstractBackend):
         width: int,
         height: int,
         title: str,
-        event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[Rendering], None],
-        task_manager: TaskManager,
         hide: bool = False,
-        fps: int = WINDOW_FPS,
         dpi_aware: bool = False,
     ) -> AbstractWindowing:
         # TODO Handle dpi_aware.
-        return PygameWindowing(
-            width=width,
-            height=height,
-            title=title,
-            event_manager=event_manager,
-            render_manager=render_manager,
-            task_manager=task_manager,
-            hide=hide,
-            fps=fps,
-        )
+        return PygameWindowing(width=width, height=height, title=title, hide=hide)
 
 
 def _deref(rendering: Rendering) -> Surface:

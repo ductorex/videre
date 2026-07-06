@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Sequence
 from videre.colors import Color, Colors
 from videre.core.drawer import Drawer, Drawing
 from videre.core.events import KeyboardEntry
-from videre.core.rendering_result import Rendering
 from videre.layouts.abstract_controls_layout import AbstractControlsLayout
 from videre.widgets.widget import Widget
 from videre.windowing.context import Context
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
 
 class WindowLayout(AbstractControlsLayout):
     __wprops__ = {"background"}
-    __slots__ = ("_screen", "_fancybox", "_context", "_user_controls")
+    __slots__ = ("_fancybox", "_context", "_user_controls")
     _FILL = Colors.white
     __capture_mouse__ = True
 
@@ -25,7 +24,6 @@ class WindowLayout(AbstractControlsLayout):
         self._user_controls: list[Widget] = []
         self._fancybox: Fancybox | None = None
         self._context: Context | None = None
-        self._screen: Rendering | None = None
 
     @property
     def background(self) -> Color:
@@ -34,16 +32,6 @@ class WindowLayout(AbstractControlsLayout):
     @background.setter
     def background(self, value: Color | None):
         self._set_wprop("background", value or self._FILL)
-
-    @property
-    def screen(self) -> Rendering:
-        if self._screen is None:
-            raise RuntimeError(f"{self} requires a screen")
-        return self._screen
-
-    @screen.setter
-    def screen(self, screen: Rendering):
-        self._screen = screen
 
     def has_fancybox(self) -> bool:
         return self._fancybox is not None
@@ -95,22 +83,18 @@ class WindowLayout(AbstractControlsLayout):
             elif self.has_fancybox():
                 self.set_fancybox(None)
 
-    def render(
-        self, window: "Window", width: int | None = None, height: int | None = None
-    ) -> Drawer:
-        screen = self.screen
-        return super().render(window, screen.get_width(), screen.get_height())
-
     def draw(
         self, window: "Window", width: int | None = None, height: int | None = None
     ) -> Drawer:
-        assert self._screen is not None
-        screen = Drawer(self._screen.get_width(), self.screen.get_height())
+        if width is None:
+            width = window.width
+        if height is None:
+            height = window.height
 
-        screen_width, screen_height = screen.get_width(), screen.get_height()
+        screen = Drawer(width, height)
         Drawing.fill(screen, self.background)
         for control in self._controls():
-            surface = control.render(window, screen_width, screen_height)
+            surface = control.render(window, width, height)
             Drawing.blit(screen, surface, (control.x, control.y))
 
         return screen

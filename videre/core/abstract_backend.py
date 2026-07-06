@@ -1,12 +1,10 @@
 import io
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Iterator
 
-from videre.core.constants import WINDOW_FPS
 from videre.core.drawer import Drawer
 from videre.core.events import VidereEvent
 from videre.core.rendering_result import Rendering
-from videre.core.tasks import TaskManager, VidereTask
 
 
 class AbstractRenderer(ABC):
@@ -14,21 +12,24 @@ class AbstractRenderer(ABC):
 
     Pure rasterization — no window, event loop or OS state. A backend is free
     to rasterize however it likes (cache or not, software or GPU). Two seams:
-    `render_drawer` (paint a drawer onto a surface) and `materialize` (turn a
-    drawer into its own surface). Instantiable on its own (no windowing), so
-    the rasterization can be benchmarked in isolation.
+    `render_drawer` (paint the root drawer onto the backend's own screen) and
+    `materialize` (turn a drawer into its own surface). Instantiable on its own;
+    `materialize` needs no windowing, so the rasterization can be benchmarked in
+    isolation.
     """
 
     __slots__ = ()
 
     @abstractmethod
-    def render_drawer(self, drawer: Drawer, dst: Rendering) -> None:
-        """Paint `drawer`'s commands onto `dst` — the root frame paint.
+    def render_drawer(self, drawer: Drawer) -> None:
+        """Paint the root `drawer` onto the backend's own screen / framebuffer.
 
-        `dst` (the screen, from `Window._refresh`) must cover the drawer. This
-        is the once-per-frame root entry, so a backend may use it as the
-        boundary to cycle any per-frame cache. It draws onto `dst` and returns
-        nothing; to obtain a drawer as its own surface, use `materialize`.
+        The once-per-frame root entry. The renderer owns the paint target (the
+        pygame display surface, a GPU backend's bound framebuffer, …) and any
+        frame-to-frame optimization: a software backend may skip an unchanged
+        frame and cycle a per-frame cache, while an immediate-mode GPU backend
+        just redraws. Draws and returns nothing; to obtain a drawer as its own
+        surface, use `materialize`.
         """
         ...
 
@@ -49,83 +50,35 @@ class AbstractRenderer(ABC):
 class AbstractWindowing(ABC):
     """The windowing half of a backend: the OS-facing surface of contact.
 
-    Owns the window, the screen size, the event loop and the cursor; carries all
-    the mutable backend state. It produces a screen `Rendering` and hands it to
-    the `render_manager` (`Window._refresh`), which paints it with a renderer —
-    so windowing never calls `render_drawer` itself and needs no reference to the
-    renderer.
+    A passive provider — it owns the window, its current size and the cursor. It
+    does two backend-specific jobs and nothing else: translate OS events into
+    `VidereEvent`s (`poll_events`) and present the painted frame (`present`). It
+    drives no loop and holds no application callbacks; `Window` owns the loop and
+    calls `start` → (`poll_events`, `present`, `tick`)* → `stop`.
     """
 
-    __slots__ = (
-        "_width",
-        "_height",
-        "_title",
-        "_hide",
-        "_fps",
-        "_nb_frames",
-        "_event_dispatcher",
-        "_render_manager",
-        "_task_manager",
-        "_cursor_is_default",
-        "_running",
-    )
+    __slots__ = ("_width", "_height", "_title", "_hide", "_cursor_is_default")
 
-    def __init__(
-        self,
-        width: int,
-        height: int,
-        title: str,
-        event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[Rendering], None],
-        task_manager: TaskManager,
-        hide: bool = False,
-        fps: int = WINDOW_FPS,
-    ) -> None:
+    def __init__(self, width: int, height: int, title: str, hide: bool = False) -> None:
         self._width = width
         self._height = height
         self._title = title
         self._hide = hide
-        self._fps = fps
-        self._nb_frames: int = 0
-        self._event_dispatcher = event_manager
-        self._render_manager = render_manager
-        self._task_manager = task_manager
-        self._running: bool = True
-
         self._cursor_is_default = True
 
     @property
-    def running(self) -> bool:
-        return self._running
-
-    @running.setter
-    def running(self, running: bool) -> None:
-        self._running = running
-
-    @property
-    def nb_frames(self) -> int:
-        return self._nb_frames
-
-    @property
     def width(self) -> int:
+        # NB: width must always be current screen width, so that code can get screen width from this property.
         return self._width
 
     @property
     def height(self) -> int:
+        # NB: height must always be current screen height, so that code can get screen height from this property.
         return self._height
 
     @property
     def title(self) -> str:
         return self._title
-
-    @abstractmethod
-    def _set_text_cursor(self) -> None: ...
-
-    @abstractmethod
-    def _set_default_cursor(self) -> None: ...
-
-    @abstractmethod
-    def screenshot(self) -> io.BytesIO: ...
 
     @abstractmethod
     def start(self) -> None: ...
@@ -134,29 +87,44 @@ class AbstractWindowing(ABC):
     def stop(self) -> None: ...
 
     @abstractmethod
-    def resize_screen(self, width: int, height: int) -> None: ...
+    def poll_events(self) -> Iterator[VidereEvent]:
+        """Drain the OS event queue and yield translated `VidereEvent`s.
 
-    @abstractmethod
-    def _step(self, fps: int | None = None) -> None:
-        """
-        Render a frame.
-        If fps is None, should use self._fps.
-        If fps is valid (> 0), should wait enough so that interface frame rate is almost fps.
-        If fps is invalid (<= 0), do not wait. May be used to get a single step without any waiting.
+        Backend-specific: OS events become videre events, the window's own
+        events are handled internally (a resize updates the tracked size; a
+        close yields an `ExitEvent`), and any quirk-compensation (e.g. a
+        synthetic hover motion) is emitted here. `Window` dispatches whatever is
+        yielded and stops on an `ExitEvent`.
         """
         ...
 
-    def run(self) -> None:
-        try:
-            self.start()
-            while self._running:
-                self.step()
-        finally:
-            self.stop()
+    @abstractmethod
+    def present(self) -> None:
+        """Present the frame the renderer just painted (swap / flip buffers)."""
+        ...
 
-    def step(self, fps: int | None = None) -> None:
-        self._step(fps)
-        self._nb_frames += 1
+    @abstractmethod
+    def tick(self, fps: int) -> None:
+        """Wait so the frame rate is about `fps`; no wait when `fps <= 0`."""
+        ...
+
+    @abstractmethod
+    def screenshot(self) -> io.BytesIO: ...
+
+    @abstractmethod
+    def resize_screen(self, width: int, height: int) -> None: ...
+
+    @abstractmethod
+    def post_event(self, event: VidereEvent) -> None:
+        """Inject a videre event so it resurfaces through `poll_events` — the
+        real OS event path, used by `FakeUser`."""
+        ...
+
+    @abstractmethod
+    def _set_text_cursor(self) -> None: ...
+
+    @abstractmethod
+    def _set_default_cursor(self) -> None: ...
 
     def set_text_cursor(self) -> None:
         self._set_text_cursor()
@@ -169,14 +137,8 @@ class AbstractWindowing(ABC):
     def cursor_is_default(self) -> bool:
         return self._cursor_is_default
 
-    def _handle_exit(self) -> None:
-        self._running = False
-
     def _handle_resize(self, width: int, height: int) -> None:
         self._width, self._height = width, height
-
-    @abstractmethod
-    def post_event(self, event: VidereEvent) -> None: ...
 
 
 class AbstractBackend(ABC):
@@ -200,10 +162,6 @@ class AbstractBackend(ABC):
         width: int,
         height: int,
         title: str,
-        event_manager: Callable[[VidereEvent], VidereTask | None],
-        render_manager: Callable[[Rendering], None],
-        task_manager: TaskManager,
         hide: bool = False,
-        fps: int = WINDOW_FPS,
         dpi_aware: bool = False,
     ) -> AbstractWindowing: ...
