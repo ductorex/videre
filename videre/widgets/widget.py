@@ -20,8 +20,8 @@ class Widget(ABC):
 
     __slots__ = (
         "_key",
-        "_old",
-        "_new",
+        "_dirty",
+        "_props",
         "_surface",
         "_old_update",
         "_transient_state",
@@ -41,15 +41,16 @@ class Widget(ABC):
     ):
         super().__init__()
 
-        new: dict = {"weight": weight}
+        props: dict = {"weight": weight}
         if self._has_wprop("name"):
             if not isinstance(name, str):
                 name = ""
-            new["name"] = name
+            props["name"] = name
 
         self._key: str = key or str(id(self))
-        self._old = {}
-        self._new = new
+        # A widget starts dirty: it has no cached surface yet.
+        self._dirty = True
+        self._props = props
         self._old_update: tuple[Window, int | None, int | None] | None = None
         self._transient_state = {}
         self._surface: Drawer | None = None
@@ -245,27 +246,64 @@ class Widget(ABC):
     def _assert_wprop(cls, name):
         assert cls._has_wprop(name), f"{cls.__name__}: unknown widget property: {name}"
 
+    def _mark_dirty(self):
+        """Flag this widget for redraw and bubble the flag up to the root.
+
+        The climb stops at the first ancestor already flagged: once a widget is
+        dirty, all its ancestors are dirty too, so `render()` reaches it. Cost is
+        O(depth) per real change, not O(tree) per frame.
+        """
+        self._dirty = True
+        self._mark_ancestors_dirty()
+
+    def _mark_ancestors_dirty(self):
+        """Dirty the ancestors so a render descends to this widget, without
+        flagging the widget itself. An animation uses this to stay reachable every
+        frame while still redrawing only when its own content actually changes.
+        """
+        parent = self._parent
+        while parent is not None and not parent._dirty:
+            parent._dirty = True
+            parent = parent._parent
+
     def _set_wprop(self, name: str, value: Any):
         self._assert_wprop(name)
-        self._new[name] = value
+        if self._props.get(name) != value:
+            self._props[name] = value
+            self._mark_dirty()
 
     def _set_wprops(self, **kwargs):
-        for name in kwargs:
+        changed = False
+        for name, value in kwargs.items():
             self._assert_wprop(name)
-        self._new.update(kwargs)
+            if self._props.get(name) != value:
+                self._props[name] = value
+                changed = True
+        if changed:
+            self._mark_dirty()
 
     def _get_wprop(self, name: str) -> Any:
         self._assert_wprop(name)
-        return self._new.get(name)
+        return self._props.get(name)
+
+    def _set_transient(self, key: str, value: Any):
+        """Set a transient (one-render) flag and mark the widget dirty.
+
+        Transient state is cleared after each render; unlike a wprop it does not
+        persist, but it must still trigger (and bubble) a redraw.
+        """
+        self._transient_state[key] = value
+        self._mark_dirty()
 
     def update(self):
         self._transient_state["redraw"] = True
+        self._mark_dirty()
 
     def has_changed(self) -> bool:
-        return self._old != self._new or bool(self._transient_state)
+        return self._dirty
 
     def flush_changes(self):
-        self._old = self._new.copy()
+        self._dirty = False
         self._transient_state.clear()
 
     def render(
@@ -280,9 +318,9 @@ class Widget(ABC):
             self._rc += 1
             self._debug("render", self._rc)
             self._surface = self.draw(*new_update)
-        self._old = self._new.copy()
         self._old_update = new_update
         self._transient_state.clear()
+        self._dirty = False
         assert self._surface is not None
         return self._surface
 

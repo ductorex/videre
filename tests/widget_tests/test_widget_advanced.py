@@ -68,13 +68,15 @@ class TestWidgetAdvanced:
 
     def test_widget_update_mechanism(self, fake_win):
         widget = Text(weight=1)
+        fake_win.controls = [widget]
+        fake_win.render()
+        assert not widget.has_changed()
 
-        initial_old_state = dict(widget._old)
         widget.weight = 2
+        assert widget.has_changed()
 
-        widget.render(fake_win, 0, 0)
-
-        assert widget._old != initial_old_state
+        fake_win.render()
+        assert not widget.has_changed()
 
     def test_widget_key_property(self):
         widget1 = EmptyWidget()

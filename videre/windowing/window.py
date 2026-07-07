@@ -58,6 +58,7 @@ class Window:
         "_fps",
         "_running",
         "_nb_frames",
+        "_frame_requests",
     )
 
     def __init__(
@@ -89,6 +90,9 @@ class Window:
         self._fps = fps
         self._running = True
         self._nb_frames = 0
+        # Widgets asking to be redrawn next frame (animation tick). Drained every
+        # frame, so a widget that stops being drawn drops out on its own.
+        self._frame_requests: set[Widget] = set()
         self._font_size_pts = font_size
         self._font_height: int | None = None
 
@@ -218,6 +222,7 @@ class Window:
         for event in self._windowing.poll_events():
             self._dispatch_event(event)
         self._refresh()
+        self._drain_frame_requests()
         self._windowing.present()
         self._task_manager.manage_tasks()
         self._nb_frames += 1
@@ -247,6 +252,29 @@ class Window:
         # resize forces a repaint via `_dispatch_event` (a resize clears the
         # buffer even at unchanged size).
         self._renderer.render_drawer(self._layout.render(self, self.width, self.height))
+
+    def request_frame(self, widget: Widget) -> None:
+        """Ask for `widget` to be redrawn on the next frame.
+
+        Animated widgets call this from their own `render()`, once per frame, to
+        keep ticking. The request set is rebuilt from scratch each frame (see
+        `_drain_frame_requests`), so a widget that is no longer drawn — e.g.
+        detached via `container.controls = [...]` — simply stops re-requesting and
+        drops out. There is nothing to unregister.
+        """
+        self._frame_requests.add(widget)
+
+    def _drain_frame_requests(self) -> None:
+        # Keep each requester reachable next frame by dirtying its ancestors (not
+        # the widget itself), then clear the set. Runs after `_refresh` so it arms
+        # the *next* frame. Dirtying only the ancestors lets an animation redraw
+        # its own surface just on the frames its content actually changes, while
+        # still being visited every frame to tick its clock.
+        if self._frame_requests:
+            requests = self._frame_requests
+            self._frame_requests = set()
+            for widget in requests:
+                widget._mark_ancestors_dirty()
 
     def notify(self, notification: Any):
         self._post_event(NotificationTask(notification))

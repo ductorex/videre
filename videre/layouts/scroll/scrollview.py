@@ -126,7 +126,7 @@ class ScrollView(AbstractLayout):
         self.update()
 
     def _add_scroll_event_y(self):
-        self._transient_state["scroll_event_y"] = True
+        self._set_transient("scroll_event_y", True)
 
     def _has_scroll_event_y(self) -> bool:
         return bool(self._transient_state.get("scroll_event_y"))
@@ -171,7 +171,7 @@ class ScrollView(AbstractLayout):
             self._ctrl.rendered_width,
             self._content_x,
         ):
-            self._transient_state["h"] = horizontal
+            self._set_transient("h", horizontal)
         if self._can_scroll(
             vertical,
             self.vertical_scroll,
@@ -179,7 +179,7 @@ class ScrollView(AbstractLayout):
             self._ctrl.rendered_height,
             self._content_y,
         ):
-            self._transient_state["v"] = vertical
+            self._set_transient("v", vertical)
             self._add_scroll_event_y()
 
     @classmethod

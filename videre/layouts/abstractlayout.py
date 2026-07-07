@@ -55,11 +55,6 @@ class AbstractLayout(Widget):
             matches.extend(control.collect_matches(callback))
         return matches
 
-    def has_changed(self) -> bool:
-        return super().has_changed() or any(
-            ctrl.has_changed() for ctrl in self._controls()
-        )
-
     def flush_changes(self):
         super().flush_changes()
         for ctrl in self._controls():
